@@ -4,26 +4,53 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// AppConfig хранит настройки генерации штрихкодов и печати по умолчанию.
+// AppConfig хранит настройки принтера, этикетки, штрихкодов и режимов работы по умолчанию.
 type AppConfig struct {
+	// Параметры принтера и печати
+	Address   string  `json:"address"`   // MAC-адрес или UUID принтера (пусто = автопоиск N1-)
+	Length    float64 `json:"length"`    // длина этикетки вдоль подачи, мм (по умолчанию 50)
+	Height    float64 `json:"height"`    // ширина/высота ленты поперёк подачи, мм (по умолчанию 14)
+	Density   int     `json:"density"`   // плотность прожига головки 1..3 (по умолчанию 2)
+	Label     string  `json:"label"`     // тип этикетки (пусто = автоопределение по RFID)
+	Flip      bool    `json:"flip"`      // переворот изображения на 180°
+	Threshold int     `json:"threshold"` // порог чёрно-белого растра 1..255 (по умолчанию 200)
+	Copies    int     `json:"copies"`    // количество копий (по умолчанию 1)
+
+	// Режим сервера/очереди и каталоги
+	KeepAlive bool   `json:"keepAlive"` // true = Keep-Alive (удерживать связь), false = On-Demand
+	SaveDir   string `json:"saveDir"`   // папка для PNG-превью (пусто = папка программы)
+	WatchDir  string `json:"watchDir"`  // папка мониторинга очереди (пусто = NiimbotQueue рядом с exe)
+
+	// Параметры штрихкодов и QR-кодов
 	BcFormat       string `json:"bcFormat"`       // auto | code128 | qr | qrl | qrr
 	DefaultQrSide  string `json:"defaultQrSide"`  // left | right (используется при bcFormat == "qr")
 	FontName       string `json:"fontName"`       // имя системного шрифта
-	IsMainTextBold bool   `json:"isMainTextBold"` // полужирный шрифт для основной подписи
+	IsMainTextBold bool   `json:"isMainTextBold"` // полужирный шрифт основной подписи
 	FontSize       string `json:"fontSize"`       // -1 (авто), 0 (скрыть), N (pt), Np (%)
 	OffsetPx       int    `json:"offsetPx"`       // горизонтальный сдвиг в точках
-	SideMarginPx   int    `json:"sideMarginPx"`   // боковые поля в точках
+	SideMarginPx   int    `json:"sideMarginPx"`   // боковые поля / тихие зоны в точках
 	MarginPx       int    `json:"marginPx"`       // верхнее и нижнее поля в точках
-	GapPx          int    `json:"gapPx"`          // зазор между штрихкодом/QR и текстом
-	TextGapPx      int    `json:"textGapPx"`      // зазор до верхнего и нижнего текста
-	SaveDir        string `json:"saveDir"`        // папка для сохранения PNG-макетов
+	GapPx          int    `json:"gapPx"`          // зазор между кодом и подписью в точках
+	TextGapPx      int    `json:"textGapPx"`      // зазор до верхнего и нижнего текста в точках
 }
 
-// DefaultConfig возвращает стандартные настройки.
+// DefaultConfig возвращает заводские настройки по умолчанию.
 func DefaultConfig() AppConfig {
 	return AppConfig{
+		Address:        "",
+		Length:         50.0,
+		Height:         14.0,
+		Density:        2,
+		Label:          "",
+		Flip:           false,
+		Threshold:      200,
+		Copies:         1,
+		KeepAlive:      true,
+		SaveDir:        "",
+		WatchDir:       "",
 		BcFormat:       "auto",
 		DefaultQrSide:  "left",
 		FontName:       "",
@@ -34,17 +61,27 @@ func DefaultConfig() AppConfig {
 		MarginPx:       4,
 		GapPx:          4,
 		TextGapPx:      4,
-		SaveDir:        "",
 	}
 }
 
-// configPath возвращает путь к config.json (рядом с exe, если он там есть, иначе в UserConfigDir).
+// executableDir возвращает каталог исполняемого файла (или пустую строку при запуске через go run).
+func executableDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Dir(exe)
+	if strings.Contains(strings.ToLower(dir), "go-build") {
+		return ""
+	}
+	return dir
+}
+
+// configPath определяет путь к файлу config.json.
+// Приоритет отдаётся config.json рядом с исполняемым файлом (портативный режим).
 func configPath() string {
-	if exe, err := os.Executable(); err == nil {
-		local := filepath.Join(filepath.Dir(exe), "config.json")
-		if _, err := os.Stat(local); err == nil {
-			return local
-		}
+	if exeDir := executableDir(); exeDir != "" {
+		return filepath.Join(exeDir, "config.json")
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -53,28 +90,58 @@ func configPath() string {
 	return filepath.Join(dir, "niimbot", "config.json")
 }
 
-// LoadConfig читает настройки из config.json или возвращает значения по умолчанию.
-func LoadConfig() AppConfig {
-	cfg := DefaultConfig()
-	data, err := os.ReadFile(configPath())
-	if err != nil {
-		return cfg
+// normalizeConfig проверяет границы значений и заполняет пустые поля значениями по умолчанию.
+func normalizeConfig(cfg *AppConfig) {
+	def := DefaultConfig()
+	if cfg.Length <= 0 {
+		cfg.Length = def.Length
 	}
-	_ = json.Unmarshal(data, &cfg)
+	if cfg.Height <= 0 {
+		cfg.Height = def.Height
+	}
+	if cfg.Density < 1 || cfg.Density > 3 {
+		cfg.Density = def.Density
+	}
+	if cfg.Threshold < 1 || cfg.Threshold > 255 {
+		cfg.Threshold = def.Threshold
+	}
+	if cfg.Copies < 1 {
+		cfg.Copies = def.Copies
+	}
 	if cfg.BcFormat == "" {
-		cfg.BcFormat = "auto"
+		cfg.BcFormat = def.BcFormat
 	}
 	if cfg.DefaultQrSide != "right" {
 		cfg.DefaultQrSide = "left"
 	}
 	if cfg.FontSize == "" {
-		cfg.FontSize = "-1"
+		cfg.FontSize = def.FontSize
 	}
+}
+
+// LoadConfig читает настройки из config.json. Если файл отсутствует — создаёт его автоматически.
+func LoadConfig() AppConfig {
+	cfg := DefaultConfig()
+	path := configPath()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			_ = SaveConfig(cfg)
+		}
+		return cfg
+	}
+
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return DefaultConfig()
+	}
+	normalizeConfig(&cfg)
 	return cfg
 }
 
-// SaveConfig записывает настройки в config.json.
+// SaveConfig сохраняет конфигурацию в config.json в форматированном виде.
 func SaveConfig(cfg AppConfig) error {
+	normalizeConfig(&cfg)
 	path := configPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err

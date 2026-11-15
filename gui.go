@@ -515,7 +515,29 @@ func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) 
 
 
 	// Список системных шрифтов для конструктора.
-	mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
+// Конфигурация программы по умолчанию (config.json)
+mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+switch r.Method {
+case http.MethodGet:
+writeJSON(w, LoadConfig())
+case http.MethodPost:
+var cfg AppConfig
+if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+writeErr(w, http.StatusBadRequest, err)
+return
+}
+if err := SaveConfig(cfg); err != nil {
+writeErr(w, http.StatusInternalServerError, err)
+return
+}
+activeCfg = LoadConfig()
+writeJSON(w, activeCfg)
+default:
+w.WriteHeader(http.StatusMethodNotAllowed)
+}
+})
+
+mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
 		families := fontFamiliesForPicker()
 		if families == nil {
 			writeErr(w, http.StatusInternalServerError,
