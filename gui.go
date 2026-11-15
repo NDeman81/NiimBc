@@ -6,7 +6,11 @@
 package main
 
 import (
+	"bytes"
 	"embed"
+	"encoding/base64"
+	_ "image/gif"
+	_ "image/jpeg"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -169,6 +173,7 @@ func withPrinter(address string, fn func(*Printer) error) error {
 	if err != nil {
 		return err
 	}
+	p.printMode = LoadConfig().PrintMode
 	defer p.Close()
 	if _, err := p.Handshake(); err != nil {
 		return err
@@ -212,17 +217,28 @@ func apiStatus(address string) (map[string]any, error) {
 
 // printRequest — тело запросов на печать.
 type printRequest struct {
-	Items     []string  `json:"items"`    // строки данных: одна запись на этикетку
-	Template  string    `json:"template"` // шаблон этикетки с {1}, {2}… (необязательно)
-	Elements  []Element `json:"elements"` // шаблон из конструктора (важнее Template)
-	Length    float64   `json:"length"`
-	Font      float64   `json:"font"`
-	Density   int       `json:"density"`
-	Label     string    `json:"label"`
-	Copies    int       `json:"copies"`
-	Flip      bool      `json:"flip"`
-	Threshold int       `json:"threshold"` // порог чёрно-белого, 0..255; 0 — по умолчанию
-	Address   string    `json:"address"`
+Mode         string    `json:"mode"`         // barcode | single | image | series
+Items        []string  `json:"items"`        // строки данных: одна запись на этикетку
+Template     string    `json:"template"`     // шаблон этикетки с {1}, {2}… (необязательно)
+Elements     []Element `json:"elements"`     // шаблон из конструктора (важнее Template)
+Length       float64   `json:"length"`
+Font         float64   `json:"font"`
+Density      int       `json:"density"`
+Label        string    `json:"label"`
+Copies       int       `json:"copies"`
+Flip         bool      `json:"flip"`
+Threshold    int       `json:"threshold"`    // порог чёрно-белого, 0..255; 0 — по умолчанию
+Address      string    `json:"address"`
+BcFormat     string    `json:"bcFormat"`     // auto | code128 | qr | qrl | qrr
+TopText      string    `json:"topText"`      // верхний текст штрихкода
+BottomText   string    `json:"bottomText"`   // нижний текст штрихкода
+FontName     string    `json:"fontName"`     // шрифт подписи штрихкода
+FontSize     string    `json:"fontSize"`     // размер подписи: -1, 0, N, Np
+Bold         bool      `json:"bold"`         // жирная подпись штрихкода
+MarginPx     int       `json:"marginPx"`     // поля верх/низ, px
+SideMarginPx int       `json:"sideMarginPx"` // боковые поля, px
+GapPx        int       `json:"gapPx"`        // зазор код-текст, px
+ImageData    string    `json:"imageData"`    // data:URL картинки для режима image
 }
 
 // splitFields разбирает строку данных на столбцы: ; , или табуляция.
@@ -350,6 +366,53 @@ func (r printRequest) threshold() uint8 {
 // renderOne готовит одну этикетку: по шаблону конструктора, если он задан,
 // иначе прежним способом — текстом с шаблоном или строкой через |.
 func renderOne(req printRequest, item string, length float64) (*image.Gray, error) {
+if req.Mode == "barcode" {
+cfg := LoadConfig()
+return RenderBarcodeLabel(BarcodeOptions{
+Data:           item,
+Format:         req.BcFormat,
+LengthMM:       length,
+TopText:        req.TopText,
+BottomText:     req.BottomText,
+FontName:       req.FontName,
+IsMainTextBold: req.Bold,
+FontSize:       req.FontSize,
+OffsetPx:       cfg.OffsetPx,
+SideMarginPx:   req.SideMarginPx,
+MarginPx:       req.MarginPx,
+GapPx:          req.GapPx,
+TextGapPx:      cfg.TextGapPx,
+}, cfg)
+}
+if req.Mode == "image" {
+raw := strings.TrimSpace(req.ImageData)
+if idx := strings.Index(raw, ","); idx >= 0 {
+raw = raw[idx+1:]
+}
+if raw == "" {
+return nil, fmt.Errorf("выберите файл картинки")
+}
+bin, err := base64.StdEncoding.DecodeString(raw)
+if err != nil {
+return nil, fmt.Errorf("ошибка чтения картинки: %w", err)
+}
+src, _, err := image.Decode(bytes.NewReader(bin))
+if err != nil {
+return nil, fmt.Errorf("неподдерживаемый формат картинки: %w", err)
+}
+dst := NewLabelImage(length)
+sb := src.Bounds()
+dw, dh := dst.Bounds().Dx(), dst.Bounds().Dy()
+scale := float64(dw) / float64(sb.Dx())
+if sy := float64(dh) / float64(sb.Dy()); sy < scale {
+scale = sy
+}
+nw, nh := maxInt(1, int(float64(sb.Dx())*scale)), maxInt(1, int(float64(sb.Dy())*scale))
+ox, oy := (dw-nw)/2, (dh-nh)/2
+sub := dst.SubImage(image.Rect(ox, oy, ox+nw, oy+nh)).(*image.Gray)
+drawScaled(sub, src)
+return dst, nil
+}
 	if len(req.Elements) > 0 {
 		img, err := RenderTemplate(LabelTemplate{LengthMM: length, Elements: req.Elements},
 			splitFields(item))

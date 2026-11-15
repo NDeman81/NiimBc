@@ -3,7 +3,7 @@
 
 const $ = (id) => document.getElementById(id);
 
-let mode = 'single';
+let mode = 'barcode';
 let previewURL = null;
 
 // ---------------------------------------------------------------- состояние
@@ -46,8 +46,11 @@ document.querySelectorAll('.tab').forEach((tab) => {
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
     mode = tab.dataset.mode;
-    $('pane-single').classList.toggle('hidden', mode !== 'single');
-    $('pane-series').classList.toggle('hidden', mode !== 'series');
+    if ($('pane-barcode')) $('pane-barcode').classList.toggle('hidden', mode !== 'barcode');
+    if ($('pane-single')) $('pane-single').classList.toggle('hidden', mode !== 'single');
+    if ($('pane-image')) $('pane-image').classList.toggle('hidden', mode !== 'image');
+    if ($('pane-series')) $('pane-series').classList.toggle('hidden', mode !== 'series');
+    if ($('text-params-block')) $('text-params-block').classList.toggle('hidden', mode === 'image');
     updateSeriesCount();
   };
 });
@@ -76,20 +79,54 @@ $('series-text').addEventListener('input', updateSeriesCount);
 // ---------------------------------------------------------------- настройки
 
 function collectRequest() {
-  const items = mode === 'single'
-    ? [$('single-text').value]
-    : seriesItems();
-
-  return {
-    items,
-    template: mode === 'series' ? $('template').value : '',
-    length: parseFloat($('length').value) || 30,
+  const base = {
+    mode,
+    length: parseFloat($('length').value) || 50,
     font: parseFloat($('font').value) || 0,
     density: parseInt($('density').value, 10) || 2,
     label: $('label').value,
     copies: parseInt($('copies').value, 10) || 1,
     flip: $('flip').checked,
-      autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
+    threshold: $('threshold') ? (parseInt($('threshold').value, 10) || 200) : 200,
+    address: $('address') ? $('address').value.trim() : ''
+  };
+
+  if (mode === 'barcode') {
+    const val = $('bc-data') ? $('bc-data').value.trim() : '';
+    return {
+      ...base,
+      items: val ? [val] : [],
+      bcFormat: $('cfg-bcformat') ? $('cfg-bcformat').value : 'auto',
+      topText: $('bc-top') ? $('bc-top').value : '',
+      bottomText: $('bc-bot') ? $('bc-bot').value : '',
+      fontName: $('cfg-fontname') ? $('cfg-fontname').value.trim() : '',
+      fontSize: $('cfg-fontsize') ? ($('cfg-fontsize').value.trim() || '-1') : '-1',
+      bold: $('cfg-bold') ? $('cfg-bold').checked : false,
+      marginPx: $('cfg-margin') ? (parseInt($('cfg-margin').value, 10) || 0) : 4,
+      sideMarginPx: $('cfg-sidemargin') ? (parseInt($('cfg-sidemargin').value, 10) || 0) : 10,
+      gapPx: $('cfg-gap') ? (parseInt($('cfg-gap').value, 10) || 0) : 4
+    };
+  }
+
+  if (mode === 'image') {
+    return {
+      ...base,
+      imageData: uploadedImageData,
+      items: uploadedImageData ? ['image'] : []
+    };
+  }
+
+  if (mode === 'single') {
+    return {
+      ...base,
+      items: [$('single-text').value]
+    };
+  }
+
+  return {
+    ...base,
+    items: seriesItems(),
+    template: $('template').value
   };
 }
 
@@ -345,6 +382,27 @@ updateSeriesCount();
 // --------------------------------------------------------------------------
 // Единое чтение и сохранение конфигурации (config.json) без дублей полей
 // --------------------------------------------------------------------------
+let uploadedImageData = '';
+if ($('img-file')) {
+  $('img-file').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      uploadedImageData = '';
+      if ($('img-file-name')) $('img-file-name').textContent = 'Файл не выбран.';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      uploadedImageData = String(reader.result || '');
+      if ($('img-file-name')) $('img-file-name').textContent = 'Выбран файл: ' + file.name;
+      if (typeof schedulePreview === 'function') schedulePreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+
+
 let currentConfig = {};
 
 async function loadAppConfig() {
@@ -436,3 +494,57 @@ if ($('btn-save-cfg')) {
 }
 
 loadAppConfig();
+['bc-data', 'bc-top', 'bc-bot', 'cfg-fontname', 'cfg-fontsize', 'cfg-margin', 'cfg-sidemargin', 'cfg-gap'].forEach(id => {
+  if ($(id)) $(id).addEventListener('input', () => { if (typeof schedulePreview === 'function') schedulePreview(); });
+});
+['cfg-bcformat', 'cfg-bold'].forEach(id => {
+  if ($(id)) $(id).addEventListener('change', () => { if (typeof schedulePreview === 'function') schedulePreview(); });
+});
+
+// Сохранение текущего макета в PNG-файл (учитывая autoFileName и saveFile)
+function buildDownloadName(req) {
+  const autoName = $('cfg-autoname') ? $('cfg-autoname').checked : false;
+  if (autoName && req.items && req.items.length > 0 && req.items[0].trim()) {
+    const clean = req.items[0].trim()
+      .replace(/[\\/:*?"<>|\s]+/g, '_')
+      .replace(/^[._]+|[._]+$/g, '')
+      .slice(0, 80);
+    if (clean) return clean + '.png';
+  }
+  let name = $('cfg-savefile') ? $('cfg-savefile').value.trim() : '';
+  if (!name) name = 'niimbot_label_preview.png';
+  if (!name.toLowerCase().endsWith('.png')) name += '.png';
+  return name;
+}
+
+if ($('save-file-btn')) {
+  $('save-file-btn').onclick = async () => {
+    const req = collectRequest();
+    if (!req.items.length || !req.items[0].trim()) {
+      alert('Сначала заполните данные этикетки');
+      return;
+    }
+    try {
+      const r = await fetch('/api/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || 'не удалось построить макет');
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = buildDownloadName(req);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+}

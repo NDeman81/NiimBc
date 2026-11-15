@@ -317,3 +317,49 @@ button:disabled { opacity: .45; cursor: default; }
 .sys-box .row {
   margin-top: 12px;
 }
+
+.text-row-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1.1fr auto;
+  gap: 12px 14px;
+  align-items: start;
+}
+.text-row-grid label {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.text-row-grid input[type="text"] {
+  height: 36px;
+  box-sizing: border-box;
+  margin-top: 4px;
+}
+.text-row-grid small {
+  margin-top: 3px;
+  line-height: 1.2;
+}
+.text-row-grid .bold-cell {
+  padding-top: 28px;
+}
+.text-row-grid .bold-cell .check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.image-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px 14px;
+  align-items: start;
+}
+.image-grid label {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.image-grid input {
+  height: 36px;
+  box-sizing: border-box;
+  margin-top: 4px;
+}

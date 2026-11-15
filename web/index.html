@@ -1,186 +1,209 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NIIMBOT N1 — печать этикеток</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NIIMBOT N1 — печать этикеток</title>
+  <link rel="stylesheet" href="style.css?v=6">
+  <style>.hidden { display: none !important; }</style>
 </head>
 <body>
-
-<header>
-  <div class="brand">
-    <span class="dot"></span>
-    <h1>NIIMBOT N1</h1>
-  </div>
-  <div id="status" class="status">читаю состояние…</div>
-  <a href="/designer.html" class="design-link">Конструктор этикеток</a>
-  <button id="refresh" class="ghost">Обновить</button>
-</header>
-
-<main>
-  <!-- ЛЕВАЯ КОЛОНКА: что печатать -->
-  <section class="panel">
-    <div class="tabs">
-      <button class="tab active" data-mode="single">Одна этикетка</button>
-      <button class="tab" data-mode="series">Серия</button>
+  <header>
+    <div class="brand">
+      <div class="dot"></div>
+      <h1>NIIMBOT N1</h1>
     </div>
+    <div id="status" class="status">читаю состояние…</div>
+    <a href="designer.html" class="design-link">Конструктор этикеток</a>
+    <button id="refresh" class="ghost">Обновить</button>
+  </header>
 
-    <div id="pane-single" class="pane">
-      <label>Текст этикетки
-        <textarea id="single-text" rows="3" placeholder="1 гульден|1734">1 гульден|1734</textarea>
-      </label>
-      <p class="hint">Разделитель <code>|</code> переносит текст на новую строку внутри этикетки.</p>
-    </div>
+  <main>
+    <section class="panel">
+      <div class="tabs">
+        <button class="tab active" data-mode="barcode">Штрихкод / QR</button>
+        <button class="tab" data-mode="single">Текст</button>
+        <button class="tab" data-mode="image">Картинка</button>
+        <button class="tab" data-mode="series">Серия</button>
+      </div>
 
-    <div id="pane-series" class="pane hidden">
-      <label>Список этикеток — по одной в строке
-        <textarea id="series-text" rows="10" placeholder="Зап. Фрисландия;1 гульден 1734;XF&#10;Голландия;1 гульден 1762;VF&#10;Утрехт;2 гульдена 1785;UNC"></textarea>
-      </label>
-      <div class="row">
-        <button id="csv-btn" class="ghost">Загрузить CSV</button>
-        <input type="file" id="csv-file" accept=".csv,.txt" hidden>
-        <span id="series-count" class="hint">0 этикеток</span>
-        <span id="csv-cols" class="hint"></span>
+      <div id="pane-barcode">
+        <div class="grid design-grid">
+          <label>Данные штрихкода / QR
+            <input type="text" id="bc-data" value="109660401000099999" placeholder="Например: 109660401000099999 или INV-2026">
+          </label>
+          <label>Верхний текст <input type="text" id="bc-top" placeholder="необязательно"></label>
+          <label>Нижний текст <input type="text" id="bc-bot" placeholder="необязательно"></label>
+        </div>
+        <div class="grid design-grid" style="margin-top:10px">
+          <label>Формат кода
+            <select id="cfg-bcformat">
+              <option value="auto">auto (ITF / Code 128)</option>
+              <option value="code128">code128 (принудительно)</option>
+              <option value="qr">qr (сторона справа)</option>
+              <option value="qrl">qrl (QR слева, текст справа)</option>
+              <option value="qrr">qrr (QR справа, текст слева)</option>
+            </select>
+          </label>
+          <label>Сторона QR («qr»)
+            <select id="cfg-qrside">
+              <option value="left">Слева (left)</option>
+              <option value="right">Справа (right)</option>
+            </select>
+          </label>
+          <label>Зазор код-текст, px <input type="number" id="cfg-gap" min="0" value="4"></label>
+        </div>
+      </div>
+
+      <div id="pane-single" class="hidden">
+        <label>Текст этикетки
+          <textarea id="single-text" rows="3">1 гульден|1734</textarea>
+        </label>
+        <p class="hint">Разделитель <code>|</code> или перенос строки делит текст на несколько строк внутри этикетки.</p>
+      </div>
+
+      <div id="pane-image" class="hidden">
+        <div class="image-grid">
+          <label>Выберите изображение (PNG, JPEG, GIF)
+            <input type="file" id="img-file" accept="image/png,image/jpeg,image/gif,image/webp">
+          </label>
+          <label>Порог Ч/Б (1..255)
+            <input type="number" id="threshold" value="200" min="1" max="255">
+            <small>больше — жирнее (200 норма)</small>
+          </label>
+        </div>
+        <p id="img-file-name" class="hint">Картинка будет вписана по размеру этикетки с учётом порога Ч/Б.</p>
+      </div>
+
+      <div id="pane-series" class="hidden">
+        <label>Список этикеток — по одной в строке
+          <textarea id="series-text" rows="5" placeholder="Одна этикетка в строке или CSV"></textarea>
+        </label>
+        <div class="row">
+          <input type="file" id="csv-file" accept=".csv,.txt,.tsv" class="hidden">
+          <button id="csv-btn" class="ghost">Загрузить CSV</button>
+          <span id="series-count" class="hint">0 этикеток</span>
+          <span id="csv-cols" class="hint"></span>
+        </div>
         <label class="check"><input type="checkbox" id="csv-header" checked> первая строка — заголовки</label>
+        <label>Порядок столбцов на этикетке
+          <input type="text" id="colorder" placeholder="Например: 4, 1, 2, 5">
+        </label>
+        <label>Шаблон этикетки
+          <textarea id="template" rows="3" placeholder="{1}&#10;{2}"></textarea>
+        </label>
       </div>
-      <p class="hint">Excel: «Сохранить как» → CSV. Столбцы подставляются в шаблон как <code>{1}</code>, <code>{2}</code>…</p>
+      <hr class="settings-divider">
 
-      <label>Порядок столбцов на этикетке
-        <input type="text" id="colorder" placeholder="4, 1, 2, 5">
-        <small>Номера столбцов сверху вниз. Например <code>4, 1, 2, 5</code> — на первой строке этикетки столбец 4, на второй — 1, дальше 2 и 5. Шаблон ниже заполнится сам.</small>
-      </label>
-
-      <label>Шаблон этикетки <small>необязательно: каждая строка шаблона — строка на этикетке, <code>{1}</code>, <code>{2}</code>… — столбцы данных</small>
-        <textarea id="template" rows="4" placeholder="{1}&#10;{2}&#10;{3}"></textarea>
-      </label>
-      <p class="hint">Без шаблона одна строка данных = одна этикетка, а <code>|</code> переносит текст на новую строку.</p>
-    </div>
-    <hr class="settings-divider">
-
-    <!-- Оперативные параметры дизайна текущей этикетки -->
-    <div class="grid design-grid">
-      <label>Копий <input type="number" id="copies" value="1" min="1" max="99"></label>
-      <label>Кегль текста, px <input type="number" id="font" value="0" min="0" max="96" step="0.5">
-        <small>0 — автоподбор</small>
-      </label>
-      <label>Шрифт штрихкода <input type="text" id="cfg-fontname" placeholder="системный"></label>
-      <label>Подпись кода <input type="text" id="cfg-fontsize" placeholder="-1, 0, 35p">
-        <small>-1 авто, 0 скрыть</small>
-      </label>
-      <label>Поля верх/низ, px <input type="number" id="cfg-margin" min="0"></label>
-      <label>Боковые поля, px <input type="number" id="cfg-sidemargin" min="0"></label>
-      <label>Зазор код-текст, px <input type="number" id="cfg-gap" min="0"></label>
-    </div>
-    <div class="row checks">
-      <label class="check"><input type="checkbox" id="cfg-bold"> Жирная подпись кода</label>
-    </div>
-
-    <!-- Редко меняемые системные параметры рулона, принтера и путей -->
-    <details id="system-settings" class="sys-box">
-      <summary>Параметры рулона, принтера и путей (config.json)</summary>
-      <div class="grid sys-grid">
-        <label>Длина, мм <input type="number" id="length" value="50" step="0.5" min="10" max="300"></label>
-        <label>Ширина ленты, мм <input type="number" id="cfg-height" value="14" step="0.5" min="6" max="100"></label>
-        <label>Плотность (1..3) <input type="number" id="density" value="2" min="1" max="3"></label>
-        <label>Порог Ч/Б (1..255) <input type="number" id="threshold" value="200" min="1" max="255"></label>
-        <label>Тип этикетки
-          <select id="label">
-            <option value="">авто по RFID</option>
-            <option value="withgaps">withgaps (с зазорами)</option>
-            <option value="continuous">continuous (непрерывная)</option>
-            <option value="transparent">transparent (прозрачная)</option>
-            <option value="blackmarkgap">blackmarkgap (чёрная метка)</option>
-            <option value="heatshrink">heatshrink (термоусадка)</option>
-          </select>
-        </label>
-        <label>Адрес (MAC/UUID) <input type="text" id="address" placeholder="автопоиск N1-"></label>
-        <label>Режим сервера
-          <select id="cfg-keepalive">
-            <option value="true">Keep-Alive (постоянный)</option>
-            <option value="false">On-Demand (по запросу)</option>
-          </select>
-        </label>
-        <label>Формат кода
-          <select id="cfg-bcformat">
-            <option value="auto">auto (ITF / Code 128)</option>
-            <option value="code128">code128</option>
-            <option value="qr">qr (сторона ниже)</option>
-            <option value="qrl">qrl (QR слева)</option>
-            <option value="qrr">qrr (QR справа)</option>
-          </select>
-        </label>
-        <label>Сторона QR («qr»)
-          <select id="cfg-qrside">
-            <option value="left">Слева (left)</option>
-            <option value="right">Справа (right)</option>
-          </select>
-        </label>
-                <label>Режим печати
-          <select id="cfg-printmode">
-            <option value="fast">fast (быстрый пачками)</option>
-            <option value="safe">safe (построчный)</option>
-          </select>
-        </label>
-        <label>Уровень логов
-          <select id="cfg-loglevel">
-            <option value="info">info (основные шаги)</option>
-            <option value="error">error (только ошибки/итог)</option>
-            <option value="debug">debug (полный дамп BLE)</option>
-          </select>
-        </label>
-        <label>Сдвиг по X, px <input type="number" id="cfg-offset" value="0"></label>
+      <div id="text-params-block">
+        <div class="text-row-grid">
+          <label>Шрифт <input type="text" id="cfg-fontname" placeholder="системный"></label>
+          <label>Размер текста <input type="text" id="cfg-fontsize" value="-1" placeholder="-1, 0, 24, 35p">
+            <small>-1 авто, 0 скрыть код, N px, Np %</small>
+          </label>
+          <div class="bold-cell">
+            <label class="check"><input type="checkbox" id="cfg-bold"> Жирный текст</label>
+          </div>
+        </div>
+        <hr class="settings-divider">
       </div>
-      <label>Папка превью (пусто = папка программы)
-        <input type="text" id="cfg-savedir" placeholder="Например: C:\Labels\Preview">
-      </label>
-      <label>Имя файла превью (saveFile)
-        <input type="text" id="cfg-savefile" placeholder="niimbot_label_preview.png">
-      </label>
-      <label>Папка очереди (watchDir)
-        <input type="text" id="cfg-watchdir" placeholder="Например: C:\Labels\Queue">
-      </label>
-      <div class="row checks">
-        <label class="check"><input type="checkbox" id="flip"> Переворот на 180° (flip)</label>
-        <label class="check"><input type="checkbox" id="cfg-autoname"> Автоимя файла превью из данных</label>
+
+      <div class="grid design-grid">
+        <label>Копий каждой этикетки <input type="number" id="copies" value="1" min="1" max="99"></label>
+        <label>Поля верх/низ, px <input type="number" id="cfg-margin" min="0" value="4"></label>
+        <label>Боковые поля, px <input type="number" id="cfg-sidemargin" min="0" value="10"></label>
       </div>
+
+      <input type="hidden" id="font" value="0">
+
+      <details id="system-settings" class="sys-box">
+        <summary>Параметры рулона, принтера и путей (config.json)</summary>
+        <div class="grid sys-grid">
+          <label>Длина, мм <input type="number" id="length" value="50" step="0.5" min="10" max="300"></label>
+          <label>Ширина ленты, мм <input type="number" id="cfg-height" value="14" step="0.5" min="6" max="100"></label>
+          <label>Плотность (1..3) <input type="number" id="density" value="2" min="1" max="3"></label>
+          <label>Тип этикетки
+            <select id="label">
+              <option value="">авто по RFID</option>
+              <option value="withgaps">withgaps (с зазорами)</option>
+              <option value="continuous">continuous (непрерывная)</option>
+              <option value="transparent">transparent (прозрачная)</option>
+              <option value="blackmarkgap">blackmarkgap (чёрная метка)</option>
+              <option value="heatshrink">heatshrink (термоусадка)</option>
+            </select>
+          </label>
+          <label>Адрес (MAC/UUID) <input type="text" id="address" placeholder="автопоиск N1-"></label>
+          <label>Режим сервера
+            <select id="cfg-keepalive">
+              <option value="true">Keep-Alive (постоянный)</option>
+              <option value="false">On-Demand (по запросу)</option>
+            </select>
+          </label>
+          <label>Режим печати
+            <select id="cfg-printmode">
+              <option value="fast">fast (быстрый пачками)</option>
+              <option value="safe">safe (построчный)</option>
+            </select>
+          </label>
+          <label>Уровень логов
+            <select id="cfg-loglevel">
+              <option value="info">info (основные шаги)</option>
+              <option value="error">error (только ошибки/итог)</option>
+              <option value="debug">debug (полный дамп BLE)</option>
+            </select>
+          </label>
+          <label>Сдвиг по X, px <input type="number" id="cfg-offset" value="0"></label>
+        </div>
+        <label>Папка превью (пусто = папка программы)
+          <input type="text" id="cfg-savedir" placeholder="Например: C:\Labels\Preview">
+        </label>
+        <label>Имя файла превью (saveFile)
+          <input type="text" id="cfg-savefile" placeholder="niimbot_label_preview.png">
+        </label>
+        <label>Папка очереди (watchDir)
+          <input type="text" id="cfg-watchdir" placeholder="Например: C:\Labels\Queue">
+        </label>
+        <div class="row checks">
+          <label class="check"><input type="checkbox" id="flip"> Переворот на 180° (flip)</label>
+          <label class="check"><input type="checkbox" id="cfg-autoname"> Автоимя файла превью из данных</label>
+        </div>
+        <div class="row">
+          <button id="btn-save-cfg" class="primary">Сохранить в config.json</button>
+          <button id="btn-load-cfg" class="ghost">Загрузить из файла</button>
+        </div>
+        <p id="cfg-status" class="hint"></p>
+      </details>
+
+      <h2>Шаблоны</h2>
       <div class="row">
-        <button id="btn-save-cfg" class="primary">Сохранить в config.json</button>
-        <button id="btn-load-cfg" class="ghost">Загрузить из файла</button>
+        <select id="templates"><option value="">— выберите —</option></select>
+        <button id="tpl-save" class="ghost">Сохранить</button>
+        <button id="tpl-del" class="ghost danger">Удалить</button>
       </div>
-      <p id="cfg-status" class="hint"></p>
-    </details>
+      <p class="hint">Шаблон хранит настройки под типовую задачу: кабельные бирки, шильдики оборудования.</p>
+    </section>
 
-    <h2>Шаблоны</h2>
-    <div class="row">
-      <select id="templates"><option value="">— выберите —</option></select>
-      <button id="tpl-save" class="ghost">Сохранить</button>
-      <button id="tpl-del" class="ghost danger">Удалить</button>
-    </div>
-    <p class="hint">Шаблон хранит настройки под типовую задачу: кабельные бирки, шильдики оборудования.</p>
-  </section>
+    <section class="panel">
+      <h2>Предпросмотр</h2>
+      <div class="preview-box">
+        <img id="preview" alt="макет этикетки">
+        <div class="preview-empty">нажмите «Предпросмотр»</div>
+      </div>
+      <p id="preview-info" class="hint" style="margin-top:8px"></p>
 
-  <!-- ПРАВАЯ КОЛОНКА: что получится -->
-  <section class="panel preview-panel">
-    <h2>Предпросмотр</h2>
-    <div class="preview-box">
-      <img id="preview" alt="макет этикетки">
-      <div id="preview-empty" class="preview-empty">нажмите «Предпросмотр»</div>
-    </div>
-    <p id="preview-info" class="hint"></p>
+      <div class="actions">
+        <button id="preview-btn" class="ghost">Предпросмотр</button>
+        <button id="print-btn" class="primary">Печать</button>
+        <button id="save-file-btn" class="ghost">Сохранить в файл</button>
+      </div>
 
-    <div class="actions">
-      <button id="preview-btn" class="ghost">Предпросмотр</button>
-      <button id="print-btn" class="primary">Печать</button>
-    </div>
+      <div id="progress" class="progress hidden">
+        <div class="bar"><div id="bar-fill"></div></div>
+        <p id="progress-text">подготовка…</p>
+      </div>
+    </section>
+  </main>
 
-    <div id="progress" class="progress hidden">
-      <div class="bar"><div id="bar-fill"></div></div>
-      <p id="progress-text"></p>
-    </div>
-  </section>
-</main>
-
-<script src="app.js"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
