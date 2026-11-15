@@ -200,7 +200,7 @@ func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.
 	}
 
 	if renderBarcode && barcodeH > 0 {
-		bcSide := maxInt(sideMargin, 10)
+		bcSide := sideMargin
 		targetW := maxInt(10, W-2*bcSide)
 		drawSharpBarcode(canvas, bc, offX+bcSide, barcodeY, targetW, barcodeH)
 	}
@@ -232,7 +232,7 @@ func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
 
 	margin := maxInt(0, opts.MarginPx)
 	sideMargin := maxInt(0, opts.SideMarginPx)
-	gap := maxInt(4, opts.GapPx)
+	gap := maxInt(0, opts.GapPx)
 
 	qrSize := maxInt(16, H-2*margin)
 	if qrSize > W-2*sideMargin-10 {
@@ -292,109 +292,196 @@ func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
 	return canvas, nil
 }
 
-// drawSharpBarcode вписывает штрихкод/QR без сглаживания (строго чёрные и белые модули) по центру области.
+// drawSharpBarcode вписывает штрихкод/QR без сглаживания (строго чёрные и белые модули),
+// обрезая встроенную тихую зону, чтобы отступы задавались исключительно параметром sideMargin.
 func drawSharpBarcode(dst *image.Gray, bc barcode.Barcode, x, y, boxW, boxH int) {
-	b := bc.Bounds()
-	srcW, srcH := b.Dx(), b.Dy()
-	if srcW <= 0 || srcH <= 0 || boxW <= 0 || boxH <= 0 {
-		return
-	}
-
-	scaleX := boxW / srcW
-	if scaleX < 1 {
-		scaleX = 1
-	}
-	drawW := srcW * scaleX
-	if drawW > boxW {
-		drawW = boxW
-	}
-	drawH := boxH
-	if bc.Metadata().Dimensions == 2 {
-		s := minInt(boxW/srcW, boxH/srcH)
-		if s < 1 {
-			s = 1
-		}
-		drawW = srcW * s
-		drawH = srcH * s
-	}
-
-	offX := x + (boxW-drawW)/2
-	offY := y + (boxH-drawH)/2
-
-	for py := 0; py < drawH; py++ {
-		sy := b.Min.Y + (py*srcH)/drawH
-		for px := 0; px < drawW; px++ {
-			sx := b.Min.X + (px*srcW)/drawW
-			r, g, bl, _ := bc.At(sx, sy).RGBA()
-			if (r+g+bl)/3 < 0x8000 {
-				if image.Pt(offX+px, offY+py).In(dst.Bounds()) {
-					dst.SetGray(offX+px, offY+py, color.Gray{Y: 0})
-				}
-			}
-		}
-	}
+b := bc.Bounds()
+if b.Dx() <= 0 || b.Dy() <= 0 || boxW <= 0 || boxH <= 0 {
+return
 }
 
-// drawFittedLine подбирает максимальный кегль, при котором строка целиком влезает в boxW × boxH, и центрирует её.
+minX, maxX := b.Max.X, b.Min.X
+minY, maxY := b.Max.Y, b.Min.Y
+for sy := b.Min.Y; sy < b.Max.Y; sy++ {
+for sx := b.Min.X; sx < b.Max.X; sx++ {
+r, g, bl, _ := bc.At(sx, sy).RGBA()
+if (r+g+bl)/3 < 0x8000 {
+if sx < minX { minX = sx }
+if sx > maxX { maxX = sx }
+if sy < minY { minY = sy }
+if sy > maxY { maxY = sy }
+}
+}
+}
+if minX > maxX || minY > maxY {
+return
+}
+srcRect := image.Rect(minX, minY, maxX+1, maxY+1)
+srcW, srcH := srcRect.Dx(), srcRect.Dy()
+
+drawW := boxW
+drawH := boxH
+if bc.Metadata().Dimensions == 2 {
+s := minInt(boxW/srcW, boxH/srcH)
+if s < 1 {
+s = 1
+}
+drawW = srcW * s
+drawH = srcH * s
+}
+
+offX := x + (boxW-drawW)/2
+offY := y + (boxH-drawH)/2
+
+for py := 0; py < drawH; py++ {
+sy := srcRect.Min.Y + (py*srcH)/drawH
+for px := 0; px < drawW; px++ {
+sx := srcRect.Min.X + (px*srcW)/drawW
+r, g, bl, _ := bc.At(sx, sy).RGBA()
+if (r+g+bl)/3 < 0x8000 {
+if image.Pt(offX+px, offY+py).In(dst.Bounds()) {
+dst.SetGray(offX+px, offY+py, color.Gray{Y: 0})
+}
+}
+}
+}
+}
+
+// drawFittedLine подбирает максимальный кегль по реальным границам чёрных пикселей глифов
+// (аналогично path.GetBounds() в C#), чтобы текст заполнял максимум высоты и ширины boxW × boxH.
 func drawFittedLine(dst *image.Gray, text, fontName string, bold bool, x, y, boxW, boxH int) error {
-	text = strings.TrimSpace(text)
-	if text == "" || boxW < 4 || boxH < 4 {
-		return nil
-	}
-	fontPath, err := pickFont(fontName, bold)
-	if err != nil {
-		return err
-	}
+text = strings.TrimSpace(text)
+if text == "" || boxW < 4 || boxH < 4 {
+return nil
+}
+fontPath, err := pickFont(fontName, bold)
+if err != nil {
+return err
+}
 
-	bestSize := 4.0
-	for size := float64(boxH) * 1.15; size >= 4.0; size -= 0.5 {
-		face, err := loadFace(fontPath, size)
-		if err != nil {
-			continue
-		}
-		w := font.MeasureString(face, text).Ceil()
-		m := face.Metrics()
-		h := (m.Ascent + m.Descent).Ceil()
-		face.Close()
-		if w <= boxW && h <= boxH {
-			bestSize = size
-			break
-		}
-	}
+// Рендерим эталонный контур крупным кеглем (64 pt) и находим точный прямоугольник чёрных пикселей
+const refSize = 64.0
+face, err := loadFace(fontPath, refSize)
+if err != nil {
+return err
+}
+defer face.Close()
 
-	face, err := loadFace(fontPath, bestSize)
-	if err != nil {
-		return err
-	}
-	defer face.Close()
+advW := font.MeasureString(face, text).Ceil()
+m := face.Metrics()
+tmpW := advW + 20
+tmpH := (m.Ascent + m.Descent).Ceil() + 20
+tmp := image.NewGray(image.Rect(0, 0, tmpW, tmpH))
+for i := range tmp.Pix {
+tmp.Pix[i] = 255
+}
 
-	w := font.MeasureString(face, text).Ceil()
-	m := face.Metrics()
-	h := (m.Ascent + m.Descent).Ceil()
+d := &font.Drawer{
+Dst:  tmp,
+Src:  image.NewUniform(color.Black),
+Face: face,
+Dot:  fixed.P(10, 10+m.Ascent.Ceil()),
+}
+d.DrawString(text)
 
-	px := x + (boxW-w)/2
-	py := y + (boxH-h)/2 + m.Ascent.Ceil()
+minX, maxX := tmpW, 0
+minY, maxY := tmpH, 0
+for py := 0; py < tmpH; py++ {
+for px := 0; px < tmpW; px++ {
+if tmp.GrayAt(px, py).Y < 200 {
+if px < minX { minX = px }
+if px > maxX { maxX = px }
+if py < minY { minY = py }
+if py > maxY { maxY = py }
+}
+}
+}
+if minX > maxX || minY > maxY {
+return nil
+}
 
-	d := &font.Drawer{
-		Dst:  dst,
-		Src:  image.NewUniform(color.Black),
-		Face: face,
-		Dot:  fixed.P(px, py),
-	}
-	d.DrawString(text)
-	return nil
+glyphW := float64(maxX - minX + 1)
+glyphH := float64(maxY - minY + 1)
+
+scaleX := float64(boxW) / glyphW
+scaleY := float64(boxH) / glyphH
+scale := scaleX
+if scaleY < scale {
+scale = scaleY
+}
+
+targetSize := refSize * scale
+if targetSize < 4.0 {
+targetSize = 4.0
+}
+
+finalFace, err := loadFace(fontPath, targetSize)
+if err != nil {
+return err
+}
+defer finalFace.Close()
+
+// Повторно измеряем точные пиксельные границы уже на финальном кегле для идеального центрирования
+fAdvW := font.MeasureString(finalFace, text).Ceil()
+fm := finalFace.Metrics()
+fTmpW := fAdvW + 16
+fTmpH := (fm.Ascent + fm.Descent).Ceil() + 16
+fTmp := image.NewGray(image.Rect(0, 0, fTmpW, fTmpH))
+for i := range fTmp.Pix {
+fTmp.Pix[i] = 255
+}
+fd := &font.Drawer{
+Dst:  fTmp,
+Src:  image.NewUniform(color.Black),
+Face: finalFace,
+Dot:  fixed.P(8, 8+fm.Ascent.Ceil()),
+}
+fd.DrawString(text)
+
+fMinX, fMaxX := fTmpW, 0
+fMinY, fMaxY := fTmpH, 0
+for py := 0; py < fTmpH; py++ {
+for px := 0; px < fTmpW; px++ {
+if fTmp.GrayAt(px, py).Y < 220 {
+if px < fMinX { fMinX = px }
+if px > fMaxX { fMaxX = px }
+if py < fMinY { fMinY = py }
+if py > fMaxY { fMaxY = py }
+}
+}
+}
+if fMinX > fMaxX || fMinY > fMaxY {
+return nil
+}
+
+realW := fMaxX - fMinX + 1
+realH := fMaxY - fMinY + 1
+dstX := x + (boxW-realW)/2
+dstY := y + (boxH-realH)/2
+
+for py := 0; py < realH; py++ {
+for px := 0; px < realW; px++ {
+v := fTmp.GrayAt(fMinX+px, fMinY+py).Y
+if v < 255 && image.Pt(dstX+px, dstY+py).In(dst.Bounds()) {
+if v < dst.GrayAt(dstX+px, dstY+py).Y {
+dst.SetGray(dstX+px, dstY+py, color.Gray{Y: v})
+}
+}
+}
+}
+return nil
 }
 
 func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+if a > b {
+return a
+}
+return b
 }
 
 func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+if a < b {
+return a
+}
+return b
 }
