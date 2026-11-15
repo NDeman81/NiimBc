@@ -61,6 +61,7 @@ bcSideM   = flagSet.Int("side-margin", -1, "боковые поля штрихк
 bcGap     = flagSet.Int("gap", -1, "зазор между штрихкодом и подписью, px")
 bcTextGap = flagSet.Int("text-gap", -1, "зазор до верхнего и нижнего текста, px")
 saveCfg   = flagSet.Bool("save-config", false, "сохранить параметры штрихкода в config.json")
+	saveDir   = flagSet.String("save-dir", "", "папка для сохранения PNG-превью (по умолчанию папка программы)")
 )
 
 func main() {
@@ -434,19 +435,46 @@ func printInfo(i Info) {
 }
 
 // savePreview сохраняет макет — удобно посмотреть, что уйдёт на печать.
+func resolvePreviewDir() string {
+dir := strings.TrimSpace(*saveDir)
+if dir == "" {
+dir = strings.TrimSpace(LoadConfig().SaveDir)
+}
+if dir == "" {
+if exe, err := os.Executable(); err == nil {
+exeDir := filepath.Dir(exe)
+// Если запущено через go run во временной папке сборки, берём текущую рабочую папку
+if !strings.Contains(strings.ToLower(exeDir), "go-build") {
+dir = exeDir
+}
+}
+}
+if dir == "" {
+if wd, err := os.Getwd(); err == nil {
+dir = wd
+}
+}
+if dir == "" {
+dir = "."
+}
+return dir
+}
+
 func savePreview(img *image.Gray) {
-	path := filepath.Join(os.TempDir(), "niimbot_label_preview.png")
-	f, err := os.Create(path)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	if err := png.Encode(f, Binarize(img)); err != nil {
-		return
-	}
-	b := img.Bounds()
-	fmt.Printf("макет: %s (%d×%d точек = %.1f×%.1f мм)\n",
-		path, b.Dx(), b.Dy(), float64(b.Dx())/dotsPerMM, float64(b.Dy())/dotsPerMM)
+dir := resolvePreviewDir()
+_ = os.MkdirAll(dir, 0o755)
+out := filepath.Join(dir, "niimbot_label_preview.png")
+f, err := os.Create(out)
+if err != nil {
+fatal(err)
+}
+defer f.Close()
+if err := png.Encode(f, img); err != nil {
+fatal(err)
+}
+b := img.Bounds()
+fmt.Printf("макет: %s (%d×%d точек = %.1f×%.1f мм)\n",
+out, b.Dx(), b.Dy(), float64(b.Dx())/dotsPerMM, float64(b.Dy())/dotsPerMM)
 }
 
 func usage() {
@@ -468,7 +496,8 @@ if *bcMargin >= 0 { cfg.MarginPx = *bcMargin }
 if *bcSideM >= 0 { cfg.SideMarginPx = *bcSideM }
 if *bcGap >= 0 { cfg.GapPx = *bcGap }
 if *bcTextGap >= 0 { cfg.TextGapPx = *bcTextGap }
-if *saveCfg { _ = SaveConfig(cfg) }
+if *saveDir != "" { cfg.SaveDir = *saveDir }
+	if *saveCfg { _ = SaveConfig(cfg) }
 return RenderBarcodeLabel(BarcodeOptions{
 Data: data, Format: cfg.BcFormat, LengthMM: *length,
 TopText: *topText, BottomText: *botText,
