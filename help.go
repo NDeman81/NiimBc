@@ -7,13 +7,13 @@ _ "embed"
 "strings"
 )
 
-//go:embed help.txt
+//go:embed FullHelp.hl
 var embeddedHelpText string
 
 func printHelpText() {
 fmt.Println(strings.TrimRight(embeddedHelpText, "\r\n"))
 fmt.Println()
-fmt.Println("Полный справочник флагов командной строки:")
+fmt.Println("Технический список флагов:")
 flagSet.SetOutput(os.Stdout)
 flagSet.PrintDefaults()
 }
