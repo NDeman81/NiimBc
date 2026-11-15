@@ -49,7 +49,7 @@ go install github.com/NDeman81/NiimBc@latest
 Или из исходников:
 
 ```bash
-git clone https://github.com
+git clone https:/слеш github.com/NDeman81/NiimBc.git
 cd NiimBc
 go build -o niimbc .
 ```
