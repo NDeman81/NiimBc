@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func printHelpText() {
 fmt.Println("NiimBc — драйвер принтера этикеток и штрихкодов NIIMBOT N1 (Bluetooth LE)")
@@ -37,5 +40,6 @@ fmt.Println("  info   основные этапы работы с метками
 fmt.Println("  debug  полный протокольный дамп всех байтов BLE с миллисекундами")
 fmt.Println()
 fmt.Println("Все доступные флаги:")
-flagSet.PrintDefaults()
+flagSet.SetOutput(os.Stdout)
+	flagSet.PrintDefaults()
 }

@@ -354,6 +354,7 @@ func (p *Printer) Send(cmd byte, data []byte, want []byte, timeout time.Duration
 
 func (p *Printer) Close() error {
 	p.Send(cmdPrintEnd, nil, nil, 0)
+	time.Sleep(150 * time.Millisecond)
 	return p.device.Disconnect()
 }
 
