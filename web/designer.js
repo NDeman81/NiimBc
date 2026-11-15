@@ -65,16 +65,6 @@ function renderCanvas() {
     node.style.left = el.x * scale + 'px';
     node.style.top = el.y * scale + 'px';
 
-    if (el.kind === 'smiles') {
-      node.style.width = (el.w || 9) * scale + 'px';
-      node.style.height = (el.h || 9) * scale + 'px';
-      node.innerHTML = '<span class="ph">структура<br>' +
-        (el.smiles || 'SMILES не задан').slice(0, 18) + '</span>';
-      if (i === selected) node.classList.add('selected');
-      label.appendChild(node);
-      return;
-    }
-
     if (el.kind === 'line' || el.kind === 'frame') {
       node.style.width = (el.w || 1) * scale + 'px';
       node.style.height = (el.h || 0.4) * scale + 'px';
@@ -290,14 +280,11 @@ function showProps() {
 
   $('p-rotate').value = String(el.rotate || 0);
   $('p-thickness').value = el.thickness || 0.3;
-  $('p-smiles').value = el.smiles || '';
-  $('p-bond').value = el.thickness || 2;
 
   const isText = el.kind === 'text';
   $('text-props').classList.toggle('hidden', !isText);
   $('image-props').classList.toggle('hidden', el.kind !== 'image');
   $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame'));
-  $('smiles-props').classList.toggle('hidden', el.kind !== 'smiles');
   $('h-wrap').classList.toggle('hidden', isText);
 }
 
@@ -321,8 +308,6 @@ bindProp('p-family', (el, v) => { el.family = v; });
 bindProp('p-line', (el, v) => { el.line = Math.max(0, parseFloat(v) || 0); });
 bindProp('p-rotate', (el, v) => { el.rotate = parseInt(v, 10) || 0; });
 bindProp('p-thickness', (el, v) => { el.thickness = Math.max(0.05, parseFloat(v) || 0.3); });
-bindProp('p-smiles', (el, v) => { el.smiles = v; });
-bindProp('p-bond', (el, v) => { el.thickness = Math.max(1, parseFloat(v) || 2); });
 $('p-bold').addEventListener('change', () => {
   if (selected < 0) return;
   elements[selected].bold = $('p-bold').checked;
@@ -364,13 +349,6 @@ $('add-line').onclick = () => {
   refreshPreview();
 };
 
-// Структура по SMILES: рисует сервер (RDKit), здесь только описание.
-$('add-smiles').onclick = () => {
-  elements.push({ kind: 'smiles', x: 0.5, y: 1.5, w: 9, h: 9,
-                  smiles: 'CC(=CCCC(C)(C=C)O)C', thickness: 2 });
-  select(elements.length - 1);
-  refreshPreview();
-};
 
 // Дата и время печати: обычная надпись с полем {дата-время}.
 $('add-stamp').onclick = () => {
@@ -661,22 +639,9 @@ if (!elements.length) {
   elements.push({ kind: 'text', x: 1, y: 4, w: labelLength() - 2, text: '{1}', font: 3, align: 'center' });
 }
 
-// Есть ли RDKit: если нет, предупредим в панели свойств.
-async function checkChem() {
-  try {
-    const r = await fetch('/api/chem');
-    const d = await r.json();
-    if (!d.available) {
-      $('chem-note').innerHTML = '<b>RDKit не найден</b> — структуры не напечатаются. ' +
-        'Установка описана в README.';
-      $('chem-note').style.color = '#B3392F';
-    }
-  } catch (e) { /* не критично */ }
-}
 
 loadStatus();
 loadFonts();
-checkChem();
 loadTemplates();
 renderCanvas();
 showProps();

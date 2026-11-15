@@ -1,9 +1,12 @@
-# NIIMBOT N1 — label printer driver for Linux
+# NiimBc — Niimbot N1 Barcode Printer Driver
 
 [![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Other languages:** [Русский](README.md) · [Nederlands](README.nl.md) · [简体中文](README.zh-CN.md) · [Latina](README.la.md) · [Pirate 🏴‍☠️](README.pirate.md)
+**Other languages:** [Русский](README.md)
+
+> **Note:** This repository is a fork of the original [petrovich811/niimbot](https://github.com/ваш-ник/niimbot) project with chemical structure rendering (SMILES / RDKit) removed.
+
 
 A Bluetooth LE driver for the **NIIMBOT N1** thermal-transfer label printer,
 written in Go. Prints text and images from the command line, reports printer
@@ -39,34 +42,34 @@ $ niimbot text "1 gulden" "1734"
 ## Install
 
 ```bash
-go install github.com/petrovich811/niimbot@latest
+go install github.com/Deman81/niimbot@latest
 ```
 
 Or from source:
 
 ```bash
-git clone https://github.com/petrovich811/niimbot.git
+git clone https://github.com/Deman81/niimbot.git
 cd niimbot
-go build -o niimbot .
+go build -o niimbc .
 ```
 
 ## Usage
 
 ```bash
 # printer status
-./niimbot info
+./niimbc info
 
 # render only (saved to /tmp/niimbot_label_preview.png)
-./niimbot preview "1 gulden" "1734"
+./niimbc preview "1 gulden" "1734"
 
 # print text
-./niimbot text "1 gulden" "1734"
+./niimbc text "1 gulden" "1734"
 
 # print an image
-./niimbot image logo.png
+./niimbc image logo.png
 
 # darker, two copies — one for the flip, one for the catalogue
-./niimbot text "2 gulden 1785" "Utrecht" --density 3 --copies 2
+./niimbc text "2 gulden 1785" "Utrecht" --density 3 --copies 2
 ```
 
 ### Flags
@@ -85,10 +88,10 @@ go build -o niimbot .
 ## Graphical interface
 
 ```bash
-./niimbot gui              # serves http://127.0.0.1:8765 and opens the browser
-./niimbot gui --app        # a separate window with no tabs or address bar
-./niimbot gui --port 9000  # another port
-./niimbot gui --no-browser # server only
+./niimbc gui              # serves http://127.0.0.1:8765 and opens the browser
+./niimbc gui --app        # a separate window with no tabs or address bar
+./niimbc gui --port 9000  # another port
+./niimbc gui --no-browser # server only
 ```
 
 **App mode** (`--app`) opens the interface in a window of its own — no tabs, no address
@@ -246,127 +249,13 @@ rotation honestly: at 90° and 270° the width and height swap.
 but also to the label's **edges and centre** — red guide lines appear on the canvas.
 Hold **Alt** to switch edge snapping off when you want to place something by eye.
 
-### Chemical structures from SMILES
-
-The element kind **`smiles`**: a SMILES string, a size in mm and a bond thickness.
-
-```json
-{"kind": "smiles", "x": 0.6, "y": 1.2, "w": 9.5, "h": 9.5,
- "smiles": "CC(=CCCC(C)(C=C)O)C", "thickness": 2}
-```
-
-The SMILES may come from the data: `"smiles": "{4}"` pulls the structure from the
-record's fourth column, so a series prints each label with its own structure.
-
-**RDKit draws it.** We do not write our own structure renderer: parsing SMILES is
-half the job, while 2D layout (ring perception, coordinates, overlap avoidance) took
-RDKit years. The driver calls it and takes the finished PNG.
-
-#### What is ours and what is not
-
-Structures are the **only place** where the driver leans on third-party code. The line
-runs like this:
-
-| Our driver does (Go) | RDKit does (Python) |
-|---|---|
-| the `smiles` element kind in a template | parsing the SMILES string |
-| size in mm, rotation, bond thickness | 2D layout: rings, coordinates, overlaps |
-| substituting a data column: `"smiles": "{4}"` | drawing the molecule into a PNG |
-| caching: one molecule is drawn once per series | |
-| finding Python with RDKit, clear errors | |
-
-**Why we do not write it ourselves.** Parsing SMILES is half the job and about a week of
-work. The real difficulty is **2D layout**: working out where the rings are and how to
-place atoms so bonds neither cross nor collide. That is what RDKit and Open Babel spent
-years on, and a home-grown version would come out clearly worse.
-
-**Licences.** The RDKit core is **BSD 3-Clause**; the `rdkit` PyPI wrapper is **MIT**.
-Both are permissive and compatible with our MIT. RDKit is **not bundled**: it is
-installed separately, so the driver's licence is unaffected.
-
-#### Installing RDKit
-
-```bash
-python3 -m venv ~/.local/share/niimbot/chemvenv
-~/.local/share/niimbot/chemvenv/bin/pip install rdkit
-```
-
-No root needed. The driver looks for Python in this order: the `NIIMBOT_RDKIT`
-variable, a `chemvenv` beside the binary, `~/.local/share/niimbot/chemvenv`, then the
-system `python3`. Without RDKit, structure printing refuses with a clear message while
-everything else keeps working.
-
-#### What matters about size
-
-A 14×30 label is only **240×96 dots**. The structure must be drawn **at the required
-size** and with **thick bonds**: a downloaded structure image falls apart into dots
-when shrunk to 96 px. Verified:
-
-| Molecule | Heavy atoms | In a 96×96 square | Across the full width |
-|---|---|---|---|
-| vanillin, coumarin | 9 | legible | legible |
-| linalool, geraniol | 10–11 | legible | legible |
-| musk ketone | 15 | legible | legible |
-| cholesterol | 28 | barely guessable | **legible** |
-
-Large molecules are saved by using the label's **full width** (230 dots instead of 96).
-Heteroatom labels (O, N) are lost at 8 dots/mm — a letter takes about 6 dots.
-Stereochemistry (wedges) is indistinguishable at this size.
-
-#### Rotating the structure
-
-The label is only 12 mm tall, so a square structure runs into that limit. Rotation
-removes it: the element has a `rotate` field, and a rotated structure can use the
-label's **whole length**.
-
-```json
-{"kind":"smiles","x":0.3,"y":0.5,"w":18,"h":11,"smiles":"{3}","thickness":2,"rotate":90}
-```
-
-**RDKit itself rotates** (its `rotate` option), not us after drawing: it lays the
-molecule out for the box you give, instead of fitting it into a square and spinning
-it. Rotation also works for pictures.
-
-**But there is a limit, and it is on paper.** On a 14×30 label a large structure and
-large text do not fit together. Three layouts were tried:
-
-| Layout | Structure | What came out |
-|---|---|---|
-| 9.5×9.5 mm, text 18 mm | small | readable, but the structure is small |
-| 18×11 mm **rotated**, text 11 mm | large | **the name was cut off** — no room left |
-| **15×10 mm, text 14 mm** | large | both the structure and the whole text fit |
-
-The third one won. If your name is longer than "ЛИНАЛООЛ", lower the size or give the
-structure more room in the designer.
-
-#### A ready series template
-
-The settings hold a template named **"Парфюмерные ингредиенты"**. The data is a CSV:
-
-```
-название;CAS;SMILES;нота
-ЛИНАЛООЛ;78-70-6;CC(=CCCC(C)(C=C)O)C;цветочный, свежий
-КУМАРИН;91-64-5;O=c1ccc2ccccc2o1;сладкий, сенный
-ВАНИЛИН;121-33-5;COc1cc(C=O)ccc1O;ванильный, бальзамический
-```
-
-| On the label | Where from |
-|---|---|
-| structure | column 3 (SMILES) |
-| name | column 1, in bold |
-| CAS | column 2, always |
-| note | column 4 |
-| date and time | substituted while printing |
-
 ### Black-and-white threshold
 
 The printer prints **black and white only**, so a grey image is converted by a
 threshold before sending: anything darker than the threshold becomes black.
 
 The default is **200** out of 255, and that matters more than it seems. Lines and text
-are drawn with anti-aliasing and their edges are light grey; at a threshold of 128 the
-bonds of a structure came out **dotted** and the digits in a CAS number fell apart into
-specks. Verified on paper:
+are drawn with anti-aliasing and their edges are light grey; at a threshold of 128 thin lines came out **dotted** and small digits fell apart into specks. Verified on paper:
 
 | Threshold | What comes out |
 |---|---|
@@ -396,7 +285,7 @@ bottom edge. Handy for ingredient labels: it shows when a blend was made or open
 
 ### Saving a template in the designer
 
-1. Build the label on the canvas — text, pictures, lines, structures.
+1. Build the label on the canvas — text, pictures, lines, frames.
 2. In the **"Template"** section type a name, for example `Драхма Парфия`.
 3. Press **"Save template"**. A confirmation appears under the buttons.
 
@@ -439,8 +328,8 @@ itself**, with no browser at all, build separately:
 
 ```bash
 sudo apt install libwebkit2gtk-4.1-dev   # once
-./build-webview.sh                        # builds ./niimbot with a window
-./niimbot gui
+./build-webview.sh                        # builds ./niimbc with a window
+./niimbc gui
 ```
 
 Inside is the system engine: WebKitGTK on Linux, WebView2 on Windows, WKWebView on
@@ -458,10 +347,10 @@ longer ships (only 4.1 remains). `build-webview.sh` supplies a shim from
 
 ```bash
 # see what would print, without wasting a label
-./niimbot preview --file sketch.png
+./niimbc preview --file sketch.png
 
 # print it
-./niimbot image sketch.png
+./niimbc image sketch.png
 ```
 
 Formats: **PNG, JPEG, GIF**. An image of any size is **fitted** into the label area
@@ -713,9 +602,9 @@ and the white canvas background.
 The driver is written in Go, so it builds for Linux, Windows and macOS:
 
 ```bash
-go build -o niimbot .                                  # your own system
-GOOS=windows GOARCH=amd64 go build -o niimbot.exe .    # Windows, from Linux too
-GOOS=darwin  GOARCH=arm64 go build -o niimbot-mac .    # macOS — ON a Mac only
+go build -o niimbc .                                  # your own system
+GOOS=windows GOARCH=amd64 go build -o niimbc.exe .    # Windows, from Linux too
+GOOS=darwin  GOARCH=arm64 go build -o niimbc-mac .    # macOS — ON a Mac only
 ```
 
 | System | State |
@@ -744,11 +633,10 @@ If there is no Linux box next to the printer, there are other roads:
 This driver stands apart by working from the Linux command line and by printing
 **series of labels from a CSV with a template**.
 
-**Chemical structures** are drawn by **[RDKit](https://www.rdkit.org/)** (BSD 3-Clause) —
-it is invoked as a separate program and is not bundled with the driver. Everything
-else in this driver is our own Go code.
 
 ## Acknowledgements
+
+This project is based on the **[niimbot](https://github.com/ваш-ник/niimbot)** driver (MIT) by [petrovich811](https://github.com/petrovich811), which provides the core Bluetooth LE driver, printing protocol, web UI, and label designer.
 
 The protocol was reverse-engineered from the open-source
 **[NiimBlueLib](https://github.com/MultiMote/niimbluelib)** (MIT) — the most

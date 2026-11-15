@@ -45,11 +45,7 @@ type Element struct {
 	Heavy  bool    `json:"heavy,omitempty"`  // обводка букв: ещё жирнее
 	Rotate int     `json:"rotate,omitempty"` // поворот: 0, 90, 180 или 270
 	Align  string  `json:"align,omitempty"`  // left | center | right (внутри рамки X..X+W)
-
-	// Структура: строка SMILES; может содержать поля {1}, {2}… из данных
-	Smiles string `json:"smiles,omitempty"`
-
-	// Толщина линий: для рамки — линий, для структуры — связей
+	// Толщина линий рамки в мм
 	Thickness float64 `json:"thickness,omitempty"`
 
 	// Картинка: путь к файлу или data:URL с base64
@@ -88,8 +84,6 @@ func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gr
 			err = drawLineElement(img, el)
 		case "frame":
 			err = drawFrameElement(img, el)
-		case "smiles":
-			err = drawSmilesElement(img, el, row, now)
 		case "":
 			err = fmt.Errorf("у элемента %d не указан вид (kind)", i+1)
 		default:
@@ -497,42 +491,3 @@ func substituteFields(text string, row []string, now time.Time) (string, error) 
 	return text, nil
 }
 
-// drawSmilesElement рисует химическую структуру по строке SMILES.
-//
-// Поворот на 90° нужен не для красоты: высота этикетки всего 12 мм, и
-// квадратная структура упирается в неё. Повёрнутая может занять ВСЮ длину
-// этикетки — то есть стать в два с лишним раза крупнее.
-func drawSmilesElement(img *image.Gray, el Element, row []string, now time.Time) error {
-	if el.W <= 0 || el.H <= 0 {
-		return fmt.Errorf("у структуры не заданы размеры (w и h в мм)")
-	}
-	smiles, err := substituteFields(el.Smiles, row, now)
-	if err != nil {
-		return err
-	}
-	bond := el.Thickness
-	if bond <= 0 {
-		bond = 2 // тонкие связи при 96 точках пропадают — проверено
-	}
-
-	// Поворот делает сам RDKit: он раскладывает молекулу под нужную рамку,
-	// а не вписывает её в квадрат и потом крутит. Так структура занимает
-	// всю отведённую площадь — важно, когда высота этикетки всего 12 мм.
-	angle := ((el.Rotate % 360) + 360) % 360
-	st, err := RenderSmiles(smiles, mmToDotsMin(el.W), mmToDotsMin(el.H), angle, bond)
-	if err != nil {
-		return err
-	}
-
-	// Размещаем по фактическому размеру с учётом выравнивания.
-	x0, y0 := mmToDots(el.X), mmToDots(el.Y)
-	stW, stH := st.Bounds().Dx(), st.Bounds().Dy()
-	switch strings.ToLower(el.Align) {
-	case "center":
-		x0 += (mmToDots(el.W) - stW) / 2
-	case "right":
-		x0 += mmToDots(el.W) - stW
-	}
-	draw.Draw(img, image.Rect(x0, y0, x0+stW, y0+stH), st, image.Point{}, draw.Src)
-	return nil
-}

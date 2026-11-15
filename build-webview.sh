@@ -6,7 +6,7 @@
 #
 # Почему отдельный скрипт: эта сборка использует CGO и заголовки WebKit,
 # поэтому она не кросс-компилируется под Windows. Обычная сборка
-# (go build -o niimbot .) остаётся без CGO и собирается где угодно.
+# (go build -o niimbc .) остаётся без CGO и собирается где угодно.
 #
 # Посредник в third_party/pkgconfig нужен потому, что библиотека окна
 # запрашивает webkit2gtk-4.0, которого в Ubuntu 24.04 уже нет.
@@ -21,7 +21,7 @@ if ! pkg-config --exists webkit2gtk-4.1; then
 fi
 
 PKG_CONFIG_PATH="$PWD/third_party/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" \
-    go build -tags webview -o niimbot .
+    go build -tags webview -o niimbc .
 
 echo "Готово: собран с собственным окном."
-echo "Запуск: ./niimbot gui"
+echo "Запуск: ./niimbc gui"

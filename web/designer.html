@@ -27,7 +27,6 @@
       <button id="add-image" class="ghost">+ Картинка</button>
       <button id="add-line" class="ghost">+ Линия</button>
       <button id="add-frame" class="ghost">+ Рамка</button>
-      <button id="add-smiles" class="ghost">+ Структура</button>
       <button id="add-stamp" class="ghost">+ Дата и время</button>
       <input type="file" id="image-file" accept="image/*" hidden>
       <button id="del-el" class="ghost danger">Удалить</button>
@@ -103,19 +102,6 @@
           </label>
         </div>
         <p class="hint">Значения 90° и 270° пригодятся для кабельных бирок: текст идёт поперёк этикетки.</p>
-      </div>
-
-      <div id="smiles-props">
-        <label>Строка SMILES
-          <input type="text" id="p-smiles" placeholder="CC(=CCCC(C)(C=C)O)C">
-          <small>Можно брать из данных: <code>{4}</code></small>
-        </label>
-        <div class="grid">
-          <label>Толщина связей <input type="number" id="p-bond" step="0.5" min="1" max="6">
-            <small>меньше 2 при 96 точках пропадает</small>
-          </label>
-        </div>
-        <p class="hint" id="chem-note">Структуры рисует RDKit — он должен быть установлен.</p>
       </div>
 
       <div id="shape-props">

@@ -1053,89 +1053,26 @@ func TestRenderTemplateDateTime(t *testing.T) {
 	}
 }
 
-// Структура по SMILES. Если RDKit не установлен — тест пропускается,
-// чтобы сборка не зависела от химического окружения.
-func TestRenderSmiles(t *testing.T) {
-	if !ChemAvailable() {
-		t.Skip("RDKit не установлен — пропускаю")
-	}
-	st, err := RenderSmiles("CC(=CCCC(C)(C=C)O)C", 96, 96, 0, 2)
-	if err != nil {
-		t.Fatalf("структура не нарисована: %v", err)
-	}
-	if st.Bounds().Dx() != 96 || st.Bounds().Dy() != 96 {
-		t.Fatalf("размер структуры %v, ожидалось 96x96", st.Bounds())
-	}
-	// Структура должна быть нарисована, а не пустая.
-	dark := 0
-	for y := 0; y < 96; y++ {
-		for x := 0; x < 96; x++ {
-			if st.GrayAt(x, y).Y < 128 {
-				dark++
-			}
-		}
-	}
-	if dark < 50 {
-		t.Fatalf("на структуре всего %d тёмных точек — похоже, пусто", dark)
-	}
-
-	// Повторный вызов берётся из кэша и даёт тот же результат.
-	again, err := RenderSmiles("CC(=CCCC(C)(C=C)O)C", 96, 96, 0, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if again != st {
-		t.Fatal("повторный вызов не попал в кэш")
-	}
-}
-
-// Мусорная строка SMILES — понятная ошибка, а не пустая этикетка.
-func TestRenderSmilesBadInput(t *testing.T) {
-	if !ChemAvailable() {
-		t.Skip("RDKit не установлен — пропускаю")
-	}
-	if _, err := RenderSmiles("это не молекула", 96, 96, 0, 2); err == nil {
-		t.Fatal("ожидалась ошибка разбора SMILES")
-	}
-	if _, err := RenderSmiles("   ", 96, 96, 0, 2); err == nil {
-		t.Fatal("пустая строка SMILES должна давать ошибку")
-	}
-}
-
-// Элемент-структура в шаблоне: SMILES можно брать из данных.
-func TestRenderTemplateSmilesElement(t *testing.T) {
-	if !ChemAvailable() {
-		t.Skip("RDKit не установлен — пропускаю")
-	}
-	img, err := RenderTemplate(LabelTemplate{
-		LengthMM: 30,
-		Elements: []Element{
-			{Kind: "smiles", X: 0.5, Y: 1.5, W: 9, H: 9, Smiles: "{1}"},
-			{Kind: "text", X: 10, Y: 1, W: 19, Text: "ЛИНАЛООЛ", FontMM: 2.4},
-		},
-	}, []string{"CC(=CCCC(C)(C=C)O)C"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Структура слева, текст справа.
-	left, _ := inkColumns(img)
-	if left < 2 || left > 8 {
-		t.Fatalf("структура начинается на %d, ожидалось около 4 (0,5 мм)", left)
-	}
-	// У структуры без размеров — понятная ошибка.
-	_, err = RenderTemplate(LabelTemplate{
-		LengthMM: 30,
-		Elements: []Element{{Kind: "smiles", X: 1, Y: 1, Smiles: "CCO"}},
-	}, nil)
-	if err == nil {
-		t.Fatal("структура без размеров: ожидалась ошибка")
-	}
-}
-
 // Шаблон настроек должен сохранять и возвращать элементы конструктора.
 // Раньше поля elements в структуре не было, и сохранённые шаблоны выходили
 // пустыми: в файле лежали одни настройки без единого элемента.
+func pickTestCyrillicFont(t *testing.T) string {
+t.Helper()
+list, err := SystemFonts()
+if err != nil || len(list) == 0 {
+t.Skip("в системе не найдено шрифтов")
+}
+for _, f := range list {
+if f.Cyrillic && !f.Italic {
+return f.Family
+}
+}
+t.Skip("в системе не найдено шрифтов с кириллицей")
+return ""
+}
+
 func TestTemplateRoundTrip(t *testing.T) {
+testFont := pickTestCyrillicFont(t)
 	tpl := Template{
 		Name:      "проба",
 		Length:    30,
@@ -1143,7 +1080,7 @@ func TestTemplateRoundTrip(t *testing.T) {
 		Threshold: 200,
 		Elements: []Element{
 			{Kind: "text", X: 0.4, Y: 2.8, W: 29.2, Text: "Драхма. Парфия. Артабан II",
-				FontMM: 1.8, Align: "center", Family: "DejaVu Sans", Bold: true},
+				FontMM: 1.8, Align: "center", Family: testFont, Bold: true},
 			{Kind: "text", X: 0.4, Y: 6.3, W: 29.2, Text: "12-38 н.э. XF",
 				FontMM: 2.6, Align: "center", Family: "Arial"},
 		},
@@ -1185,10 +1122,11 @@ func TestTemplateRoundTrip(t *testing.T) {
 // Именно это делает универсальный шаблон монеты пригодным для названий
 // разной длины.
 func TestAutoFontSize(t *testing.T) {
+	testFont := pickTestCyrillicFont(t)
 	short, err := RenderTemplate(LabelTemplate{
 		LengthMM: 30,
 		Elements: []Element{{Kind: "text", X: 0.15, Y: 1, W: 29.7, H: 4.2,
-			Text: "Асарий", Align: "center", Family: "Liberation Sans Narrow"}},
+			Text: "Асарий", Align: "center", Family: testFont}},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1197,7 +1135,7 @@ func TestAutoFontSize(t *testing.T) {
 		LengthMM: 30,
 		Elements: []Element{{Kind: "text", X: 0.15, Y: 1, W: 29.7, H: 4.2,
 			Text:  "Тетрадрахма. Македония. Александр III Великий",
-			Align: "center", Family: "Liberation Sans Narrow"}},
+			Align: "center", Family: testFont}},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
