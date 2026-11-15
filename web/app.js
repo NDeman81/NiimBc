@@ -340,3 +340,94 @@ $('tpl-del').onclick = deleteTemplate;
 loadStatus();
 loadTemplates();
 updateSeriesCount();
+
+// --------------------------------------------------------------------------
+// Единое чтение и сохранение конфигурации (config.json) без дублей полей
+// --------------------------------------------------------------------------
+let currentConfig = {};
+
+async function loadAppConfig() {
+  try {
+    const r = await fetch('/api/config');
+    if (!r.ok) return;
+    const c = await r.json();
+    currentConfig = c;
+
+    if ($('length')) $('length').value = c.length ?? 50;
+    if ($('cfg-height')) $('cfg-height').value = c.height ?? 14;
+    if ($('density')) $('density').value = c.density ?? 2;
+    if ($('threshold')) $('threshold').value = c.threshold ?? 200;
+    if ($('copies')) $('copies').value = c.copies ?? 1;
+    if ($('address')) $('address').value = c.address || '';
+    if ($('label')) $('label').value = c.label || '';
+    if ($('flip')) $('flip').checked = !!c.flip;
+
+    if ($('cfg-keepalive')) $('cfg-keepalive').value = String(c.keepAlive !== false);
+    if ($('cfg-printmode')) $('cfg-printmode').value = c.printMode || 'fast';
+    if ($('cfg-loglevel')) $('cfg-loglevel').value = c.logLevel || 'info';
+    if ($('cfg-bcformat')) $('cfg-bcformat').value = c.bcFormat || 'auto';
+    if ($('cfg-qrside')) $('cfg-qrside').value = c.defaultQrSide || 'left';
+    if ($('cfg-fontname')) $('cfg-fontname').value = c.fontName || '';
+    if ($('cfg-fontsize')) $('cfg-fontsize').value = c.fontSize || '-1';
+    if ($('cfg-offset')) $('cfg-offset').value = c.offsetPx ?? 0;
+    if ($('cfg-margin')) $('cfg-margin').value = c.marginPx ?? 4;
+    if ($('cfg-sidemargin')) $('cfg-sidemargin').value = c.sideMarginPx ?? 10;
+    if ($('cfg-gap')) $('cfg-gap').value = c.gapPx ?? 4;
+    if ($('cfg-savedir')) $('cfg-savedir').value = c.saveDir || '';
+    if ($('cfg-watchdir')) $('cfg-watchdir').value = c.watchDir || '';
+    if ($('cfg-bold')) $('cfg-bold').checked = !!c.isMainTextBold;
+  } catch (e) {
+    console.error('Ошибка загрузки config.json:', e);
+  }
+}
+
+if ($('btn-save-cfg')) {
+  $('btn-save-cfg').onclick = async () => {
+    const payload = {
+      ...currentConfig,
+      length: parseFloat($('length').value) || 50,
+      height: parseFloat($('cfg-height').value) || 14,
+      density: parseInt($('density').value, 10) || 2,
+      threshold: parseInt($('threshold').value, 10) || 200,
+      copies: parseInt($('copies').value, 10) || 1,
+      address: $('address').value.trim(),
+      label: $('label').value,
+      flip: $('flip').checked,
+      keepAlive: $('cfg-keepalive').value === 'true',
+      printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
+      logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
+      bcFormat: $('cfg-bcformat').value,
+      defaultQrSide: $('cfg-qrside').value,
+      fontName: $('cfg-fontname').value.trim(),
+      fontSize: $('cfg-fontsize').value.trim() || '-1',
+      offsetPx: parseInt($('cfg-offset').value, 10) || 0,
+      marginPx: parseInt($('cfg-margin').value, 10) || 0,
+      sideMarginPx: parseInt($('cfg-sidemargin').value, 10) || 0,
+      gapPx: parseInt($('cfg-gap').value, 10) || 0,
+      saveDir: $('cfg-savedir').value.trim(),
+      watchDir: $('cfg-watchdir').value.trim(),
+      isMainTextBold: $('cfg-bold').checked
+    };
+
+    $('cfg-status').textContent = 'Сохранение...';
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      await loadAppConfig();
+      $('cfg-status').textContent = 'Сохранено в config.json!';
+    } else {
+      const err = await r.json().catch(() => ({}));
+      $('cfg-status').textContent = 'Ошибка: ' + (err.error || r.status);
+    }
+  };
+
+  $('btn-load-cfg').onclick = async () => {
+    await loadAppConfig();
+    $('cfg-status').textContent = 'Загружено из config.json.';
+  };
+}
+
+loadAppConfig();

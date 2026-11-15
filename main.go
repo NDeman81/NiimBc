@@ -50,14 +50,19 @@ watchDir  = flagSet.String("watch-dir", "", "папка мониторинга �
 onDemand  = flagSet.Bool("on-demand", false, "режим сервера On-Demand (подключение только на время печати)")
 keepAlive = flagSet.Bool("keep-alive", false, "режим сервера Keep-Alive (постоянное удержание связи)")
 saveCfg   = flagSet.Bool("save-config", false, "сохранить переданные параметры в config.json")
+	cfgFile   = flagSet.String("config", "", "путь к альтернативному файлу конфигурации")
+	logLevel  = flagSet.String("log-level", "", "уровень логов: error | info | debug (по умолчанию info)")
+	printMode = flagSet.String("print-mode", "", "режим отправки строк: fast (быстрый пачками) | safe (построчный)")
+	calFeed   = flagSet.Bool("feed", false, "протянуть пустую этикетку при калибровке (команда calibrate)")
 )
 
 var activeCfg AppConfig
 
 func main() {
-activeCfg = LoadConfig()
-
+	flagSet.Usage = usage
 if len(os.Args) < 2 {
+activeCfg = LoadConfig()
+	SetLogLevel(activeCfg.LogLevel)
 usage()
 os.Exit(2)
 }
@@ -66,6 +71,11 @@ flagArgs, posArgs := splitArgs(os.Args[1:])
 if err := flagSet.Parse(flagArgs); err != nil {
 fatal(err)
 }
+if *cfgFile != "" {
+SetConfigPath(*cfgFile)
+}
+activeCfg = LoadConfig()
+	SetLogLevel(activeCfg.LogLevel)
 
 visited := map[string]bool{}
 flagSet.Visit(func(f *flag.Flag) {
@@ -96,6 +106,12 @@ activeCfg.WatchDir = *watchDir
 
 if visited["on-demand"] { activeCfg.KeepAlive = false }
 if visited["keep-alive"] { activeCfg.KeepAlive = true }
+if visited["log-level"] && *logLevel != "" {
+activeCfg.LogLevel = *logLevel
+} else if visited["v"] && !*verbose {
+activeCfg.LogLevel = "error"
+}
+SetLogLevel(activeCfg.LogLevel)
 if visited["bc-format"] { activeCfg.BcFormat = *bcFormat }
 if visited["font-name"] { activeCfg.FontName = *fontName }
 if visited["font-size"] { activeCfg.FontSize = *fontSize }
@@ -167,7 +183,7 @@ if r != nil { ink++ }
 }
 fmt.Printf("строк с печатью: %d из %d\n", ink, len(rows))
 return
-case "info", "rfid", "testpage", "text", "image", "barcode":
+case "info", "rfid", "testpage", "calibrate", "text", "image", "barcode":
 default:
 usage()
 os.Exit(2)
@@ -186,6 +202,7 @@ fmt.Fprintf(os.Stderr, "поиск не удался (%v), пробую %s\n", e
 }
 
 p, err := ConnectMAC(mac, *verbose, foundByName)
+	if err == nil { p.printMode = activeCfg.PrintMode }
 if err != nil { fatal(err) }
 defer p.Close()
 
@@ -200,8 +217,15 @@ printRfid(p, true)
 case "rfid":
 printRfid(p, false)
 printRfid(p, true)
-case "testpage":
-if err := p.PrintTestPage(); err != nil { fatal(err) }
+case "calibrate":
+labelName, err := resolveLabel(p, *label)
+if err != nil {
+fatal(err)
+}
+if err := p.Calibrate(*calFeed, *length, labelTypes[labelName]); err != nil {
+fatal(err)
+}
+case "testpage":if err := p.PrintTestPage(); err != nil { fatal(err) }
 fmt.Println("тестовая страница отправлена")
 case "text":
 if len(posArgs) == 0 { fatal(fmt.Errorf("не задан текст")) }
@@ -274,7 +298,7 @@ if name == "" { return "", fmt.Errorf("в метке рулона неизвес
 if _, supported := labelTypesN1[detected]; !supported {
 return "", fmt.Errorf("в метке рулона тип %s, который N1 не поддерживает — задайте --label вручную", name)
 }
-fmt.Printf("тип этикетки определён по метке рулона: %s\n", name)
+LogInfoMsg("тип этикетки определён по метке рулона: %s", name)
 return name, nil
 }
 fmt.Fprintln(os.Stderr, "метка рулона не прочитана — печатаю как withgaps (обычные этикетки)")
@@ -374,7 +398,7 @@ if err != nil { fatal(err) }
 defer f.Close()
 if err := png.Encode(f, img); err != nil { fatal(err) }
 b := img.Bounds()
-fmt.Printf("макет: %s (%d×%d точек = %.1f×%.1f мм)\n", out, b.Dx(), b.Dy(), float64(b.Dx())/dotsPerMM, float64(b.Dy())/dotsPerMM)
+LogKey("макет: %s (%d×%d точек = %.1f×%.1f мм)", out, b.Dx(), b.Dy(), float64(b.Dx())/dotsPerMM, float64(b.Dy())/dotsPerMM)
 }
 
 func usage() { printHelpText() }

@@ -1,0 +1,23 @@
+{
+  "address": "",
+  "length": 40,
+  "height": 14,
+  "density": 3,
+  "label": "",
+  "flip": false,
+  "threshold": 200,
+  "copies": 1,
+  "keepAlive": true,
+  "saveDir": "",
+  "watchDir": "",
+  "bcFormat": "qrr",
+  "defaultQrSide": "left",
+  "fontName": "",
+  "isMainTextBold": false,
+  "fontSize": "-1",
+  "offsetPx": 0,
+  "sideMarginPx": 10,
+  "marginPx": 4,
+  "gapPx": 4,
+  "textGapPx": 4
+}

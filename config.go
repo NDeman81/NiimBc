@@ -20,7 +20,9 @@ type AppConfig struct {
 	Copies    int     `json:"copies"`    // количество копий (по умолчанию 1)
 
 	// Режим сервера/очереди и каталоги
-	KeepAlive bool   `json:"keepAlive"` // true = Keep-Alive (удерживать связь), false = On-Demand
+	KeepAlive bool   `json:"keepAlive"`
+	LogLevel  string `json:"logLevel"`
+	PrintMode string `json:"printMode"` // fast | safe (по умолчанию fast) // error | info | debug (по умолчанию info) // true = Keep-Alive (удерживать связь), false = On-Demand
 	SaveDir   string `json:"saveDir"`   // папка для PNG-превью (пусто = папка программы)
 	WatchDir  string `json:"watchDir"`  // папка мониторинга очереди (пусто = NiimbotQueue рядом с exe)
 
@@ -49,6 +51,8 @@ func DefaultConfig() AppConfig {
 		Threshold:      200,
 		Copies:         1,
 		KeepAlive:      true,
+		LogLevel:       "info",
+		PrintMode:      "fast",
 		SaveDir:        "",
 		WatchDir:       "",
 		BcFormat:       "auto",
@@ -77,9 +81,18 @@ func executableDir() string {
 	return dir
 }
 
-// configPath определяет путь к файлу config.json.
-// Приоритет отдаётся config.json рядом с исполняемым файлом (портативный режим).
+var customConfigPath string
+
+// SetConfigPath задаёт альтернативный путь к файлу конфигурации (из флага --config).
+func SetConfigPath(path string) {
+customConfigPath = strings.TrimSpace(path)
+}
+
+// configPath определяет путь к файлу конфигурации.
 func configPath() string {
+if customConfigPath != "" {
+return customConfigPath
+}
 	if exeDir := executableDir(); exeDir != "" {
 		return filepath.Join(exeDir, "config.json")
 	}
@@ -116,6 +129,12 @@ func normalizeConfig(cfg *AppConfig) {
 	}
 	if cfg.FontSize == "" {
 		cfg.FontSize = def.FontSize
+	}
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = def.LogLevel
+	}
+	if cfg.PrintMode != "safe" {
+		cfg.PrintMode = "fast"
 	}
 }
 
