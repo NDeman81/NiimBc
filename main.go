@@ -100,7 +100,7 @@ func main() {
 if len(os.Args) < 2 {
 activeCfg = LoadConfig()
 	SetLogLevel(activeCfg.LogLevel)
-usage()
+printShortHelp()
 os.Exit(2)
 }
 
