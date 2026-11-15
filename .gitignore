@@ -1,20 +1,17 @@
-# собранный бинарник
+# собранные бинарники
 /niimbot
+/niimbc
+niimbot-*
+niimbc-*
+*.exe
 
-# макеты этикеток
-/niimbot_label_preview.png
+# макеты этикеток и изображения превью
+*.png
 /preview/
 
-# собранные бинарники для других систем
-*.exe
-niimbot-*
-
-# Локальные скрипты и документы
+# локальные настройки, скрипты, документы и бэкапы
+config.json
+_BackUp/
 *.ps1
 *.docx
 *.txt
-
-niimbot_label_preview.png
-
-config.json
-niimbot_label_preview.png
