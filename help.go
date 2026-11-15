@@ -1,15 +1,19 @@
 package main
 
 import (
+_ "embed"
 "fmt"
 "os"
+"strings"
 )
 
+//go:embed help.txt
+var embeddedHelpText string
+
 func printHelpText() {
-fmt.Println("NiimBc — драйвер принтера этикеток и штрихкодов NIIMBOT N1 (Bluetooth LE)")
-fmt.Println("Синтаксис: niimbc [флаги] <команда> [аргументы]")
-fmt.Println("Доступные команды: barcode, text, image, preview, gui, info, rfid, testpage, calibrate, scan")
-fmt.Println("Подробный список флагов и примеров смотрите в коде проекта или help.go")
+fmt.Println(strings.TrimRight(embeddedHelpText, "\r\n"))
+fmt.Println()
+fmt.Println("Полный справочник флагов командной строки:")
 flagSet.SetOutput(os.Stdout)
 flagSet.PrintDefaults()
 }
