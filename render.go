@@ -139,6 +139,7 @@ FontSize     string  // "-1" или "0" (авто), "N" (точки/px), "Np" (�
 FontPt       float64 // запасной явный кегль в точках (для совместимости со старым флагом --font)
 MarginPx     int     // верхнее и нижнее поля, px
 SideMarginPx int     // боковые поля, px
+	OffsetPx     int // горизонтальный сдвиг, px
 }
 
 // RenderText рисует строки текста со стандартными отступами (совместимость со старым API).
@@ -399,4 +400,24 @@ func whiteCanvas(w, h int) *image.Gray {
 	c := image.NewGray(image.Rect(0, 0, w, h))
 	draw.Draw(c, c.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
 	return c
+}
+
+func shiftImageX(img *image.Gray, dx int) {
+if dx == 0 {
+return
+}
+b := img.Bounds()
+orig := image.NewGray(b)
+copy(orig.Pix, img.Pix)
+for i := range img.Pix {
+img.Pix[i] = 255
+}
+for y := b.Min.Y; y < b.Max.Y; y++ {
+for x := b.Min.X; x < b.Max.X; x++ {
+nx := x + dx
+if nx >= b.Min.X && nx < b.Max.X {
+img.SetGray(nx, y, orig.GrayAt(x, y))
+}
+}
+}
 }

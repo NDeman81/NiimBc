@@ -100,7 +100,8 @@ function collectRequest() {
     fontSize: $('cfg-fontsize') ? ($('cfg-fontsize').value.trim() || '-1') : '-1',
     bold: $('cfg-bold') ? $('cfg-bold').checked : false,
     marginPx: intVal('cfg-margin', 4),
-    sideMarginPx: intVal('cfg-sidemargin', 10)
+    sideMarginPx: intVal('cfg-sidemargin', 10),
+    offsetPx: intVal('cfg-offset', 0)
   };
 
   if (mode === 'barcode') {
@@ -500,6 +501,7 @@ if ($('btn-save-cfg')) {
       offsetPx: parseInt($('cfg-offset').value, 10) || 0,
       marginPx: intVal('cfg-margin', 4),
       sideMarginPx: intVal('cfg-sidemargin', 10),
+    offsetPx: intVal('cfg-offset', 0),
       gapPx: intVal('cfg-gap', 4),
       textGapPx: intVal('cfg-textgap', 4),
       saveDir: $('cfg-savedir').value.trim(),
@@ -586,3 +588,116 @@ if ($('save-file-btn')) {
 }
 
 if ($('img-stretch')) $('img-stretch').addEventListener('change', () => { if (typeof schedulePreview === 'function') schedulePreview(); });
+
+// Управление связью, режимом Keep-Alive, калибровкой и выключением сервера
+function updateModeButton(keepAlive) {
+  const btn = $('btn-mode-toggle');
+  if (!btn) return;
+  btn.dataset.keep = keepAlive ? 'true' : 'false';
+  btn.textContent = keepAlive ? 'Режим: Keep-Alive' : 'Режим: On-Demand';
+  if ($('cfg-keepalive')) $('cfg-keepalive').value = keepAlive ? 'true' : 'false';
+}
+
+function updateBcLenHint() {
+  const inp = $('bc-data');
+  const hint = $('bc-len-hint');
+  if (!inp || !hint) return;
+  const v = inp.value.trim();
+  if (!v) { hint.textContent = ''; return; }
+  const isItf = /^[0-9]+$/.test(v) && (v.length % 2 === 0);
+  hint.textContent = `(${v.length} симв. · ${isItf ? 'ITF' : 'Code 128'})`;
+}
+
+if ($('bc-data')) {
+  $('bc-data').addEventListener('input', updateBcLenHint);
+  updateBcLenHint();
+}
+
+async function postAction(url, bodyObj, okMsg) {
+  try {
+    const opts = { method: 'POST' };
+    if (bodyObj !== undefined) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(bodyObj);
+    }
+    const r = await fetch(url, opts);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка запроса');
+    if (okMsg) $('status').textContent = okMsg;
+    return d;
+  } catch (e) {
+    alert(e.message);
+    return null;
+  }
+}
+
+if ($('btn-connect')) {
+  $('btn-connect').onclick = async () => {
+    $('status').textContent = 'подключаюсь к принтеру…';
+    const d = await postAction('/api/connect', undefined, null);
+    if (d && typeof loadStatus === 'function') loadStatus();
+  };
+}
+
+if ($('btn-disconnect')) {
+  $('btn-disconnect').onclick = async () => {
+    await postAction('/api/disconnect', undefined, 'отключено вручную');
+  };
+}
+
+if ($('btn-mode-toggle')) {
+  $('btn-mode-toggle').onclick = async () => {
+    const nextKeep = $('btn-mode-toggle').dataset.keep !== 'true';
+    const d = await postAction('/api/mode', { keepAlive: nextKeep }, null);
+    if (d) {
+      updateModeButton(!!d.keepAlive);
+      if (typeof loadStatus === 'function') loadStatus();
+    }
+  };
+}
+
+if ($('btn-cal-silent')) {
+  $('btn-cal-silent').onclick = async () => {
+    await postAction('/api/calibrate', undefined, 'тихая калибровка выполнена');
+  };
+}
+
+if ($('btn-cal-feed')) {
+  $('btn-cal-feed').onclick = async () => {
+    await postAction('/api/calibrate?feed=1', undefined, 'калибровка с протяжкой выполнена');
+  };
+}
+
+if ($('btn-testpage')) {
+  $('btn-testpage').onclick = async () => {
+    await postAction('/api/testpage', undefined, 'тестовая страница отправлена');
+  };
+}
+
+if ($('btn-shutdown')) {
+  $('btn-shutdown').onclick = async () => {
+    if (!confirm('Остановить локальный веб-сервер NIIMBOT?')) return;
+    await postAction('/api/shutdown', undefined, 'сервер остановлен');
+    document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;text-align:center"><h2>Сервер NIIMBOT N1 остановлен</h2><p>Эту вкладку можно закрыть.</p></div>';
+  };
+}
+
+// Кастомный выпадающий список для поля "Размер текста"
+if ($('fs-drop-btn') && $('fs-menu') && $('cfg-fontsize')) {
+  $('fs-drop-btn').onclick = (e) => {
+    e.stopPropagation();
+    $('fs-menu').classList.toggle('hidden');
+  };
+  $('fs-menu').querySelectorAll('div[data-val]').forEach((item) => {
+    item.onclick = () => {
+      $('cfg-fontsize').value = item.dataset.val;
+      $('fs-menu').classList.add('hidden');
+      if (typeof schedulePreview === 'function') schedulePreview();
+    };
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.combo-wrap')) {
+      $('fs-menu').classList.add('hidden');
+    }
+  });
+}

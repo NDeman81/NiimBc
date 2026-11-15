@@ -14,8 +14,12 @@
       <h1>NIIMBOT N1</h1>
     </div>
     <div id="status" class="status">читаю состояние…</div>
+    <button id="btn-connect" class="ghost">Подключить</button>
+    <button id="btn-disconnect" class="ghost">Отключить</button>
+    <button id="btn-mode-toggle" class="ghost" title="Переключить режим удержания Bluetooth-связи">Режим: Keep-Alive</button>
     <a href="designer.html" class="design-link">Конструктор этикеток</a>
     <button id="refresh" class="ghost">Обновить</button>
+    <button id="btn-shutdown" class="ghost danger" title="Остановить локальный веб-сервер">Выключить</button>
   </header>
 
   <main>
@@ -29,7 +33,7 @@
 
       <div id="pane-barcode">
         <div class="grid design-grid">
-          <label>Данные штрихкода / QR
+          <label>Данные штрихкода / QR <small id="bc-len-hint" style="display:inline;margin-left:6px;color:#2563eb"></small>
             <input type="text" id="bc-data" value="109660401000099999" placeholder="Например: 109660401000099999 или INV-2026">
           </label>
           <label>Верхний текст <input type="text" id="bc-top" placeholder="необязательно"></label>
@@ -106,7 +110,21 @@
               <option value="">системный по умолчанию</option>
             </select>
           </label>
-          <label>Размер текста <input type="text" id="cfg-fontsize" value="-1" placeholder="-1, 0, 24, 35p">
+                    <label>Размер текста
+            <div class="combo-wrap">
+              <input type="text" id="cfg-fontsize" value="-1" placeholder="-1, 0, 24, 35p" autocomplete="off">
+              <button type="button" id="fs-drop-btn" class="combo-btn" title="Выбрать из списка">▼</button>
+              <div id="fs-menu" class="combo-menu hidden">
+                <div data-val="-1">-1 — Автоподбор</div>
+                <div data-val="0">0 — Скрыть подпись кода</div>
+                <div data-val="25p">25p — Мелкий (25%)</div>
+                <div data-val="35p">35p — Оптимально (35%)</div>
+                <div data-val="50p">50p — Половина высоты (50%)</div>
+                <div data-val="70p">70p — Крупный (70%)</div>
+                <div data-val="16">16 — Фикс. высота 16 px</div>
+                <div data-val="24">24 — Фикс. высота 24 px</div>
+              </div>
+            </div>
             <small>-1 авто, 0 скрыть код, N px, Np %</small>
           </label>
           <div class="bold-cell">
@@ -179,6 +197,11 @@
           <button id="btn-save-cfg" class="primary">Сохранить в config.json</button>
           <button id="btn-load-cfg" class="ghost">Загрузить из файла</button>
         </div>
+        <div class="row" style="margin-top:8px">
+          <button id="btn-cal-silent" class="ghost">Тихая калибровка</button>
+          <button id="btn-cal-feed" class="ghost">Протяжка пустой</button>
+          <button id="btn-testpage" class="ghost">Заводской тест (0x5A)</button>
+        </div>
         <p id="cfg-status" class="hint"></p>
       </details>
 
@@ -212,6 +235,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

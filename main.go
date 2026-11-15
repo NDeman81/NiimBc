@@ -501,16 +501,25 @@ FontSize:     activeCfg.FontSize,
 FontPt:       *fontPt,
 MarginPx:     activeCfg.MarginPx,
 SideMarginPx: activeCfg.SideMarginPx,
+		OffsetPx:     activeCfg.OffsetPx,
 }
 }
 
 func buildBarcodeFromConfig(data string) (*image.Gray, error) {
 return RenderBarcodeLabel(BarcodeOptions{
-Data: data, Format: activeCfg.BcFormat, LengthMM: activeCfg.Length,
-TopText: *topText, BottomText: *botText,
-FontName: activeCfg.FontName, IsMainTextBold: activeCfg.IsMainTextBold, FontSize: activeCfg.FontSize,
-OffsetPx: activeCfg.OffsetPx, SideMarginPx: activeCfg.SideMarginPx,
-MarginPx: activeCfg.MarginPx, GapPx: activeCfg.GapPx, TextGapPx: activeCfg.TextGapPx,
+Data:           data,
+Format:         activeCfg.BcFormat,
+LengthMM:       activeCfg.Length,
+TopText:        *topText,
+BottomText:     *botText,
+FontName:       activeCfg.FontName,
+IsMainTextBold: activeCfg.IsMainTextBold,
+FontSize:       activeCfg.FontSize,
+OffsetPx:       activeCfg.OffsetPx,
+SideMarginPx:   activeCfg.SideMarginPx,
+MarginPx:       activeCfg.MarginPx,
+GapPx:          activeCfg.GapPx,
+TextGapPx:      activeCfg.TextGapPx,
 }, activeCfg)
 }
 
@@ -524,5 +533,9 @@ src, _, err := image.Decode(f)
 if err != nil {
 return nil, err
 }
-return FitToLabelEx(src, lengthMM, activeCfg.MarginPx, activeCfg.SideMarginPx, activeCfg.ImgStretch), nil
+res := FitToLabelEx(src, lengthMM, activeCfg.MarginPx, activeCfg.SideMarginPx, activeCfg.ImgStretch)
+if activeCfg.OffsetPx != 0 {
+shiftImageX(res, activeCfg.OffsetPx)
+}
+return res, nil
 }

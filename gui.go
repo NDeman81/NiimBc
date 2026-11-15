@@ -157,28 +157,32 @@ func writeErr(w http.ResponseWriter, code int, err error) {
 
 // withPrinter подключается к принтеру, подержав очередь, и отдаёт его обработчику.
 func withPrinter(address string, fn func(*Printer) error) error {
-	bleMu.Lock()
-	defer bleMu.Unlock()
+bleMu.Lock()
+defer bleMu.Unlock()
 
-	foundByName := false
-	if address == "" {
-		found, err := ScanPrinter("N1-", 12*time.Second, guiVerbose)
-		if err != nil {
-			return err
-		}
-		address = found
-		foundByName = true
-	}
-	p, err := ConnectMAC(address, guiVerbose, foundByName)
-	if err != nil {
-		return err
-	}
-	p.printMode = LoadConfig().PrintMode
-	defer p.Close()
-	if _, err := p.Handshake(); err != nil {
-		return err
-	}
-	return fn(p)
+cfg := LoadConfig()
+if strings.TrimSpace(address) == "" {
+address = strings.TrimSpace(cfg.Address)
+}
+foundByName := false
+if address == "" {
+found, err := ScanPrinter("N1-", 12*time.Second, guiVerbose)
+if err != nil {
+return err
+}
+address = found
+foundByName = true
+}
+p, release, err := acquirePrinter(address, guiVerbose, foundByName)
+if err != nil {
+return err
+}
+defer release()
+if err := fn(p); err != nil {
+disconnectSharedPrinter()
+return err
+}
+return nil
 }
 
 // --------------------------------------------------------------------------
@@ -238,7 +242,8 @@ Bold         bool      `json:"bold"`         // жирный текст/подп
 MarginPx     *int      `json:"marginPx"`     // поля верх/низ, px (указатель, чтобы 0 не терялся)
 SideMarginPx *int      `json:"sideMarginPx"` // боковые поля, px
 GapPx        *int      `json:"gapPx"`        // зазор код-текст, px
-TextGapPx    *int      `json:"textGapPx"`    // зазор доп. текста, px
+TextGapPx    *int      `json:"textGapPx"`
+	OffsetPx     *int      `json:"offsetPx"`     // сдвиг по X, px    // зазор доп. текста, px
 ImageData    string    `json:"imageData"`
 	Stretch      bool      `json:"stretch"`      // растянуть картинку без сохранения пропорций    // data:URL картинки для режима image
 }
@@ -385,6 +390,10 @@ textGapPx := cfg.TextGapPx
 if req.TextGapPx != nil {
 textGapPx = *req.TextGapPx
 }
+	offsetPx := cfg.OffsetPx
+	if req.OffsetPx != nil {
+		offsetPx = *req.OffsetPx
+	}
 
 if req.Mode == "barcode" {
 return RenderBarcodeLabel(BarcodeOptions{
@@ -396,7 +405,7 @@ BottomText:     req.BottomText,
 FontName:       req.FontName,
 IsMainTextBold: req.Bold,
 FontSize:       req.FontSize,
-OffsetPx:       cfg.OffsetPx,
+OffsetPx:       offsetPx,
 SideMarginPx:   sideMarginPx,
 MarginPx:       marginPx,
 GapPx:          gapPx,
@@ -419,7 +428,9 @@ src, _, err := image.Decode(bytes.NewReader(bin))
 if err != nil {
 return nil, fmt.Errorf("неподдерживаемый формат картинки: %w", err)
 }
-return FitToLabelEx(src, length, marginPx, sideMarginPx, req.Stretch), nil
+res := FitToLabelEx(src, length, marginPx, sideMarginPx, req.Stretch)
+		if offsetPx != 0 { shiftImageX(res, offsetPx) }
+		return res, nil
 }
 if len(req.Elements) > 0 {
 img, err := RenderTemplate(LabelTemplate{LengthMM: length, Elements: req.Elements},
@@ -458,6 +469,7 @@ FontSize:     fontSize,
 FontPt:       req.Font,
 MarginPx:     marginPx,
 SideMarginPx: sideMarginPx,
+		OffsetPx:     offsetPx,
 })
 }
 // apiPrint запускает серию в фоне и возвращает идентификатор задания.
@@ -542,6 +554,45 @@ func apiPreview(w http.ResponseWriter, req printRequest) {
 // --------------------------------------------------------------------------
 // Сервер
 // --------------------------------------------------------------------------
+
+var (
+sharedMu      sync.Mutex
+sharedPrinter *Printer
+sharedMAC     string
+)
+
+func acquirePrinter(mac string, verbose bool, foundByName bool) (*Printer, func(), error) {
+cfg := LoadConfig()
+if !cfg.KeepAlive {
+p, err := ConnectMAC(mac, verbose, foundByName)
+if err != nil {
+return nil, nil, err
+}
+p.printMode = cfg.PrintMode
+return p, func() { _ = p.Close() }, nil
+}
+
+sharedMu.Lock()
+if sharedPrinter != nil && strings.EqualFold(sharedMAC, mac) {
+if _, err := sharedPrinter.Handshake(); err == nil {
+sharedPrinter.printMode = cfg.PrintMode
+return sharedPrinter, func() { sharedMu.Unlock() }, nil
+}
+_ = sharedPrinter.Close()
+sharedPrinter = nil
+}
+
+p, err := ConnectMAC(mac, verbose, foundByName)
+if err != nil {
+sharedMu.Unlock()
+return nil, nil, err
+}
+p.printMode = cfg.PrintMode
+p.StartKeepAlive()
+sharedPrinter = p
+sharedMAC = mac
+return sharedPrinter, func() { sharedMu.Unlock() }, nil
+}
 
 // startGUI поднимает веб-интерфейс и открывает браузер.
 func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) error {
@@ -685,7 +736,14 @@ mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Статика из embed
-	sub, err := fs.Sub(webAssets, "web")
+	mux.HandleFunc("/api/connect", apiConnectHandler)
+mux.HandleFunc("/api/disconnect", apiDisconnectHandler)
+mux.HandleFunc("/api/mode", apiModeHandler)
+mux.HandleFunc("/api/calibrate", apiCalibrateHandler)
+mux.HandleFunc("/api/testpage", apiTestPageHandler)
+mux.HandleFunc("/api/shutdown", apiShutdownHandler)
+
+sub, err := fs.Sub(webAssets, "web")
 	if err != nil {
 		return err
 	}
@@ -810,4 +868,114 @@ func openAppWindow(url string) bool {
 		return false
 	}
 	return true
+}
+
+func disconnectSharedPrinter() {
+sharedMu.Lock()
+defer sharedMu.Unlock()
+if sharedPrinter != nil {
+_ = sharedPrinter.Close()
+sharedPrinter = nil
+sharedMAC = ""
+}
+}
+
+func apiConnectHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+return
+}
+cfg := LoadConfig()
+err := withPrinter(cfg.Address, func(p *Printer) error {
+_, err := p.Handshake()
+return err
+})
+if err != nil {
+writeErr(w, http.StatusBadGateway, err)
+return
+}
+writeJSON(w, map[string]any{"ok": true, "keepAlive": cfg.KeepAlive})
+}
+
+func apiDisconnectHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+return
+}
+disconnectSharedPrinter()
+writeJSON(w, map[string]any{"ok": true})
+}
+
+func apiModeHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+return
+}
+var body struct {
+KeepAlive bool `json:"keepAlive"`
+}
+if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+writeErr(w, http.StatusBadRequest, err)
+return
+}
+cfg := LoadConfig()
+cfg.KeepAlive = body.KeepAlive
+if err := SaveConfig(cfg); err != nil {
+writeErr(w, http.StatusInternalServerError, err)
+return
+}
+if !cfg.KeepAlive {
+disconnectSharedPrinter()
+}
+writeJSON(w, map[string]any{"ok": true, "keepAlive": cfg.KeepAlive})
+}
+
+func apiCalibrateHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+return
+}
+feed := r.URL.Query().Get("feed") == "1"
+cfg := LoadConfig()
+err := withPrinter(cfg.Address, func(p *Printer) error {
+labelName, err := resolveLabel(p, cfg.Label)
+if err != nil {
+return err
+}
+return p.Calibrate(feed, cfg.Length, labelTypes[labelName])
+})
+if err != nil {
+writeErr(w, http.StatusBadGateway, err)
+return
+}
+writeJSON(w, map[string]any{"ok": true})
+}
+
+func apiTestPageHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+return
+}
+cfg := LoadConfig()
+err := withPrinter(cfg.Address, func(p *Printer) error {
+return p.PrintTestPage()
+})
+if err != nil {
+writeErr(w, http.StatusBadGateway, err)
+return
+}
+writeJSON(w, map[string]any{"ok": true})
+}
+
+func apiShutdownHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+return
+}
+writeJSON(w, map[string]any{"ok": true})
+go func() {
+time.Sleep(150 * time.Millisecond)
+disconnectSharedPrinter()
+os.Exit(0)
+}()
 }

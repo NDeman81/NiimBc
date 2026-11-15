@@ -94,7 +94,7 @@ func ConnectMAC(mac string, verbose, freshDiscovery bool) (*Printer, error) {
 		return nil, fmt.Errorf("не разобрать адрес принтера %q: %w", mac, err)
 	}
 	var adapter = bluetooth.DefaultAdapter
-	if err := adapter.Enable(); err != nil {
+	if err := ensureAdapterEnabled(); err != nil {
 		return nil, fmt.Errorf("не удалось включить Bluetooth-адаптер: %w", err)
 	}
 	p := &Printer{verbose: verbose}
@@ -194,9 +194,21 @@ func stopScan(adapter *bluetooth.Adapter) {
 }
 
 // ScanPrinter ищет принтер по имени (например, «N1-»).
+var (
+adapterEnableOnce sync.Once
+adapterEnableErr  error
+)
+
+func ensureAdapterEnabled() error {
+adapterEnableOnce.Do(func() {
+adapterEnableErr = bluetooth.DefaultAdapter.Enable()
+})
+return adapterEnableErr
+}
+
 func ScanPrinter(nameHint string, timeout time.Duration, verbose bool) (string, error) {
 	var adapter = bluetooth.DefaultAdapter
-	if err := adapter.Enable(); err != nil {
+	if err := ensureAdapterEnabled(); err != nil {
 		return "", fmt.Errorf("не удалось включить Bluetooth-адаптер: %w", err)
 	}
 	type found struct {

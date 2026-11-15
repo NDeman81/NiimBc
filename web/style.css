@@ -363,3 +363,52 @@ button:disabled { opacity: .45; cursor: default; }
   box-sizing: border-box;
   margin-top: 4px;
 }
+
+.combo-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  margin-top: 4px;
+}
+.combo-wrap input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0 !important;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.combo-btn {
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  font-size: 11px;
+}
+.combo-btn:hover { background: #e2e8f0; }
+.combo-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: 2px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.combo-menu div {
+  padding: 7px 10px;
+  font-size: 13px;
+  color: #1e293b;
+  cursor: pointer;
+}
+.combo-menu div:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
