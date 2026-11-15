@@ -47,20 +47,20 @@ var (
 	imageFile = flagSet.String("file", "", "файл картинки для макета (команда preview)")
 	port      = flagSet.Int("port", 8765, "порт веб-интерфейса (команда gui); 8080 занят SearXNG")
 	noBrowser = flagSet.Bool("no-browser", false, "не открывать браузер (команда gui)")
-	appMode   = flagSet.Bool("app", false, "открыть отдельным окном без вкладок и адресной строки (команда gui)")
-	bcMode    = flagSet.Bool("bc", false, "режим штрихкода для команды preview")
-	bcFormat  = flagSet.String("bc-format", "", "формат штрихкода: auto | code128 | qr | qrl | qrr")
-	topText   = flagSet.String("top-text", "", "верхний текст над штрихкодом / сбоку от QR")
-	botText   = flagSet.String("bottom-text", "", "нижний текст под штрихкодом / сбоку от QR")
-	fontName  = flagSet.String("font-name", "", "имя системного шрифта для штрихкода")
-	fontSize  = flagSet.String("font-size", "", "размер подписи штрихкода: -1 (авто), 0 (скрыть), N, Np")
-	bcBold    = flagSet.Bool("bold", false, "полужирный шрифт подписи штрихкода")
-	bcOffset  = flagSet.Int("offset", 0, "горизонтальный сдвиг штрихкода, px")
-	bcMargin  = flagSet.Int("margin", -1, "верхнее и нижнее поля штрихкода, px")
-	bcSideM   = flagSet.Int("side-margin", -1, "боковые поля штрихкода, px")
-	bcGap     = flagSet.Int("gap", -1, "зазор между штрихкодом и подписью, px")
-	bcTextGap = flagSet.Int("text-gap", -1, "зазор до верхнего и нижнего текста, px")
-	saveCfg   = flagSet.Bool("save-config", false, "сохранить параметры штрихкода в config.json")
+appMode   = flagSet.Bool("app", false, "открыть отдельным окном без вкладок и адресной строки (команда gui)")
+bcMode    = flagSet.Bool("bc", false, "режим штрихкода для команды preview")
+bcFormat  = flagSet.String("bc-format", "", "формат штрихкода: auto | code128 | qr | qrl | qrr")
+topText   = flagSet.String("top-text", "", "верхний текст над штрихкодом / сбоку от QR")
+botText   = flagSet.String("bottom-text", "", "нижний текст под штрихкодом / сбоку от QR")
+fontName  = flagSet.String("font-name", "", "имя системного шрифта для штрихкода")
+fontSize  = flagSet.String("font-size", "", "размер подписи штрихкода: -1 (авто), 0 (скрыть), N, Np")
+bcBold    = flagSet.Bool("bold", false, "полужирный шрифт подписи штрихкода")
+bcOffset  = flagSet.Int("offset", 0, "горизонтальный сдвиг штрихкода, px")
+bcMargin  = flagSet.Int("margin", -1, "верхнее и нижнее поля штрихкода, px")
+bcSideM   = flagSet.Int("side-margin", -1, "боковые поля штрихкода, px")
+bcGap     = flagSet.Int("gap", -1, "зазор между штрихкодом и подписью, px")
+bcTextGap = flagSet.Int("text-gap", -1, "зазор до верхнего и нижнего текста, px")
+saveCfg   = flagSet.Bool("save-config", false, "сохранить параметры штрихкода в config.json")
 )
 
 func main() {
@@ -119,14 +119,14 @@ func main() {
 			savePreview(img) // сам печатает путь и размер
 			return
 		}
-				if *bcMode {
-			if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
-			img, err := buildBarcodeFromFlags(strings.Join(posArgs, " "))
-			if err != nil { fatal(err) }
-			savePreview(img)
-			return
-		}
-		// Рендер без принтера: удобно проверить макет до печати.
+		if *bcMode {
+if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
+img, err := buildBarcodeFromFlags(strings.Join(posArgs, " "))
+if err != nil { fatal(err) }
+savePreview(img)
+return
+}
+// Рендер без принтера: удобно проверить макет до печати.
 		if len(posArgs) == 0 {
 			fatal(fmt.Errorf("не задан текст"))
 		}
@@ -207,16 +207,16 @@ func main() {
 		if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil {
 			fatal(err)
 		}
-	case "barcode":
-		if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
-		labelName, err := resolveLabel(p, *label)
-		if err != nil { fatal(err) }
-		img, err := buildBarcodeFromFlags(strings.Join(posArgs, " "))
-		if err != nil { fatal(err) }
-		savePreview(img)
-		if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
+case "barcode":
+if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
+labelName, err := resolveLabel(p, *label)
+if err != nil { fatal(err) }
+img, err := buildBarcodeFromFlags(strings.Join(posArgs, " "))
+if err != nil { fatal(err) }
+savePreview(img)
+if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
 
-	case "image":		if len(posArgs) < 1 {
+case "image":		if len(posArgs) < 1 {
 			fatal(fmt.Errorf("не задан файл картинки"))
 		}
 		labelName, err := resolveLabel(p, *label)
@@ -450,29 +450,7 @@ func savePreview(img *image.Gray) {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `Драйвер NIIMBOT N1
-
-  niimbot scan                  найти принтер по Bluetooth
-  niimbot preview "строка"      отрисовать макет без печати
-  niimbot info                  показать состояние принтера
-  niimbot rfid                  прочитать метки рулона и ленты
-  niimbot text "строка" "..."   напечатать текст
-  niimbot image file.png        напечатать картинку
-  niimbot testpage              встроенная тестовая страница
-  niimbot gui                   графический интерфейс (серии, шаблоны, предпросмотр)
-
-Флаги: --address MAC   --length мм   --font точек   --density 1..3
-       --copies N   --flip   -v=false
-
-Типы этикеток (N1 поддерживает пять из восьми типов протокола):
-  --label withgaps       этикетки с зазорами — обычные (по умолчанию)
-  --label continuous     непрерывная лента
-  --label transparent    прозрачные
-  --label blackmarkgap   с чёрной меткой
-  --label heatshrink     термоусадочная трубка
-
-Протокол знает ещё black, perforated и pvctag, но прошивка N1 их не поддерживает.
-`)
+	printHelpText()
 }
 
 func fatal(err error) {
@@ -480,22 +458,22 @@ func fatal(err error) {
 	os.Exit(1)
 }
 func buildBarcodeFromFlags(data string) (*image.Gray, error) {
-	cfg := LoadConfig()
-	if *bcFormat != "" { cfg.BcFormat = *bcFormat }
-	if *fontName != "" { cfg.FontName = *fontName }
-	if *fontSize != "" { cfg.FontSize = *fontSize }
-	if *bcBold { cfg.IsMainTextBold = true }
-	if *bcOffset != 0 { cfg.OffsetPx = *bcOffset }
-	if *bcMargin >= 0 { cfg.MarginPx = *bcMargin }
-	if *bcSideM >= 0 { cfg.SideMarginPx = *bcSideM }
-	if *bcGap >= 0 { cfg.GapPx = *bcGap }
-	if *bcTextGap >= 0 { cfg.TextGapPx = *bcTextGap }
-	if *saveCfg { _ = SaveConfig(cfg) }
-	return RenderBarcodeLabel(BarcodeOptions{
-		Data: data, Format: cfg.BcFormat, LengthMM: *length,
-		TopText: *topText, BottomText: *botText,
-		FontName: cfg.FontName, IsMainTextBold: cfg.IsMainTextBold, FontSize: cfg.FontSize,
-		OffsetPx: cfg.OffsetPx, SideMarginPx: cfg.SideMarginPx,
-		MarginPx: cfg.MarginPx, GapPx: cfg.GapPx, TextGapPx: cfg.TextGapPx,
-	}, cfg)
+cfg := LoadConfig()
+if *bcFormat != "" { cfg.BcFormat = *bcFormat }
+if *fontName != "" { cfg.FontName = *fontName }
+if *fontSize != "" { cfg.FontSize = *fontSize }
+if *bcBold { cfg.IsMainTextBold = true }
+if *bcOffset != 0 { cfg.OffsetPx = *bcOffset }
+if *bcMargin >= 0 { cfg.MarginPx = *bcMargin }
+if *bcSideM >= 0 { cfg.SideMarginPx = *bcSideM }
+if *bcGap >= 0 { cfg.GapPx = *bcGap }
+if *bcTextGap >= 0 { cfg.TextGapPx = *bcTextGap }
+if *saveCfg { _ = SaveConfig(cfg) }
+return RenderBarcodeLabel(BarcodeOptions{
+Data: data, Format: cfg.BcFormat, LengthMM: *length,
+TopText: *topText, BottomText: *botText,
+FontName: cfg.FontName, IsMainTextBold: cfg.IsMainTextBold, FontSize: cfg.FontSize,
+OffsetPx: cfg.OffsetPx, SideMarginPx: cfg.SideMarginPx,
+MarginPx: cfg.MarginPx, GapPx: cfg.GapPx, TextGapPx: cfg.TextGapPx,
+}, cfg)
 }
