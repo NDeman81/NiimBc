@@ -78,6 +78,13 @@ $('series-text').addEventListener('input', updateSeriesCount);
 
 // ---------------------------------------------------------------- настройки
 
+function intVal(id, def) {
+  const el = $(id);
+  if (!el || el.value === '') return def;
+  const n = parseInt(el.value, 10);
+  return Number.isNaN(n) ? def : n;
+}
+
 function collectRequest() {
   const base = {
     mode,
@@ -87,8 +94,13 @@ function collectRequest() {
     label: $('label').value,
     copies: parseInt($('copies').value, 10) || 1,
     flip: $('flip').checked,
-    threshold: $('threshold') ? (parseInt($('threshold').value, 10) || 200) : 200,
-    address: $('address') ? $('address').value.trim() : ''
+    threshold: intVal('threshold', 200),
+    address: $('address') ? $('address').value.trim() : '',
+    fontName: $('cfg-fontname') ? $('cfg-fontname').value : '',
+    fontSize: $('cfg-fontsize') ? ($('cfg-fontsize').value.trim() || '-1') : '-1',
+    bold: $('cfg-bold') ? $('cfg-bold').checked : false,
+    marginPx: intVal('cfg-margin', 4),
+    sideMarginPx: intVal('cfg-sidemargin', 10)
   };
 
   if (mode === 'barcode') {
@@ -99,12 +111,8 @@ function collectRequest() {
       bcFormat: $('cfg-bcformat') ? $('cfg-bcformat').value : 'auto',
       topText: $('bc-top') ? $('bc-top').value : '',
       bottomText: $('bc-bot') ? $('bc-bot').value : '',
-      fontName: $('cfg-fontname') ? $('cfg-fontname').value.trim() : '',
-      fontSize: $('cfg-fontsize') ? ($('cfg-fontsize').value.trim() || '-1') : '-1',
-      bold: $('cfg-bold') ? $('cfg-bold').checked : false,
-      marginPx: $('cfg-margin') ? (parseInt($('cfg-margin').value, 10) || 0) : 4,
-      sideMarginPx: $('cfg-sidemargin') ? (parseInt($('cfg-sidemargin').value, 10) || 0) : 10,
-      gapPx: $('cfg-gap') ? (parseInt($('cfg-gap').value, 10) || 0) : 4
+      gapPx: intVal('cfg-gap', 4),
+      textGapPx: intVal('cfg-textgap', 4)
     };
   }
 
@@ -112,6 +120,7 @@ function collectRequest() {
     return {
       ...base,
       imageData: uploadedImageData,
+      stretch: $('img-stretch') ? $('img-stretch').checked : false,
       items: uploadedImageData ? ['image'] : []
     };
   }
@@ -405,6 +414,27 @@ if ($('img-file')) {
 
 let currentConfig = {};
 
+async function loadSystemFonts() {
+  const sel = $('cfg-fontname');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/fonts');
+    if (!r.ok) return;
+    const data = await r.json();
+    const current = sel.value || (currentConfig && currentConfig.fontName) || '';
+    sel.innerHTML = '<option value="">системный по умолчанию</option>';
+    (data.families || []).forEach((fam) => {
+      const opt = document.createElement('option');
+      opt.value = fam;
+      opt.textContent = fam;
+      sel.appendChild(opt);
+    });
+    if (current) sel.value = current;
+  } catch (e) {
+    console.error('Ошибка загрузки списка шрифтов:', e);
+  }
+}
+
 async function loadAppConfig() {
   try {
     const r = await fetch('/api/config');
@@ -421,6 +451,7 @@ async function loadAppConfig() {
     if ($('label')) $('label').value = c.label || '';
     if ($('flip')) $('flip').checked = !!c.flip;
     if ($('cfg-autoname')) $('cfg-autoname').checked = !!c.autoFileName;
+    if ($('img-stretch')) $('img-stretch').checked = !!c.imgStretch;
 
     if ($('cfg-keepalive')) $('cfg-keepalive').value = String(c.keepAlive !== false);
     if ($('cfg-printmode')) $('cfg-printmode').value = c.printMode || 'fast';
@@ -428,11 +459,14 @@ async function loadAppConfig() {
     if ($('cfg-bcformat')) $('cfg-bcformat').value = c.bcFormat || 'auto';
     if ($('cfg-qrside')) $('cfg-qrside').value = c.defaultQrSide || 'left';
     if ($('cfg-fontname')) $('cfg-fontname').value = c.fontName || '';
+    await loadSystemFonts();
+    if ($('cfg-fontname')) $('cfg-fontname').value = c.fontName || '';
     if ($('cfg-fontsize')) $('cfg-fontsize').value = c.fontSize || '-1';
     if ($('cfg-offset')) $('cfg-offset').value = c.offsetPx ?? 0;
     if ($('cfg-margin')) $('cfg-margin').value = c.marginPx ?? 4;
     if ($('cfg-sidemargin')) $('cfg-sidemargin').value = c.sideMarginPx ?? 10;
     if ($('cfg-gap')) $('cfg-gap').value = c.gapPx ?? 4;
+    if ($('cfg-textgap')) $('cfg-textgap').value = c.textGapPx ?? 4;
     if ($('cfg-savedir')) $('cfg-savedir').value = c.saveDir || '';
     if ($('cfg-savefile')) $('cfg-savefile').value = c.saveFile || 'niimbot_label_preview.png';
     if ($('cfg-watchdir')) $('cfg-watchdir').value = c.watchDir || '';
@@ -455,6 +489,7 @@ if ($('btn-save-cfg')) {
       label: $('label').value,
       flip: $('flip').checked,
       autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
+      imgStretch: $('img-stretch') ? $('img-stretch').checked : false,
       keepAlive: $('cfg-keepalive').value === 'true',
       printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
       logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
@@ -463,9 +498,10 @@ if ($('btn-save-cfg')) {
       fontName: $('cfg-fontname').value.trim(),
       fontSize: $('cfg-fontsize').value.trim() || '-1',
       offsetPx: parseInt($('cfg-offset').value, 10) || 0,
-      marginPx: parseInt($('cfg-margin').value, 10) || 0,
-      sideMarginPx: parseInt($('cfg-sidemargin').value, 10) || 0,
-      gapPx: parseInt($('cfg-gap').value, 10) || 0,
+      marginPx: intVal('cfg-margin', 4),
+      sideMarginPx: intVal('cfg-sidemargin', 10),
+      gapPx: intVal('cfg-gap', 4),
+      textGapPx: intVal('cfg-textgap', 4),
       saveDir: $('cfg-savedir').value.trim(),
       saveFile: $('cfg-savefile') ? ($('cfg-savefile').value.trim() || 'niimbot_label_preview.png') : 'niimbot_label_preview.png',
       watchDir: $('cfg-watchdir').value.trim(),
@@ -548,3 +584,5 @@ if ($('save-file-btn')) {
     }
   };
 }
+
+if ($('img-stretch')) $('img-stretch').addEventListener('change', () => { if (typeof schedulePreview === 'function') schedulePreview(); });

@@ -232,13 +232,15 @@ Address      string    `json:"address"`
 BcFormat     string    `json:"bcFormat"`     // auto | code128 | qr | qrl | qrr
 TopText      string    `json:"topText"`      // верхний текст штрихкода
 BottomText   string    `json:"bottomText"`   // нижний текст штрихкода
-FontName     string    `json:"fontName"`     // шрифт подписи штрихкода
-FontSize     string    `json:"fontSize"`     // размер подписи: -1, 0, N, Np
-Bold         bool      `json:"bold"`         // жирная подпись штрихкода
-MarginPx     int       `json:"marginPx"`     // поля верх/низ, px
-SideMarginPx int       `json:"sideMarginPx"` // боковые поля, px
-GapPx        int       `json:"gapPx"`        // зазор код-текст, px
-ImageData    string    `json:"imageData"`    // data:URL картинки для режима image
+FontName     string    `json:"fontName"`     // шрифт текста/подписи
+FontSize     string    `json:"fontSize"`     // размер текста: -1, 0, N, Np
+Bold         bool      `json:"bold"`         // жирный текст/подпись
+MarginPx     *int      `json:"marginPx"`     // поля верх/низ, px (указатель, чтобы 0 не терялся)
+SideMarginPx *int      `json:"sideMarginPx"` // боковые поля, px
+GapPx        *int      `json:"gapPx"`        // зазор код-текст, px
+TextGapPx    *int      `json:"textGapPx"`    // зазор доп. текста, px
+ImageData    string    `json:"imageData"`
+	Stretch      bool      `json:"stretch"`      // растянуть картинку без сохранения пропорций    // data:URL картинки для режима image
 }
 
 // splitFields разбирает строку данных на столбцы: ; , или табуляция.
@@ -366,8 +368,25 @@ func (r printRequest) threshold() uint8 {
 // renderOne готовит одну этикетку: по шаблону конструктора, если он задан,
 // иначе прежним способом — текстом с шаблоном или строкой через |.
 func renderOne(req printRequest, item string, length float64) (*image.Gray, error) {
-if req.Mode == "barcode" {
 cfg := LoadConfig()
+marginPx := cfg.MarginPx
+if req.MarginPx != nil {
+marginPx = *req.MarginPx
+}
+sideMarginPx := cfg.SideMarginPx
+if req.SideMarginPx != nil {
+sideMarginPx = *req.SideMarginPx
+}
+gapPx := cfg.GapPx
+if req.GapPx != nil {
+gapPx = *req.GapPx
+}
+textGapPx := cfg.TextGapPx
+if req.TextGapPx != nil {
+textGapPx = *req.TextGapPx
+}
+
+if req.Mode == "barcode" {
 return RenderBarcodeLabel(BarcodeOptions{
 Data:           item,
 Format:         req.BcFormat,
@@ -378,10 +397,10 @@ FontName:       req.FontName,
 IsMainTextBold: req.Bold,
 FontSize:       req.FontSize,
 OffsetPx:       cfg.OffsetPx,
-SideMarginPx:   req.SideMarginPx,
-MarginPx:       req.MarginPx,
-GapPx:          req.GapPx,
-TextGapPx:      cfg.TextGapPx,
+SideMarginPx:   sideMarginPx,
+MarginPx:       marginPx,
+GapPx:          gapPx,
+TextGapPx:      textGapPx,
 }, cfg)
 }
 if req.Mode == "image" {
@@ -400,44 +419,47 @@ src, _, err := image.Decode(bytes.NewReader(bin))
 if err != nil {
 return nil, fmt.Errorf("неподдерживаемый формат картинки: %w", err)
 }
-dst := NewLabelImage(length)
-sb := src.Bounds()
-dw, dh := dst.Bounds().Dx(), dst.Bounds().Dy()
-scale := float64(dw) / float64(sb.Dx())
-if sy := float64(dh) / float64(sb.Dy()); sy < scale {
-scale = sy
+return FitToLabelEx(src, length, marginPx, sideMarginPx, req.Stretch), nil
 }
-nw, nh := maxInt(1, int(float64(sb.Dx())*scale)), maxInt(1, int(float64(sb.Dy())*scale))
-ox, oy := (dw-nw)/2, (dh-nh)/2
-sub := dst.SubImage(image.Rect(ox, oy, ox+nw, oy+nh)).(*image.Gray)
-drawScaled(sub, src)
-return dst, nil
+if len(req.Elements) > 0 {
+img, err := RenderTemplate(LabelTemplate{LengthMM: length, Elements: req.Elements},
+splitFields(item))
+if err != nil {
+return nil, fmt.Errorf("этикетка %q: %w", item, err)
 }
-	if len(req.Elements) > 0 {
-		img, err := RenderTemplate(LabelTemplate{LengthMM: length, Elements: req.Elements},
-			splitFields(item))
-		if err != nil {
-			return nil, fmt.Errorf("этикетка %q: %w", item, err)
-		}
-		return img, nil
-	}
-
-	var lines []string
-	if strings.TrimSpace(req.Template) != "" {
-		var err error
-		lines, err = expandTemplate(req.Template, splitFields(item))
-		if err != nil {
-			return nil, fmt.Errorf("строка данных %q: %w", item, err)
-		}
-	} else {
-		lines = splitLabel(item)
-	}
-	if len(lines) == 0 {
-		return nil, nil
-	}
-	return RenderText(lines, length, req.Font)
+return img, nil
 }
 
+var lines []string
+if strings.TrimSpace(req.Template) != "" {
+var err error
+lines, err = expandTemplate(req.Template, splitFields(item))
+if err != nil {
+return nil, fmt.Errorf("строка данных %q: %w", item, err)
+}
+} else {
+lines = splitLabel(item)
+}
+if len(lines) == 0 {
+return nil, nil
+}
+fontName := req.FontName
+if fontName == "" {
+fontName = cfg.FontName
+}
+fontSize := req.FontSize
+if fontSize == "" {
+fontSize = cfg.FontSize
+}
+return RenderTextWithOptions(lines, length, TextRenderOptions{
+FontName:     fontName,
+Bold:         req.Bold,
+FontSize:     fontSize,
+FontPt:       req.Font,
+MarginPx:     marginPx,
+SideMarginPx: sideMarginPx,
+})
+}
 // apiPrint запускает серию в фоне и возвращает идентификатор задания.
 func apiPrint(w http.ResponseWriter, req printRequest) {
 	pages, err := renderPages(req)

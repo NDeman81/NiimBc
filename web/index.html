@@ -52,6 +52,7 @@
             </select>
           </label>
           <label>Зазор код-текст, px <input type="number" id="cfg-gap" min="0" value="4"></label>
+          <label>Зазор доп. текста, px <input type="number" id="cfg-textgap" min="0" value="4"></label>
         </div>
       </div>
 
@@ -71,6 +72,9 @@
             <input type="number" id="threshold" value="200" min="1" max="255">
             <small>больше — жирнее (200 норма)</small>
           </label>
+        </div>
+        <div class="row checks" style="margin-top:10px">
+          <label class="check"><input type="checkbox" id="img-stretch"> Растянуть до полей (без сохранения пропорций)</label>
         </div>
         <p id="img-file-name" class="hint">Картинка будет вписана по размеру этикетки с учётом порога Ч/Б.</p>
       </div>
@@ -97,7 +101,11 @@
 
       <div id="text-params-block">
         <div class="text-row-grid">
-          <label>Шрифт <input type="text" id="cfg-fontname" placeholder="системный"></label>
+          <label>Шрифт
+            <select id="cfg-fontname">
+              <option value="">системный по умолчанию</option>
+            </select>
+          </label>
           <label>Размер текста <input type="text" id="cfg-fontsize" value="-1" placeholder="-1, 0, 24, 35p">
             <small>-1 авто, 0 скрыть код, N px, Np %</small>
           </label>
@@ -204,6 +212,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

@@ -276,7 +276,7 @@ func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
 	for _, l := range lines {
 		totalWeight += l.weight
 	}
-	textGap := maxInt(2, opts.TextGapPx)
+	textGap := maxInt(0, opts.TextGapPx)
 	availH := maxInt(10, (H-2*margin)-textGap*(len(lines)-1))
 
 	curY := margin

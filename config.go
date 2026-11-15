@@ -25,7 +25,8 @@ type AppConfig struct {
 	PrintMode string `json:"printMode"` // fast | safe (по умолчанию fast) // error | info | debug (по умолчанию info) // true = Keep-Alive (удерживать связь), false = On-Demand
 	SaveDir   string `json:"saveDir"`
 	SaveFile  string `json:"saveFile"`
-	AutoFileName bool `json:"autoFileName"` // true = формировать имя PNG из данных штрихкода/текста  // имя PNG-файла превью (по умолчанию niimbot_label_preview.png)   // папка для PNG-превью (пусто = папка программы)
+	AutoFileName bool `json:"autoFileName"`
+	ImgStretch   bool `json:"imgStretch"`   // true = растягивать картинку до полей без сохранения пропорций // true = формировать имя PNG из данных штрихкода/текста  // имя PNG-файла превью (по умолчанию niimbot_label_preview.png)   // папка для PNG-превью (пусто = папка программы)
 	WatchDir  string `json:"watchDir"`  // папка мониторинга очереди (пусто = NiimbotQueue рядом с exe)
 
 	// Параметры штрихкодов и QR-кодов

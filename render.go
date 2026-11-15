@@ -18,6 +18,8 @@ import (
 	"image/draw"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 
 	// Декодеры картинок: без них image.Decode не понимает ни один формат.
 	// PNG раньше работал случайно — его импортировали ради кодирования макета.
@@ -29,7 +31,6 @@ import (
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
 )
 
 const feedMargin = 6 // отступ в точках
@@ -130,69 +131,107 @@ func NewLabelImage(lengthMM float64) *image.Gray {
 	return img
 }
 
-// RenderText рисует строки текста на изображении этикетки.
-//
-// Изображение — в ориентации чтения: ширина = длина этикетки (текст идёт
-// слева направо вдоль неё), высота = 96 точек поперёк головки.
-// Если fontPt <= 0, кегль подбирается так, чтобы всё влезло.
-func RenderText(lines []string, lengthMM float64, fontPt float64) (*image.Gray, error) {
-	fontPath, err := findFontFile()
-	if err != nil {
-		return nil, err
-	}
-	img := NewLabelImage(lengthMM)
-	availW := img.Bounds().Dx() - 2*feedMargin
-	availH := img.Bounds().Dy() - 2*feedMargin
-
-	if fontPt <= 0 {
-		for size := 40.0; size >= 6; size -= 1 {
-			face, err := loadFace(fontPath, size)
-			if err != nil {
-				return nil, err
-			}
-			w, h := measureBlock(face, lines)
-			face.Close()
-			if w <= availW && h <= availH {
-				fontPt = size
-				break
-			}
-		}
-		if fontPt <= 0 {
-			fontPt = 6
-		}
-	}
-
-	face, err := loadFace(fontPath, fontPt)
-	if err != nil {
-		return nil, err
-	}
-	defer face.Close()
-
-	_, blockH := measureBlock(face, lines)
-	y := feedMargin
-	if blockH < availH { // центрируем блок по высоте (поперёк головки)
-		y = (img.Bounds().Dy() - blockH) / 2
-	}
-	lineHeight := blockH / len(lines)
-
-	for _, line := range lines {
-		lw := font.MeasureString(face, line).Round()
-		x := (img.Bounds().Dx() - lw) / 2 // центрируем строку по длине
-		if x < 1 {
-			x = 1
-		}
-		d := &font.Drawer{
-			Dst:  img,
-			Src:  image.NewUniform(color.Black),
-			Face: face,
-			Dot:  fixed.P(x, y+face.Metrics().Ascent.Round()),
-		}
-		d.DrawString(line)
-		y += lineHeight
-	}
-	return img, nil
+// TextRenderOptions задаёт единые параметры оформления текста для CLI и Web UI.
+type TextRenderOptions struct {
+FontName     string  // имя системного шрифта (пусто = по умолчанию)
+Bold         bool    // полужирное начертание
+FontSize     string  // "-1" или "0" (авто), "N" (точки/px), "Np" (процент от (availH / кол-во строк))
+FontPt       float64 // запасной явный кегль в точках (для совместимости со старым флагом --font)
+MarginPx     int     // верхнее и нижнее поля, px
+SideMarginPx int     // боковые поля, px
 }
 
+// RenderText рисует строки текста со стандартными отступами (совместимость со старым API).
+func RenderText(lines []string, lengthMM float64, fontPt float64) (*image.Gray, error) {
+return RenderTextWithOptions(lines, lengthMM, TextRenderOptions{
+FontPt:       fontPt,
+MarginPx:     feedMargin,
+SideMarginPx: feedMargin,
+})
+}
+
+// RenderTextWithOptions рисует строки текста по реальным пиксельным границам глифов,
+// исключая пустой зазор сверху и выход за нижнюю границу этикетки.
+func RenderTextWithOptions(lines []string, lengthMM float64, opts TextRenderOptions) (*image.Gray, error) {
+if len(lines) == 0 {
+return NewLabelImage(lengthMM), nil
+}
+
+img := NewLabelImage(lengthMM)
+marginY := maxInt(0, opts.MarginPx)
+marginX := maxInt(0, opts.SideMarginPx)
+
+availW := img.Bounds().Dx() - 2*marginX
+availH := img.Bounds().Dy() - 2*marginY
+if availW < 8 {
+availW = 8
+}
+if availH < 8 {
+availH = 8
+}
+
+lineGap := 4
+if marginY == 0 {
+lineGap = 2
+}
+if len(lines) <= 1 {
+lineGap = 0
+}
+totalGaps := lineGap * (len(lines) - 1)
+slotH := float64(availH-totalGaps) / float64(len(lines))
+if slotH < 4 {
+slotH = 4
+}
+
+targetH := slotH
+spec := strings.TrimSpace(strings.ToLower(opts.FontSize))
+if strings.HasSuffix(spec, "p") {
+if pct, err := strconv.ParseFloat(strings.TrimSuffix(spec, "p"), 64); err == nil && pct > 0 {
+if pct > 100 {
+pct = 100
+}
+targetH = slotH * (pct / 100.0)
+}
+} else if spec != "" && spec != "-1" && spec != "0" {
+if v, err := strconv.ParseFloat(spec, 64); err == nil && v > 0 {
+targetH = v
+if targetH > slotH {
+targetH = slotH
+}
+}
+} else if opts.FontPt > 0 {
+targetH = opts.FontPt
+if targetH > slotH {
+targetH = slotH
+}
+}
+if targetH < 4 {
+targetH = 4
+}
+
+boxH := int(math.Round(targetH))
+if boxH < 4 {
+boxH = 4
+}
+totalBlockH := boxH*len(lines) + totalGaps
+if totalBlockH > availH {
+boxH = maxInt(4, (availH-totalGaps)/len(lines))
+totalBlockH = boxH*len(lines) + totalGaps
+}
+
+startY := marginY + (availH-totalBlockH)/2
+if startY < marginY {
+startY = marginY
+}
+
+for i, line := range lines {
+y := startY + i*(boxH+lineGap)
+if err := drawFittedLine(img, line, opts.FontName, opts.Bold, marginX, y, availW, boxH); err != nil {
+return nil, err
+}
+}
+return img, nil
+}
 func measureBlock(face font.Face, lines []string) (int, int) {
 	maxW := 0
 	for _, l := range lines {
@@ -306,44 +345,52 @@ func LoadImageFile(path string, lengthMM float64) (*image.Gray, error) {
 // Картинка, уже совпадающая с областью, возвращается без изменений —
 // чтобы заранее подготовленный макет не размывался пересчётом.
 func FitToLabel(src image.Image, lengthMM float64) *image.Gray {
-	if lengthMM <= 0 {
-		lengthMM = 30
-	}
-	targetW := int(math.Round(lengthMM * dotsPerMM))
-	targetH := printheadPixels
+return FitToLabelEx(src, lengthMM, 0, 0, false)
+}
 
-	b := src.Bounds()
-	sw, sh := b.Dx(), b.Dy()
-	if sw <= 0 || sh <= 0 {
-		return whiteCanvas(targetW, targetH)
-	}
+func FitToLabelWithMargins(src image.Image, lengthMM float64, marginPx, sideMarginPx int) *image.Gray {
+return FitToLabelEx(src, lengthMM, marginPx, sideMarginPx, false)
+}
 
-	// Уже точный размер — отдаём как есть.
-	if sw == targetW && sh == targetH {
-		dst := image.NewGray(image.Rect(0, 0, targetW, targetH))
-		draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Src)
-		return dst
-	}
+func FitToLabelEx(src image.Image, lengthMM float64, marginPx, sideMarginPx int, stretch bool) *image.Gray {
+if lengthMM <= 0 {
+lengthMM = 30
+}
+fullW := int(math.Round(lengthMM * dotsPerMM))
+fullH := printheadPixels
+targetW := maxInt(8, fullW-2*maxInt(0, sideMarginPx))
+targetH := maxInt(8, fullH-2*maxInt(0, marginPx))
 
-	// Вписываем с сохранением пропорций.
-	scale := math.Min(float64(targetW)/float64(sw), float64(targetH)/float64(sh))
-	dw := int(math.Round(float64(sw) * scale))
-	dh := int(math.Round(float64(sh) * scale))
-	if dw < 1 {
-		dw = 1
-	}
-	if dh < 1 {
-		dh = 1
-	}
+b := src.Bounds()
+sw, sh := b.Dx(), b.Dy()
+if sw <= 0 || sh <= 0 {
+return whiteCanvas(fullW, fullH)
+}
 
-	scaled := image.NewGray(image.Rect(0, 0, dw, dh))
-	xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), src, b, draw.Src, nil)
+if sw == targetW && sh == targetH && sideMarginPx == 0 && marginPx == 0 {
+dst := image.NewGray(image.Rect(0, 0, fullW, fullH))
+draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Src)
+return dst
+}
 
-	canvas := whiteCanvas(targetW, targetH)
-	offX := (targetW - dw) / 2
-	offY := (targetH - dh) / 2
-	draw.Draw(canvas, image.Rect(offX, offY, offX+dw, offY+dh), scaled, image.Point{}, draw.Src)
-	return canvas
+var dw, dh int
+if stretch {
+dw = targetW
+dh = targetH
+} else {
+scale := math.Min(float64(targetW)/float64(sw), float64(targetH)/float64(sh))
+dw = maxInt(1, int(math.Round(float64(sw)*scale)))
+dh = maxInt(1, int(math.Round(float64(sh)*scale)))
+}
+
+scaled := image.NewGray(image.Rect(0, 0, dw, dh))
+xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), src, b, draw.Src, nil)
+
+canvas := whiteCanvas(fullW, fullH)
+offX := (fullW - dw) / 2
+offY := (fullH - dh) / 2
+draw.Draw(canvas, image.Rect(offX, offY, offX+dw, offY+dh), scaled, image.Point{}, draw.Src)
+return canvas
 }
 
 // whiteCanvas создаёт белый холст нужного размера.

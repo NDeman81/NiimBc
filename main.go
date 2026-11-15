@@ -48,6 +48,7 @@ bcTextGap = flagSet.Int("text-gap", -1, "зазор до верхнего и н�
 saveDir   = flagSet.String("save-dir", "", "папка для сохранения PNG-превью (по умолчанию папка программы)")
 	outFile   = flagSet.String("out", "", "имя или путь выходного PNG-файла превью (по умолчанию niimbot_label_preview.png)")
 	autoName  = flagSet.Bool("auto-name", false, "формировать имя PNG-файла превью из данных штрихкода/текста")
+	stretchImg = flagSet.Bool("stretch", false, "растянуть картинку до полей этикетки без сохранения пропорций")
 watchDir  = flagSet.String("watch-dir", "", "папка мониторинга очереди этикеток")
 onDemand  = flagSet.Bool("on-demand", false, "режим сервера On-Demand (подключение только на время печати)")
 keepAlive = flagSet.Bool("keep-alive", false, "режим сервера Keep-Alive (постоянное удержание связи)")
@@ -152,6 +153,7 @@ activeCfg.WatchDir = *watchDir
 if visited["on-demand"] { activeCfg.KeepAlive = false }
 if visited["keep-alive"] { activeCfg.KeepAlive = true }
 	if visited["auto-name"] { activeCfg.AutoFileName = *autoName }
+	if visited["stretch"] { activeCfg.ImgStretch = *stretchImg }
 if visited["log-level"] && *logLevel != "" {
 activeCfg.LogLevel = *logLevel
 } else if visited["v"] && !*verbose {
@@ -207,7 +209,7 @@ return
 case "preview":
 if *imageFile != "" {
 lastLabelContent = strings.TrimSuffix(filepath.Base(*imageFile), filepath.Ext(*imageFile))
-			img, err := LoadImageFile(*imageFile, *length)
+			img, err := loadImageWithConfig(*imageFile, *length)
 if err != nil { fatal(err) }
 savePreview(img)
 return
@@ -222,7 +224,7 @@ return
 }
 if len(posArgs) == 0 { fatal(fmt.Errorf("не задан текст")) }
 lastLabelContent = strings.Join(posArgs, "_")
-			img, err := RenderText(posArgs, *length, *fontPt)
+			img, err := RenderTextWithOptions(posArgs, *length, buildTextOptionsFromConfig())
 if err != nil { fatal(err) }
 savePreview(img)
 rows := ImageToRows(img, *flip)
@@ -281,7 +283,7 @@ if len(posArgs) == 0 { fatal(fmt.Errorf("не задан текст")) }
 labelName, err := resolveLabel(p, *label)
 if err != nil { fatal(err) }
 lastLabelContent = strings.Join(posArgs, "_")
-			img, err := RenderText(posArgs, *length, *fontPt)
+			img, err := RenderTextWithOptions(posArgs, *length, buildTextOptionsFromConfig())
 if err != nil { fatal(err) }
 savePreview(img)
 if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
@@ -298,7 +300,7 @@ case "image":
 if len(posArgs) < 1 { fatal(fmt.Errorf("не задан файл картинки")) }
 labelName, err := resolveLabel(p, *label)
 if err != nil { fatal(err) }
-img, err := LoadImageFile(posArgs[0], *length)
+img, err := loadImageWithConfig(posArgs[0], *length)
 if err != nil { fatal(err) }
 if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
 }
@@ -491,6 +493,17 @@ fmt.Fprintln(os.Stderr, "ошибка:", err)
 os.Exit(1)
 }
 
+func buildTextOptionsFromConfig() TextRenderOptions {
+return TextRenderOptions{
+FontName:     activeCfg.FontName,
+Bold:         activeCfg.IsMainTextBold,
+FontSize:     activeCfg.FontSize,
+FontPt:       *fontPt,
+MarginPx:     activeCfg.MarginPx,
+SideMarginPx: activeCfg.SideMarginPx,
+}
+}
+
 func buildBarcodeFromConfig(data string) (*image.Gray, error) {
 return RenderBarcodeLabel(BarcodeOptions{
 Data: data, Format: activeCfg.BcFormat, LengthMM: activeCfg.Length,
@@ -499,4 +512,17 @@ FontName: activeCfg.FontName, IsMainTextBold: activeCfg.IsMainTextBold, FontSize
 OffsetPx: activeCfg.OffsetPx, SideMarginPx: activeCfg.SideMarginPx,
 MarginPx: activeCfg.MarginPx, GapPx: activeCfg.GapPx, TextGapPx: activeCfg.TextGapPx,
 }, activeCfg)
+}
+
+func loadImageWithConfig(path string, lengthMM float64) (*image.Gray, error) {
+f, err := os.Open(path)
+if err != nil {
+return nil, err
+}
+defer f.Close()
+src, _, err := image.Decode(f)
+if err != nil {
+return nil, err
+}
+return FitToLabelEx(src, lengthMM, activeCfg.MarginPx, activeCfg.SideMarginPx, activeCfg.ImgStretch), nil
 }
