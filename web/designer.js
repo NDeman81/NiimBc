@@ -65,10 +65,30 @@ function renderCanvas() {
     node.style.left = el.x * scale + 'px';
     node.style.top = el.y * scale + 'px';
 
+        if (el.kind === 'barcode') {
+      node.style.width = (el.w || labelLength()) * scale + 'px';
+      node.style.height = (el.h || 12) * scale + 'px';
+      node.style.background = 'repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 5px, #111 5px 6px, #fff 6px 9px)';
+      node.innerHTML = '<span style="background:rgba(255,255,255,.9);padding:1px 4px;font-size:11px;font-weight:700;position:absolute;bottom:1px;left:4px">' +
+        (el.bcFormat || 'auto').toUpperCase() + ': ' + (el.text || '') + '</span>';
+      label.appendChild(node);
+      return;
+    }
+
     if (el.kind === 'line' || el.kind === 'frame') {
       node.style.width = (el.w || 1) * scale + 'px';
       node.style.height = (el.h || 0.4) * scale + 'px';
-      if (el.kind === 'line') {
+          if (el.kind === 'barcode') {
+      node.style.width = (el.w || labelLength()) * scale + 'px';
+      node.style.height = (el.h || 12) * scale + 'px';
+      node.style.background = 'repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 5px, #111 5px 6px, #fff 6px 9px)';
+      node.innerHTML = '<span style="background:rgba(255,255,255,.9);padding:1px 4px;font-size:11px;font-weight:700;position:absolute;bottom:1px;left:4px">' +
+        (el.bcFormat || 'auto').toUpperCase() + ': ' + (el.text || '') + '</span>';
+      label.appendChild(node);
+      return;
+    }
+
+    if (el.kind === 'line') {
         node.style.background = '#111';
       } else {
         node.style.background = 'none';
@@ -249,13 +269,13 @@ async function loadFonts() {
   try {
     const r = await fetch('/api/fonts');
     const d = await r.json();
-    const sel = $('p-family');
+    const sel = $('p-family'); const selBc = $('p-bc-family'); if (selBc) selBc.innerHTML = '<option value="">по умолчанию</option>';
     sel.innerHTML = '<option value="">по умолчанию</option>';
     (d.families || []).forEach((f) => {
       const o = document.createElement('option');
       o.value = f;
       o.textContent = f;
-      sel.appendChild(o);
+      sel.appendChild(o); if (selBc) selBc.appendChild(o.cloneNode(true));
     });
   } catch (e) { /* без списка шрифтов конструктор всё равно работает */ }
 }
@@ -281,8 +301,18 @@ function showProps() {
   $('p-rotate').value = String(el.rotate || 0);
   $('p-thickness').value = el.thickness || 0.3;
 
+    p-bc-data.value = el.text || '';
+  p-bc-format.value = el.bcFormat || 'auto';
+  p-bc-top.value = el.topText || '';
+  p-bc-bot.value = el.bottomText || '';
+  p-bc-family.value = el.family || '';
+  p-bc-fontsize.value = el.fontSize || '-1';
+  p-bc-bold.checked = !!el.bold;
+
   const isText = el.kind === 'text';
-  $('text-props').classList.toggle('hidden', !isText);
+  const isBc = el.kind === 'barcode';
+  text-props.classList.toggle('hidden', !isText);
+  barcode-props.classList.toggle('hidden', !isBc);
   $('image-props').classList.toggle('hidden', el.kind !== 'image');
   $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame'));
   $('h-wrap').classList.toggle('hidden', isText);
@@ -550,7 +580,7 @@ async function loadTemplates() {
     o.value = t.name;
     o.textContent = t.name;
     o.dataset.tpl = JSON.stringify(t);
-    sel.appendChild(o);
+    sel.appendChild(o); if (selBc) selBc.appendChild(o.cloneNode(true));
   });
 }
 

@@ -27,6 +27,7 @@
       <button id="add-image" class="ghost">+ Картинка</button>
       <button id="add-line" class="ghost">+ Линия</button>
       <button id="add-frame" class="ghost">+ Рамка</button>
+      <button id="add-barcode" class="ghost">+ Штрихкод</button>
       <button id="add-stamp" class="ghost">+ Дата и время</button>
       <input type="file" id="image-file" accept="image/*" hidden>
       <button id="del-el" class="ghost danger">Удалить</button>
@@ -103,9 +104,33 @@
         </div>
         <p class="hint">Значения 90° и 270° пригодятся для кабельных бирок: текст идёт поперёк этикетки.</p>
       </div>
-
-      <div id="shape-props">
+      <div id="barcode-props">
+        <label>Данные штрихкода / QR <input type="text" id="p-bc-data" placeholder="123456789012 или {1}">
+          <small>Поддерживаются поля из CSV: <code>{1}</code>, <code>{2}</code>…</small>
+        </label>
+        <label>Формат кода
+          <select id="p-bc-format">
+            <option value="auto">Авто (ITF для чётных цифр / Code 128)</option>
+            <option value="code128">Code 128 (принудительно)</option>
+            <option value="qr">QR-код (сторона из настроек)</option>
+            <option value="qrl">QR-код слева, текст справа</option>
+            <option value="qrr">QR-код справа, текст слева</option>
+          </select>
+        </label>
         <div class="grid">
+          <label>Верхний текст <input type="text" id="p-bc-top" placeholder="необязательно"></label>
+          <label>Нижний текст <input type="text" id="p-bc-bot" placeholder="необязательно"></label>
+          <label>Шрифт подписи
+            <select id="p-bc-family"><option value="">по умолчанию</option></select>
+          </label>
+          <label>Высота подписи <input type="text" id="p-bc-fontsize" placeholder="-1 (авто), 0, 35p">
+            <small>-1 авто, 0 скрыть, 35p процент</small>
+          </label>
+          <label class="check"><input type="checkbox" id="p-bc-bold"> Жирная подпись</label>
+        </div>
+      </div>
+
+      <div id="shape-props">        <div class="grid">
           <label>Толщина, мм <input type="number" id="p-thickness" step="0.1" min="0.1" max="3">
             <small>только для рамки</small>
           </label>

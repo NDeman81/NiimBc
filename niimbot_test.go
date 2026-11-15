@@ -1179,3 +1179,37 @@ func TestExplicitFontWins(t *testing.T) {
 			"похоже, автоподбор её всё-таки увеличил", h)
 	}
 }
+
+func TestBarcodeFormatsAndQr(t *testing.T) {
+	cfg := DefaultConfig()
+
+	imgItf, err := RenderBarcodeLabel(BarcodeOptions{Data: "109660401000099999", Format: "auto", LengthMM: 50}, cfg)
+	if err != nil || imgItf.Bounds().Dx() != 400 || imgItf.Bounds().Dy() != 96 {
+		t.Fatalf("ошибка рендера ITF: %v", err)
+	}
+	if minX, _ := inkColumns(imgItf); minX < 0 {
+		t.Fatal("ITF штрихкод оказался пустым")
+	}
+
+	for _, sample := range []string{"999-09", "99999", "999999/2099"} {
+		img128, err := RenderBarcodeLabel(BarcodeOptions{Data: sample, Format: "auto", LengthMM: 50}, cfg)
+		if err != nil {
+			t.Fatalf("ошибка Code128 для %q: %v", sample, err)
+		}
+		if minX, _ := inkColumns(img128); minX < 0 {
+			t.Fatalf("Code128 для %q пустой", sample)
+		}
+	}
+
+	for _, mode := range []string{"qr", "qrl", "qrr"} {
+		imgQr, err := RenderBarcodeLabel(BarcodeOptions{
+			Data: "INV-2026", Format: mode, LengthMM: 50, TopText: "Склад 1", BottomText: "Рязань",
+		}, cfg)
+		if err != nil {
+			t.Fatalf("ошибка QR (%s): %v", mode, err)
+		}
+		if minX, _ := inkColumns(imgQr); minX < 0 {
+			t.Fatalf("QR (%s) пустой", mode)
+		}
+	}
+}

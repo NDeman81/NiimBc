@@ -48,6 +48,12 @@ type Element struct {
 	// Толщина линий рамки в мм
 	Thickness float64 `json:"thickness,omitempty"`
 
+		// Штрихкод / QR
+	BcFormat   string `json:"bcFormat,omitempty"`   // auto | code128 | qr | qrl | qrr
+	TopText    string `json:"topText,omitempty"`    // верхний текст
+	BottomText string `json:"bottomText,omitempty"` // нижний текст
+	FontSize   string `json:"fontSize,omitempty"`   // -1 (авто), 0 (скрыть), N, Np
+	GapPx      int    `json:"gapPx,omitempty"`      // зазор до подписи, px
 	// Картинка: путь к файлу или data:URL с base64
 	Image string `json:"image,omitempty"`
 }
@@ -84,8 +90,9 @@ func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gr
 			err = drawLineElement(img, el)
 		case "frame":
 			err = drawFrameElement(img, el)
-		case "":
-			err = fmt.Errorf("у элемента %d не указан вид (kind)", i+1)
+		case "barcode":
+			err = drawBarcodeElement(img, el, row, now)
+		case "":			err = fmt.Errorf("у элемента %d не указан вид (kind)", i+1)
 		default:
 			err = fmt.Errorf("элемент %d: неизвестный вид %q", i+1, el.Kind)
 		}
@@ -491,3 +498,38 @@ func substituteFields(text string, row []string, now time.Time) (string, error) 
 	return text, nil
 }
 
+// drawBarcodeElement рисует штрихкод или QR-код внутри рамки элемента.
+func drawBarcodeElement(img *image.Gray, el Element, row []string, now time.Time) error {
+	codeVal, err := substituteFields(el.Text, row, now)
+	if err != nil { return err }
+	topVal, err := substituteFields(el.TopText, row, now)
+	if err != nil { return err }
+	botVal, err := substituteFields(el.BottomText, row, now)
+	if err != nil { return err }
+	if strings.TrimSpace(codeVal) == "" { return nil }
+
+	cfg := LoadConfig()
+	wMM := el.W
+	if wMM <= 0 { wMM = float64(img.Bounds().Dx()) / dotsPerMM }
+	opts := BarcodeOptions{
+		Data: codeVal, Format: el.BcFormat, LengthMM: wMM,
+		TopText: topVal, BottomText: botVal,
+		FontName: el.Family, IsMainTextBold: el.Bold, FontSize: el.FontSize,
+		SideMarginPx: cfg.SideMarginPx, MarginPx: cfg.MarginPx,
+		GapPx: el.GapPx, TextGapPx: cfg.TextGapPx,
+	}
+	if opts.GapPx <= 0 { opts.GapPx = cfg.GapPx }
+
+	bcImg, err := RenderBarcodeLabel(opts, cfg)
+	if err != nil { return err }
+
+	x0, y0 := mmToDots(el.X), mmToDots(el.Y)
+	if el.H > 0 {
+		targetH := mmToDotsMin(el.H)
+		scaled := image.NewGray(image.Rect(0, 0, bcImg.Bounds().Dx(), targetH))
+		drawScaled(scaled, bcImg)
+		bcImg = scaled
+	}
+	draw.Draw(img, image.Rect(x0, y0, x0+bcImg.Bounds().Dx(), y0+bcImg.Bounds().Dy()), bcImg, image.Point{}, draw.Src)
+	return nil
+}
