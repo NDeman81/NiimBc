@@ -96,7 +96,7 @@ return res
 }
 
 func main() {
-	flagSet.Usage = usage
+	flagSet.Usage = printFullHelp
 if len(os.Args) < 2 {
 activeCfg = LoadConfig()
 	SetLogLevel(activeCfg.LogLevel)
@@ -181,7 +181,7 @@ return
 }
 
 if len(posArgs) == 0 {
-usage()
+printShortHelp()
 os.Exit(2)
 }
 cmd := posArgs[0]
