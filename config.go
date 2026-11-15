@@ -23,7 +23,9 @@ type AppConfig struct {
 	KeepAlive bool   `json:"keepAlive"`
 	LogLevel  string `json:"logLevel"`
 	PrintMode string `json:"printMode"` // fast | safe (по умолчанию fast) // error | info | debug (по умолчанию info) // true = Keep-Alive (удерживать связь), false = On-Demand
-	SaveDir   string `json:"saveDir"`   // папка для PNG-превью (пусто = папка программы)
+	SaveDir   string `json:"saveDir"`
+	SaveFile  string `json:"saveFile"`
+	AutoFileName bool `json:"autoFileName"` // true = формировать имя PNG из данных штрихкода/текста  // имя PNG-файла превью (по умолчанию niimbot_label_preview.png)   // папка для PNG-превью (пусто = папка программы)
 	WatchDir  string `json:"watchDir"`  // папка мониторинга очереди (пусто = NiimbotQueue рядом с exe)
 
 	// Параметры штрихкодов и QR-кодов
@@ -54,6 +56,7 @@ func DefaultConfig() AppConfig {
 		LogLevel:       "info",
 		PrintMode:      "fast",
 		SaveDir:        "",
+		SaveFile:       "niimbot_label_preview.png",
 		WatchDir:       "",
 		BcFormat:       "auto",
 		DefaultQrSide:  "left",
@@ -129,6 +132,9 @@ func normalizeConfig(cfg *AppConfig) {
 	}
 	if cfg.FontSize == "" {
 		cfg.FontSize = def.FontSize
+	}
+	if strings.TrimSpace(cfg.SaveFile) == "" {
+		cfg.SaveFile = def.SaveFile
 	}
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = def.LogLevel

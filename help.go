@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"os"
+"fmt"
+"os"
 )
 
 func printHelpText() {
@@ -23,23 +23,24 @@ fmt.Println("  gui                      запустить веб-интерфе
 fmt.Println("  info                     показать состояние принтера, заряд и остаток ленты")
 fmt.Println("  rfid                     прочитать RFID-метки рулона этикеток и риббона")
 fmt.Println("  testpage                 напечатать заводскую тестовую страницу принтера")
-	fmt.Println("  calibrate [--feed]       калибровка датчика зазоров (тихая или с протяжкой)")
+fmt.Println("  calibrate [--feed]       калибровка датчика зазоров (тихая или с протяжкой)")
 fmt.Println("  scan                     найти принтеры NIIMBOT в эфире Bluetooth LE")
 fmt.Println()
 fmt.Println("Краткие примеры:")
 fmt.Println("  niimbc --length 50 --top-text \"Инв. №\" --bold barcode \"109660401000099999\"")
 fmt.Println("  niimbc --length 50 --bc-format code128 --font-size 0 barcode \"12345678\"")
 fmt.Println("  niimbc --length 50 --bc-format qrl --top-text \"Склад 1\" --bottom-text \"Рязань\" barcode \"INV-2026\"")
-fmt.Println("  niimbc --length 50 --bc-format qrr preview --bc \"INV-2026\"")
-fmt.Println("  niimbc --address \"21:03:11:2F:39:1F\" --length 50 --log-level info --save-config")
+fmt.Println("  niimbc --length 50 --auto-name preview --bc \"INV-2026/01\"")
+fmt.Println("  niimbc --address \"21:03:11:2F:39:1F\" --print-mode fast --log-level info --save-config")
+fmt.Println("  niimbc --config \"sklad.json\" --length 40 barcode \"999-09\"")
 fmt.Println("  niimbc --app gui")
 fmt.Println()
-fmt.Println("Уровни логирования (--log-level):")
-fmt.Println("  error  только ошибки, предупреждения и финальный итог")
-fmt.Println("  info   основные этапы работы с метками времени (по умолчанию)")
-fmt.Println("  debug  полный протокольный дамп всех байтов BLE с миллисекундами")
+fmt.Println("Режимы работы:")
+fmt.Println("  --bc-format   auto (ITF для чётных цифр / Code 128), code128, qr, qrl (QR слева), qrr (QR справа)")
+fmt.Println("  --print-mode  fast (отправка пачками по 6 строк, по умолч.) | safe (построчно)")
+fmt.Println("  --log-level   error (только ошибки/итог) | info (основные шаги, по умолч.) | debug (дамп BLE)")
 fmt.Println()
 fmt.Println("Все доступные флаги:")
 flagSet.SetOutput(os.Stdout)
-	flagSet.PrintDefaults()
+flagSet.PrintDefaults()
 }

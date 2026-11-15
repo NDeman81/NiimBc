@@ -89,6 +89,7 @@ function collectRequest() {
     label: $('label').value,
     copies: parseInt($('copies').value, 10) || 1,
     flip: $('flip').checked,
+      autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
   };
 }
 
@@ -361,6 +362,7 @@ async function loadAppConfig() {
     if ($('address')) $('address').value = c.address || '';
     if ($('label')) $('label').value = c.label || '';
     if ($('flip')) $('flip').checked = !!c.flip;
+    if ($('cfg-autoname')) $('cfg-autoname').checked = !!c.autoFileName;
 
     if ($('cfg-keepalive')) $('cfg-keepalive').value = String(c.keepAlive !== false);
     if ($('cfg-printmode')) $('cfg-printmode').value = c.printMode || 'fast';
@@ -374,6 +376,7 @@ async function loadAppConfig() {
     if ($('cfg-sidemargin')) $('cfg-sidemargin').value = c.sideMarginPx ?? 10;
     if ($('cfg-gap')) $('cfg-gap').value = c.gapPx ?? 4;
     if ($('cfg-savedir')) $('cfg-savedir').value = c.saveDir || '';
+    if ($('cfg-savefile')) $('cfg-savefile').value = c.saveFile || 'niimbot_label_preview.png';
     if ($('cfg-watchdir')) $('cfg-watchdir').value = c.watchDir || '';
     if ($('cfg-bold')) $('cfg-bold').checked = !!c.isMainTextBold;
   } catch (e) {
@@ -393,6 +396,7 @@ if ($('btn-save-cfg')) {
       address: $('address').value.trim(),
       label: $('label').value,
       flip: $('flip').checked,
+      autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
       keepAlive: $('cfg-keepalive').value === 'true',
       printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
       logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
@@ -405,6 +409,7 @@ if ($('btn-save-cfg')) {
       sideMarginPx: parseInt($('cfg-sidemargin').value, 10) || 0,
       gapPx: parseInt($('cfg-gap').value, 10) || 0,
       saveDir: $('cfg-savedir').value.trim(),
+      saveFile: $('cfg-savefile') ? ($('cfg-savefile').value.trim() || 'niimbot_label_preview.png') : 'niimbot_label_preview.png',
       watchDir: $('cfg-watchdir').value.trim(),
       isMainTextBold: $('cfg-bold').checked
     };

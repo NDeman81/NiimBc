@@ -46,6 +46,8 @@ bcGap     = flagSet.Int("gap", -1, "зазор между штрихкодом �
 bcTextGap = flagSet.Int("text-gap", -1, "зазор до верхнего и нижнего текста, px")
 
 saveDir   = flagSet.String("save-dir", "", "папка для сохранения PNG-превью (по умолчанию папка программы)")
+	outFile   = flagSet.String("out", "", "имя или путь выходного PNG-файла превью (по умолчанию niimbot_label_preview.png)")
+	autoName  = flagSet.Bool("auto-name", false, "формировать имя PNG-файла превью из данных штрихкода/текста")
 watchDir  = flagSet.String("watch-dir", "", "папка мониторинга очереди этикеток")
 onDemand  = flagSet.Bool("on-demand", false, "режим сервера On-Demand (подключение только на время печати)")
 keepAlive = flagSet.Bool("keep-alive", false, "режим сервера Keep-Alive (постоянное удержание связи)")
@@ -57,6 +59,40 @@ saveCfg   = flagSet.Bool("save-config", false, "сохранить переда�
 )
 
 var activeCfg AppConfig
+
+var lastLabelContent string
+
+func sanitizeFileName(raw string) string {
+s := strings.TrimSpace(raw)
+if s == "" {
+return ""
+}
+var b strings.Builder
+prevUnder := false
+for _, r := range s {
+if r < 32 || strings.ContainsRune(`\/:*?"<>|`, r) {
+if !prevUnder {
+b.WriteByte('_')
+prevUnder = true
+}
+continue
+}
+if r == ' ' || r == '\t' || r == '\r' || r == '\n' {
+if !prevUnder {
+b.WriteByte('_')
+prevUnder = true
+}
+continue
+}
+b.WriteRune(r)
+prevUnder = false
+}
+res := strings.Trim(b.String(), "._")
+if len([]rune(res)) > 80 {
+res = string([]rune(res)[:80])
+}
+return res
+}
 
 func main() {
 	flagSet.Usage = usage
@@ -91,6 +127,7 @@ if !visited["label"] { *label = activeCfg.Label }
 if !visited["copies"] { *copies = activeCfg.Copies }
 if !visited["threshold"] { *threshold = activeCfg.Threshold }
 if !visited["save-dir"] { *saveDir = activeCfg.SaveDir }
+	if !visited["out"] { *outFile = activeCfg.SaveFile }
 if !visited["watch-dir"] { *watchDir = activeCfg.WatchDir }
 
 activeCfg.Address = *addr
@@ -102,10 +139,19 @@ activeCfg.Label = *label
 activeCfg.Copies = *copies
 activeCfg.Threshold = *threshold
 activeCfg.SaveDir = *saveDir
+	if visited["out"] && strings.TrimSpace(*outFile) != "" {
+		if filepath.Dir(*outFile) != "." {
+			activeCfg.SaveDir = filepath.Dir(*outFile)
+			activeCfg.SaveFile = filepath.Base(*outFile)
+		} else {
+			activeCfg.SaveFile = *outFile
+		}
+	}
 activeCfg.WatchDir = *watchDir
 
 if visited["on-demand"] { activeCfg.KeepAlive = false }
 if visited["keep-alive"] { activeCfg.KeepAlive = true }
+	if visited["auto-name"] { activeCfg.AutoFileName = *autoName }
 if visited["log-level"] && *logLevel != "" {
 activeCfg.LogLevel = *logLevel
 } else if visited["v"] && !*verbose {
@@ -160,20 +206,23 @@ if err := startGUI(*addr, *port, !*noBrowser, *appMode, *verbose); err != nil { 
 return
 case "preview":
 if *imageFile != "" {
-img, err := LoadImageFile(*imageFile, *length)
+lastLabelContent = strings.TrimSuffix(filepath.Base(*imageFile), filepath.Ext(*imageFile))
+			img, err := LoadImageFile(*imageFile, *length)
 if err != nil { fatal(err) }
 savePreview(img)
 return
 }
 if *bcMode {
 if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
-img, err := buildBarcodeFromConfig(strings.Join(posArgs, " "))
+lastLabelContent = strings.Join(posArgs, " ")
+			img, err := buildBarcodeFromConfig(strings.Join(posArgs, " "))
 if err != nil { fatal(err) }
 savePreview(img)
 return
 }
 if len(posArgs) == 0 { fatal(fmt.Errorf("не задан текст")) }
-img, err := RenderText(posArgs, *length, *fontPt)
+lastLabelContent = strings.Join(posArgs, "_")
+			img, err := RenderText(posArgs, *length, *fontPt)
 if err != nil { fatal(err) }
 savePreview(img)
 rows := ImageToRows(img, *flip)
@@ -231,7 +280,8 @@ case "text":
 if len(posArgs) == 0 { fatal(fmt.Errorf("не задан текст")) }
 labelName, err := resolveLabel(p, *label)
 if err != nil { fatal(err) }
-img, err := RenderText(posArgs, *length, *fontPt)
+lastLabelContent = strings.Join(posArgs, "_")
+			img, err := RenderText(posArgs, *length, *fontPt)
 if err != nil { fatal(err) }
 savePreview(img)
 if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
@@ -239,7 +289,8 @@ case "barcode":
 if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
 labelName, err := resolveLabel(p, *label)
 if err != nil { fatal(err) }
-img, err := buildBarcodeFromConfig(strings.Join(posArgs, " "))
+lastLabelContent = strings.Join(posArgs, " ")
+			img, err := buildBarcodeFromConfig(strings.Join(posArgs, " "))
 if err != nil { fatal(err) }
 savePreview(img)
 if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
@@ -389,16 +440,48 @@ if dir == "" { dir = "." }
 return dir
 }
 
-func savePreview(img *image.Gray) {
+func resolvePreviewPath() string {
 dir := resolvePreviewDir()
-_ = os.MkdirAll(dir, 0o755)
-out := filepath.Join(dir, "niimbot_label_preview.png")
+name := ""
+if strings.TrimSpace(*outFile) != "" && *outFile != activeCfg.SaveFile {
+name = strings.TrimSpace(*outFile)
+} else if activeCfg.AutoFileName && lastLabelContent != "" {
+if clean := sanitizeFileName(lastLabelContent); clean != "" {
+name = clean + ".png"
+}
+}
+if name == "" {
+name = strings.TrimSpace(*outFile)
+}
+if name == "" {
+name = strings.TrimSpace(activeCfg.SaveFile)
+}
+if name == "" {
+name = "niimbot_label_preview.png"
+}
+if filepath.Ext(name) == "" {
+name += ".png"
+}
+if filepath.IsAbs(name) || filepath.Dir(name) != "." {
+return name
+}
+return filepath.Join(dir, name)
+}
+
+func savePreview(img *image.Gray) {
+out := resolvePreviewPath()
+_ = os.MkdirAll(filepath.Dir(out), 0o755)
 f, err := os.Create(out)
-if err != nil { fatal(err) }
+if err != nil {
+fatal(err)
+}
 defer f.Close()
-if err := png.Encode(f, img); err != nil { fatal(err) }
+if err := png.Encode(f, img); err != nil {
+fatal(err)
+}
 b := img.Bounds()
-LogKey("макет: %s (%d×%d точек = %.1f×%.1f мм)", out, b.Dx(), b.Dy(), float64(b.Dx())/dotsPerMM, float64(b.Dy())/dotsPerMM)
+LogKey("макет: %s (%d×%d точек = %.1f×%.1f мм)",
+out, b.Dx(), b.Dy(), float64(b.Dx())/dotsPerMM, float64(b.Dy())/dotsPerMM)
 }
 
 func usage() { printHelpText() }

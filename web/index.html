@@ -134,11 +134,15 @@
       <label>Папка превью (пусто = папка программы)
         <input type="text" id="cfg-savedir" placeholder="Например: C:\Labels\Preview">
       </label>
+      <label>Имя файла превью (saveFile)
+        <input type="text" id="cfg-savefile" placeholder="niimbot_label_preview.png">
+      </label>
       <label>Папка очереди (watchDir)
         <input type="text" id="cfg-watchdir" placeholder="Например: C:\Labels\Queue">
       </label>
       <div class="row checks">
         <label class="check"><input type="checkbox" id="flip"> Переворот на 180° (flip)</label>
+        <label class="check"><input type="checkbox" id="cfg-autoname"> Автоимя файла превью из данных</label>
       </div>
       <div class="row">
         <button id="btn-save-cfg" class="primary">Сохранить в config.json</button>
