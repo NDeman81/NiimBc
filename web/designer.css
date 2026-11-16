@@ -149,3 +149,10 @@ label.inline input { width: 84px; margin-top: 0; }
   border-top-left-radius: 2px;
   z-index: 4;
 }
+
+.combo-wrap { position: relative; display: flex; align-items: stretch; margin-top: 4px; }
+.combo-wrap input { flex: 1; min-width: 0; margin-top: 0 !important; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.combo-btn { padding: 0 9px; border: 1px solid var(--line); border-left: none; border-radius: 0 8px 8px 0; background: #f8fafc; cursor: pointer; font-size: 11px; }
+.combo-menu { position: absolute; top: 100%; left: 0; right: 0; z-index: 60; margin-top: 2px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.14); max-height: 200px; overflow-y: auto; }
+.combo-menu div { padding: 6px 10px; font-size: 12px; cursor: pointer; }
+.combo-menu div:hover { background: #ecfdf5; color: var(--green-dark); }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Конструктор этикеток — NIIMBOT N1</title>
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="designer.css?v=4">
+<link rel="stylesheet" href="designer.css?v=6">
 </head>
 <body>
 
@@ -65,127 +65,92 @@
     <h2>Элемент</h2>
     <div id="no-selection" class="hint">Ничего не выбрано — нажмите на элемент на холсте.</div>
 
-    <div id="props" class="hidden">
-      <div class="grid">
-        <label>X, мм <input type="number" id="p-x" step="0.5" min="0"></label>
-        <label>Y, мм <input type="number" id="p-y" step="0.5" min="0"></label>
-        <label id="w-wrap">Ширина, мм <input type="number" id="p-w" step="0.5" min="0"></label>
-        <label id="h-wrap">Высота, мм <input type="number" id="p-h" step="0.5" min="0"></label>
-      </div>
-      <div id="text-props">
-        <label>Текст <input type="text" id="p-text">
-      <small>Поля: <code>{1}</code>, <code>{2}</code>… — столбцы данных;
-        <code>{дата}</code>, <code>{время}</code>, <code>{дата-время}</code> — момент печати</small>
-    </label>
-        <label>Шрифт
-          <select id="p-family"><option value="">по умолчанию</option></select>
-        </label>
-        <div class="grid">
-          <label>Кегль, мм <input type="number" id="p-font" step="0.5" min="1" max="12"></label>
-          <label>Высота строки, мм <input type="number" id="p-line" step="0.2" min="0" max="20">
-            <small>0 — по шрифту</small>
+          <div id="props" class="hidden">
+        <div class="grid two">
+          <label>X, мм <input type="number" id="p-x" step="0.5" min="0"></label>
+          <label>Y, мм <input type="number" id="p-y" step="0.5" min="0"></label>
+          <label>Ширина, мм <input type="number" id="p-w" step="0.5" min="0.5"></label>
+          <label>Высота, мм <input type="number" id="p-h" step="0.5" min="0.2"></label>
+        </div>
+
+        <div id="text-props">
+          <label>Текст
+            <textarea id="p-text" rows="2"></textarea>
           </label>
-          <label>Выравнивание
-            <select id="p-align">
-              <option value="left">по левому краю</option>
-              <option value="center">по центру</option>
-              <option value="right">по правому краю</option>
+          <p class="hint">Поля: <code>{1}</code>, <code>{2}</code>… — столбцы; <code>{дата}</code>, <code>{время}</code>, <code>{дата-время}</code>.</p>
+          <div class="grid two">
+            <label>Выравнивание
+              <select id="p-align">
+                <option value="left">влево</option>
+                <option value="center">по центру</option>
+                <option value="right">вправо</option>
+              </select>
+            </label>
+            <label>Поворот
+              <select id="p-rotate">
+                <option value="0">0°</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div id="barcode-props" class="hidden">
+          <label>Данные кода <input type="text" id="p-bc-data" placeholder="{1} или номер"></label>
+          <div class="grid two">
+            <label>Формат кода
+              <select id="p-bc-format">
+                <option value="auto">auto (ITF / Code 128)</option>
+                <option value="code128">code128</option>
+                <option value="qr">qr</option>
+                <option value="qrl">qrl (QR слева)</option>
+                <option value="qrr">qrr (QR справа)</option>
+              </select>
+            </label>
+            <label>Зазор код-подпись, px <input type="number" id="p-bc-gap" min="0" value="2"></label>
+          </div>
+        </div>
+
+        <div id="common-text-style">
+          <label>Шрифт
+            <select id="p-family">
+              <option value="">по умолчанию</option>
             </select>
           </label>
-          <label class="check"><input type="checkbox" id="p-bold"> Жирный</label>
-          <label>Поворот
-            <select id="p-rotate">
-              <option value="0">0° — вдоль этикетки</option>
-              <option value="90">90° — поперёк</option>
-              <option value="180">180°</option>
-              <option value="270">270° — поперёк, обратно</option>
-            </select>
-          </label>
+          <div class="grid two" style="align-items:end">
+            <label>Размер текста
+              <div class="combo-wrap">
+                <input type="text" id="p-fontsize" value="-1" placeholder="-1, 0, 20, 50p" autocomplete="off">
+                <button type="button" id="p-fs-btn" class="combo-btn" title="Выбрать пресет">▼</button>
+                <div id="p-fs-menu" class="combo-menu hidden">
+                  <div data-val="-1">-1 — Автомаксимум</div>
+                  <div data-val="0">0 — Скрыть подпись кода</div>
+                  <div data-val="25p">25p — 25% высоты</div>
+                  <div data-val="35p">35p — 35% высоты</div>
+                  <div data-val="50p">50p — 50% высоты</div>
+                  <div data-val="70p">70p — 70% высоты</div>
+                  <div data-val="16">16 — 16 px</div>
+                  <div data-val="24">24 — 24 px</div>
+                </div>
+              </div>
+            </label>
+            <label class="check" style="margin-bottom:8px"><input type="checkbox" id="p-bold"> Жирный текст</label>
+          </div>
+          <small class="hint">-1 авто, 0 скрыть код, N px, Np % от высоты рамки</small>
         </div>
-        <p class="hint">Значения 90° и 270° пригодятся для кабельных бирок: текст идёт поперёк этикетки.</p>
-      </div>
-      <div id="barcode-props">
-        <label>Данные штрихкода / QR <input type="text" id="p-bc-data" placeholder="123456789012 или {1}">
-          <small>Поддерживаются поля из CSV: <code>{1}</code>, <code>{2}</code>…</small>
-        </label>
-        <label>Формат кода
-          <select id="p-bc-format">
-            <option value="auto">Авто (ITF для чётных цифр / Code 128)</option>
-            <option value="code128">Code 128 (принудительно)</option>
-            <option value="qr">QR-код (сторона из настроек)</option>
-            <option value="qrl">QR-код слева, текст справа</option>
-            <option value="qrr">QR-код справа, текст слева</option>
-          </select>
-        </label>
-        <div class="grid">
-          <label>Верхний текст <input type="text" id="p-bc-top" placeholder="необязательно"></label>
-          <label>Нижний текст <input type="text" id="p-bc-bot" placeholder="необязательно"></label>
-          <label>Шрифт подписи
-            <select id="p-bc-family"><option value="">по умолчанию</option></select>
-          </label>
-          <label>Высота подписи <input type="text" id="p-bc-fontsize" placeholder="-1 (авто), 0, 35p">
-            <small>-1 авто, 0 скрыть, 35p процент</small>
-          </label>
-          <label class="check"><input type="checkbox" id="p-bc-bold"> Жирная подпись</label>
-        </div>
-      </div>
 
-      <div id="shape-props">        <div class="grid">
-          <label>Толщина, мм <input type="number" id="p-thickness" step="0.1" min="0.1" max="3">
-            <small>только для рамки</small>
-          </label>
+        <div id="image-props" class="hidden">
+          <input type="file" id="p-image-file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
+          <button id="p-image-btn" type="button" class="ghost" onclick="document.getElementById('p-image-file').click()">Заменить картинку</button>
         </div>
-        <p class="hint">Линия — сплошная полоса (разделитель или плашка). Рамка — контур по краям.</p>
-      </div>
-      <div id="image-props">
-        <label>Картинка <input type="file" id="p-image-file" accept="image/*"></label>
-        <p class="hint">Картинка встраивается в шаблон, поэтому он остаётся одним файлом.</p>
-      </div>
-    </div>
 
-    <h2>Шаблон</h2>
-    <label>Загрузить сохранённый
-      <select id="templates"><option value="">— выберите —</option></select>
-    </label>
-    <label>Название для сохранения
-      <input type="text" id="tpl-name" placeholder="например: Драхма Парфия">
-    </label>
-    <div class="row">
-      <button id="tpl-save" class="primary">Сохранить шаблон</button>
-      <button id="tpl-del" class="ghost danger">Удалить</button>
-      <button id="tpl-new" class="ghost">Очистить холст</button>
-    </div>
-            <div class="row" style="margin-top:8px">
-          <button id="tpl-export" class="ghost" title="Скачать текущий шаблон в JSON-файл">Экспорт JSON</button>
-          <button id="tpl-import" class="ghost" title="Загрузить шаблон из JSON-файла">Импорт JSON</button>
-          <input type="file" id="tpl-import-file" accept=".json,application/json" class="hidden">
+        <div id="shape-props" class="hidden">
+          <label>Толщина линии/рамки, мм <input type="number" id="p-thickness" step="0.1" min="0.1" value="0.3"></label>
         </div>
-        <p id="tpl-msg" class="hint"></p>
-    <p class="hint">Шаблон хранит <b>и элементы</b> (что где стоит), и настройки печати.
-      Сохранённые шаблоны доступны по кнопке «обычная печать» тоже.</p>
-
-    <h2>Печать</h2>
-    <div class="grid">
-      <label>Плотность
-        <select id="density"><option>1</option><option selected>2</option><option>3</option></select>
-      </label>
-      <label>Копий каждой <input type="number" id="copies" value="1" min="1" max="99"></label>
-      <label>Тип этикетки
-        <select id="label">
-          <option value="">авто (по метке)</option>
-          <option value="withgaps">с зазорами</option>
-          <option value="continuous">непрерывная лента</option>
-          <option value="transparent">прозрачные</option>
-          <option value="blackmarkgap">с чёрной меткой</option>
-          <option value="heatshrink">термоусадочная трубка</option>
-        </select>
-      </label>
-      <label>Порог чёрно-белого <input type="number" id="threshold" value="200" min="1" max="255">
-        <small>больше — плотнее линии и текст; 128 был слишком бледным</small>
-      </label>
-      <label class="check"><input type="checkbox" id="flip"> Перевернуть на 180°</label>
-    </div>
-  </aside>
+      </div>
+    </aside>
 
   <!-- НИЗ: данные и печать серии -->
   <section class="panel data-panel">
@@ -210,6 +175,6 @@
 
 </main>
 
-<script src="designer.js?v=5"></script>
+<script src="designer.js?v=6"></script>
 </body>
 </html>

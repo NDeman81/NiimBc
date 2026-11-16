@@ -101,30 +101,36 @@ function renderCanvas() {
         node.innerHTML = '<span class="ph">нет картинки</span>';
       }
     } else {
-      // Логический размер блока надписи, а затем поворот: при 90° и 270°
-      // ширина и высота на холсте меняются местами.
-      const wPx = (el.w || labelLength()) * scale;
-      const lh = el.line > 0 ? el.line : (el.font || 2.5) * 1.15;
-      const hPx = lh * scale;
+      const boxW = (el.w || labelLength()) * scale;
+      const boxH = (el.h || el.line || (el.font || 3)) * scale;
       const rot = ((el.rotate || 0) % 360 + 360) % 360;
       const swapped = rot === 90 || rot === 270;
 
-      node.style.width = (swapped ? hPx : wPx) + 'px';
-      node.style.height = (swapped ? wPx : hPx) + 'px';
+      node.style.width = (swapped ? boxH : boxW) + 'px';
+      node.style.height = (swapped ? boxW : boxH) + 'px';
 
       const inner = document.createElement('div');
       inner.className = 'txt';
-      inner.style.width = wPx + 'px';
-      inner.style.height = hPx + 'px';
-      inner.style.fontSize = (el.font || 2.5) * scale + 'px';
-      inner.style.lineHeight = hPx + 'px';
+      inner.style.width = boxW + 'px';
+      inner.style.height = boxH + 'px';
+      const lines = (el.text || '').split('\n');
+      const lineCount = Math.max(1, lines.length);
+      let pct = 1.0;
+      const fs = String(el.fontSize || '-1').trim().toLowerCase();
+      if (fs.endsWith('p')) {
+        const v = parseFloat(fs.slice(0, -1));
+        if (v > 0) pct = Math.min(1, v / 100);
+      }
+      const approxPx = Math.max(8, (boxH / lineCount) * pct * 0.85);
+      inner.style.fontSize = approxPx + 'px';
+      inner.style.lineHeight = (boxH / lineCount) + 'px';
       inner.style.textAlign = el.align || 'left';
       inner.style.transformOrigin = 'top left';
       if (el.family) inner.style.fontFamily = `"${el.family}", sans-serif`;
       inner.style.fontWeight = el.bold ? '700' : '400';
-      if (rot === 90) inner.style.transform = `translate(${hPx}px, 0) rotate(90deg)`;
-      else if (rot === 180) inner.style.transform = `translate(${wPx}px, ${hPx}px) rotate(180deg)`;
-      else if (rot === 270) inner.style.transform = `translate(0, ${wPx}px) rotate(270deg)`;
+      if (rot === 90) inner.style.transform = `translate(${boxH}px, 0) rotate(90deg)`;
+      else if (rot === 180) inner.style.transform = `translate(${boxW}px, ${boxH}px) rotate(180deg)`;
+      else if (rot === 270) inner.style.transform = `translate(0, ${boxW}px) rotate(270deg)`;
       inner.textContent = el.text || '';
       node.textContent = '';
       node.appendChild(inner);
@@ -202,9 +208,7 @@ $('label').addEventListener('mousedown', (e) => {
       const maxW = Math.max(1, labelLength() - el.x);
       const maxH = Math.max(0.5, LABEL_H_MM - el.y);
       el.w = Math.min(maxW, Math.max(1, snap(ow + dx)));
-      if (el.kind !== 'text') {
-        el.h = Math.min(maxH, Math.max(0.2, snap(oh + dy)));
-      }
+      el.h = Math.min(maxH, Math.max(0.5, snap(oh + dy)));
       renderCanvas();
       showProps();
       return;
@@ -248,7 +252,7 @@ const SNAP_EDGE_MM = 0.6; // насколько близко надо подой
 let guideX = null, guideY = null; // линии-подсказки, мм
 
 function sizeOf(el) {
-  if (el.kind === 'text') return { w: el.w || labelLength(), h: (el.line || (el.font || 2.5) * 1.15) };
+  if (el.kind === 'text') return { w: el.w || labelLength(), h: el.h || 3 };
   return { w: el.w || 0, h: el.h || 0 };
 }
 
@@ -306,33 +310,34 @@ function showProps() {
   const el = elements[selected];
   $('p-x').value = el.x;
   $('p-y').value = el.y;
-  $('p-w').value = el.w || 0;
-  $('p-h').value = el.h || 0;
-  $('p-text').value = el.text || '';
-  $('p-font').value = el.font || 2.5;
-  $('p-line').value = el.line || 0;
-  $('p-family').value = el.family || '';
-  $('p-bold').checked = !!el.bold;
-  $('p-align').value = el.align || 'left';
-
-  $('p-rotate').value = String(el.rotate || 0);
-  $('p-thickness').value = el.thickness || 0.3;
-
-  if ($('p-bc-data')) $('p-bc-data').value = el.text || '';
-  if ($('p-bc-format')) $('p-bc-format').value = el.bcFormat || 'auto';
-  if ($('p-bc-top')) $('p-bc-top').value = el.topText || '';
-  if ($('p-bc-bot')) $('p-bc-bot').value = el.bottomText || '';
-  if ($('p-bc-family')) $('p-bc-family').value = el.family || '';
-  if ($('p-bc-fontsize')) $('p-bc-fontsize').value = el.fontSize || '-1';
-  if ($('p-bc-bold')) $('p-bc-bold').checked = !!el.bold;
+  $('p-w').value = el.w || 4;
+  $('p-h').value = el.h || 3;
 
   const isText = el.kind === 'text';
   const isBc = el.kind === 'barcode';
+
   if ($('text-props')) $('text-props').classList.toggle('hidden', !isText);
   if ($('barcode-props')) $('barcode-props').classList.toggle('hidden', !isBc);
-  $('image-props').classList.toggle('hidden', el.kind !== 'image');
-  $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame'));
-  $('h-wrap').classList.toggle('hidden', isText);
+  if ($('common-text-style')) $('common-text-style').classList.toggle('hidden', !(isText || isBc));
+  if ($('image-props')) $('image-props').classList.toggle('hidden', el.kind !== 'image');
+  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame'));
+
+  if (isText) {
+    $('p-text').value = el.text || '';
+    $('p-align').value = el.align || 'left';
+    $('p-rotate').value = String(el.rotate || 0);
+  }
+  if (isBc) {
+    $('p-bc-data').value = el.text || '';
+    $('p-bc-format').value = el.bcFormat || 'auto';
+    if ($('p-bc-gap')) $('p-bc-gap').value = el.gapPx ?? 2;
+  }
+  if (isText || isBc) {
+    $('p-family').value = el.family || '';
+    $('p-fontsize').value = el.fontSize || '-1';
+    $('p-bold').checked = !!el.bold;
+  }
+  $('p-thickness').value = el.thickness || 0.3;
 }
 
 function bindProp(id, apply) {
@@ -382,7 +387,7 @@ function readAsDataURL(file, cb) {
 // ------------------------------------------------------------------- кнопки
 
 $('add-text').onclick = () => {
-  elements.push({ kind: 'text', x: 1, y: 1, w: labelLength() - 2, text: 'Надпись {1}', font: 3,
+  elements.push({ kind: 'text', x: 1, y: 1, w: labelLength() - 2, h: 3.5, text: 'Надпись {1}', fontSize: '-1',
                    align: 'left', family: $('p-family').value || '', bold: $('p-bold').checked });
   select(elements.length - 1);
   refreshPreview();
@@ -399,8 +404,7 @@ $('add-line').onclick = () => {
 
 // Дата и время печати: обычная надпись с полем {дата-время}.
 $('add-stamp').onclick = () => {
-  elements.push({ kind: 'text', x: 1, y: 10.2, w: labelLength() - 2,
-                  text: '{дата} {время}', font: 1.6, align: 'right',
+  elements.push({ kind: 'text', x: 1, y: 9.5, w: labelLength() - 2, h: 2, text: '{дата} {время}', fontSize: '-1', align: 'right',
                   family: $('p-family').value || '' });
   select(elements.length - 1);
   refreshPreview();
@@ -735,7 +739,7 @@ async function initDesigner() {
   } catch (e) { /* используем значения по умолчанию */ }
 
   if (!elements.length) {
-    elements.push({ kind: 'text', x: 1, y: 4, w: labelLength() - 2, text: '{1}', font: 3, align: 'center' });
+    elements.push({ kind: 'text', x: 1, y: 3, w: labelLength() - 2, h: 6, text: '{1}', fontSize: '-1', align: 'center' });
   }
 
   loadStatus();
@@ -748,3 +752,23 @@ async function initDesigner() {
 }
 
 initDesigner();
+
+if ($('p-fontsize')) bindProp('p-fontsize', (el, v) => { el.fontSize = v; el.font = 0; el.line = 0; });
+if ($('p-bc-gap')) bindProp('p-bc-gap', (el, v) => { el.gapPx = Math.max(0, parseInt(v, 10) || 0); });
+if ($('p-fs-btn') && $('p-fs-menu') && $('p-fontsize')) {
+  $('p-fs-btn').onclick = (e) => { e.stopPropagation(); $('p-fs-menu').classList.toggle('hidden'); };
+  $('p-fs-menu').querySelectorAll('div[data-val]').forEach((item) => {
+    item.onclick = () => {
+      if (selected >= 0) {
+        elements[selected].fontSize = item.dataset.val;
+        elements[selected].font = 0;
+        elements[selected].line = 0;
+        $('p-fontsize').value = item.dataset.val;
+        renderCanvas();
+        schedulePreview();
+      }
+      $('p-fs-menu').classList.add('hidden');
+    };
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.combo-wrap')) $('p-fs-menu').classList.add('hidden'); });
+}

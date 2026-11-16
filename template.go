@@ -20,6 +20,7 @@ import (
 	"math"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,117 +104,224 @@ func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gr
 	return img, nil
 }
 
-// drawTextElement рисует надпись с учётом координат, кегля и выравнивания.
+// drawTextElement рисует надпись: если заданы классические FontMM/LineMM — использует
+// совместимый рендер в мм, иначе заполняет прямоугольный контейнер (X, Y, W, H) по пиксельным границам.
 func drawTextElement(img *image.Gray, el Element, row []string, now time.Time) error {
-	text, err := substituteFields(el.Text, row, now)
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(text) == "" {
-		return nil
-	}
-	fontPath, err := pickFont(el.Family, el.Bold)
-	if err != nil {
-		return err
-	}
+text, err := substituteFields(el.Text, row, now)
+if err != nil {
+return err
+}
+if strings.TrimSpace(text) == "" {
+return nil
+}
 
-	lines := strings.Split(text, "\n")
-	fontMM := el.FontMM
-	if fontMM <= 0 {
-		// Кегль не задан — подбираем его под рамку элемента. Именно это
-		// делает один шаблон пригодным для названий разной длины: короткое
-		// выйдет крупно, длинное мельче, но влезет целиком и без обрезки.
-		boxW := mmToDotsMin(el.W)
-		if boxW <= 0 {
-			boxW = img.Bounds().Dx() - mmToDots(el.X)
-		}
-		boxH := mmToDotsMin(el.H)
-		if boxH <= 0 {
-			boxH = img.Bounds().Dy() - mmToDots(el.Y)
-		}
-		if el.Heavy {
-			boxW -= 2 // обводка расширяет текст на точку с каждой стороны
-		}
-		size, err := fitFontSize(fontPath, lines, boxW, boxH)
-		if err != nil {
-			return err
-		}
-		fontMM = size / dotsPerMM
-	}
+// Классический режим (для старых шаблонов с FontMM / LineMM и без явного FontSize)
+if el.FontMM > 0 || el.LineMM > 0 || strings.TrimSpace(el.FontSize) == "" {
+return drawTextElementLegacy(img, el, text)
+}
 
-	// 1 мм = 8 точек, поэтому кегль в точках изображения — это мм × 8.
-	face, err := loadFace(fontPath, fontMM*dotsPerMM)
-	if err != nil {
-		return err
-	}
-	defer face.Close()
+lines := strings.Split(text, "\n")
+x0 := mmToDots(el.X)
+y0 := mmToDots(el.Y)
 
-	metrics := face.Metrics()
-	ascent := metrics.Ascent.Ceil()
+boxW := mmToDotsMin(el.W)
+if el.W <= 0 {
+boxW = maxInt(8, img.Bounds().Dx()-x0)
+}
+boxH := mmToDotsMin(el.H)
 
-	// Высота строки: заданная в мм или по метрикам шрифта.
-	lineH := metrics.Height.Ceil()
-	if el.LineMM > 0 {
-		lineH = int(math.Round(el.LineMM * dotsPerMM))
-	}
-	if lineH <= 0 {
-		lineH = int(fontMM*dotsPerMM) + 2
-	}
+angle := ((el.Rotate % 360) + 360) % 360
+workW, workH := boxW, boxH
+if angle == 90 || angle == 270 {
+workW, workH = boxH, boxW
+}
 
-	x0 := int(math.Round(el.X * dotsPerMM))
-	y0 := int(math.Round(el.Y * dotsPerMM))
-	boxW := int(math.Round(el.W * dotsPerMM))
+lineGap := 2
+if len(lines) <= 1 {
+lineGap = 0
+}
+totalGaps := lineGap * (len(lines) - 1)
+slotH := float64(workH-totalGaps) / float64(len(lines))
+if slotH < 4 {
+slotH = 4
+}
 
-	// Если задана высота рамки, ставим блок по её середине. Иначе при
-	// автоподборе кегля блок «прыгал» бы: у короткого названия кегль
-	// крупнее, и просвет до второй строки схлопывался.
-	if el.H > 0 {
-		boxH := mmToDotsMin(el.H)
-		blockH := lineH * len(lines)
-		if boxH > blockH {
-			y0 += (boxH - blockH) / 2
-		}
-	}
+targetH := slotH
+spec := strings.TrimSpace(strings.ToLower(el.FontSize))
+if strings.HasSuffix(spec, "p") {
+if pct, err := strconv.ParseFloat(strings.TrimSuffix(spec, "p"), 64); err == nil && pct > 0 {
+if pct > 100 {
+pct = 100
+}
+targetH = slotH * (pct / 100.0)
+}
+} else if spec != "" && spec != "-1" && spec != "0" {
+if v, err := strconv.ParseFloat(spec, 64); err == nil && v > 0 {
+targetH = v
+if targetH > slotH {
+targetH = slotH
+}
+}
+}
+if targetH < 4 {
+targetH = 4
+}
 
-	// Поворот: надпись рисуется на отдельном холсте и поворачивается целиком.
-	// Так текст идёт поперёк этикетки — нужно для кабельных бирок.
-	if angle := ((el.Rotate % 360) + 360) % 360; angle != 0 {
-		blockW, blockH := 0, lineH*len(lines)
-		for _, line := range lines {
-			if w := font.MeasureString(face, line).Ceil(); w > blockW {
-				blockW = w
-			}
-		}
-		if blockW < 1 {
-			blockW = 1
-		}
-		tmp := whiteCanvas(blockW, blockH)
-		drawTextLines(tmp, face, lines, 0, 0, lineH, blockW, ascent, "left", 0, el.Heavy)
-		rot := rotateGray(tmp, angle)
+rowBoxH := int(math.Round(targetH))
+if rowBoxH < 4 {
+rowBoxH = 4
+}
+totalBlockH := rowBoxH*len(lines) + totalGaps
+if totalBlockH > workH {
+rowBoxH = maxInt(4, (workH-totalGaps)/len(lines))
+totalBlockH = rowBoxH*len(lines) + totalGaps
+}
 
-		// Выравнивание считаем по повёрнутому блоку.
-		rw, rh := rot.Bounds().Dx(), rot.Bounds().Dy()
-		px := x0
-		switch strings.ToLower(el.Align) {
-		case "center":
-			if boxW > 0 {
-				px = x0 + (boxW-rw)/2
-			} else {
-				px = x0 - rw/2
-			}
-		case "right":
-			if boxW > 0 {
-				px = x0 + boxW - rw
-			} else {
-				px = x0 - rw
-			}
-		}
-		draw.Draw(img, image.Rect(px, y0, px+rw, y0+rh), rot, image.Point{}, draw.Src)
-		return nil
-	}
+boxCanvas := whiteCanvas(workW, workH)
+startY := (workH - totalBlockH) / 2
+if startY < 0 {
+startY = 0
+}
 
-	drawTextLines(img, face, lines, x0, y0, lineH, boxW, ascent, el.Align, 1, el.Heavy)
-	return nil
+for i, line := range lines {
+if strings.TrimSpace(line) == "" {
+continue
+}
+tmp := whiteCanvas(workW, rowBoxH)
+if err := drawFittedLine(tmp, line, el.Family, el.Bold, 0, 0, workW, rowBoxH); err != nil {
+return err
+}
+minX, maxX := workW, -1
+for yy := 0; yy < rowBoxH; yy++ {
+for xx := 0; xx < workW; xx++ {
+if tmp.GrayAt(xx, yy).Y < 128 {
+if xx < minX {
+minX = xx
+}
+if xx > maxX {
+maxX = xx
+}
+}
+}
+}
+if maxX < minX {
+continue
+}
+glyphW := maxX - minX + 1
+dstX := 0
+switch strings.ToLower(strings.TrimSpace(el.Align)) {
+case "center":
+dstX = (workW - glyphW) / 2
+case "right":
+dstX = workW - glyphW
+default:
+dstX = 0
+}
+if dstX < 0 {
+dstX = 0
+}
+dstY := startY + i*(rowBoxH+lineGap)
+draw.Draw(boxCanvas, image.Rect(dstX, dstY, dstX+glyphW, dstY+rowBoxH), tmp, image.Pt(minX, 0), draw.Src)
+}
+
+if angle != 0 {
+boxCanvas = rotateGray(boxCanvas, angle)
+}
+
+draw.Draw(img, image.Rect(x0, y0, x0+boxCanvas.Bounds().Dx(), y0+boxCanvas.Bounds().Dy()), boxCanvas, image.Point{}, draw.Src)
+return nil
+}
+
+func drawTextElementLegacy(img *image.Gray, el Element, text string) error {
+fontPath, err := pickFont(el.Family, el.Bold)
+if err != nil {
+return err
+}
+lines := strings.Split(text, "\n")
+fontMM := el.FontMM
+if fontMM <= 0 {
+boxW := mmToDotsMin(el.W)
+if boxW <= 0 {
+boxW = img.Bounds().Dx() - mmToDots(el.X)
+}
+boxH := mmToDotsMin(el.H)
+if boxH <= 0 {
+boxH = img.Bounds().Dy() - mmToDots(el.Y)
+}
+if el.Heavy {
+boxW -= 2
+}
+size, err := fitFontSize(fontPath, lines, boxW, boxH)
+if err != nil {
+return err
+}
+fontMM = size / dotsPerMM
+}
+
+face, err := loadFace(fontPath, fontMM*dotsPerMM)
+if err != nil {
+return err
+}
+defer face.Close()
+
+metrics := face.Metrics()
+ascent := metrics.Ascent.Ceil()
+lineH := metrics.Height.Ceil()
+if el.LineMM > 0 {
+lineH = int(math.Round(el.LineMM * dotsPerMM))
+}
+if lineH <= 0 {
+lineH = int(fontMM*dotsPerMM) + 2
+}
+
+x0 := int(math.Round(el.X * dotsPerMM))
+y0 := int(math.Round(el.Y * dotsPerMM))
+boxW := int(math.Round(el.W * dotsPerMM))
+
+if el.H > 0 {
+boxH := mmToDotsMin(el.H)
+blockH := lineH * len(lines)
+if boxH > blockH {
+y0 += (boxH - blockH) / 2
+}
+}
+
+if angle := ((el.Rotate % 360) + 360) % 360; angle != 0 {
+blockW, blockH := 0, lineH*len(lines)
+for _, line := range lines {
+if w := font.MeasureString(face, line).Ceil(); w > blockW {
+blockW = w
+}
+}
+if blockW < 1 {
+blockW = 1
+}
+tmp := whiteCanvas(blockW, blockH)
+drawTextLines(tmp, face, lines, 0, 0, lineH, blockW, ascent, "left", 0, el.Heavy)
+rot := rotateGray(tmp, angle)
+
+rw, rh := rot.Bounds().Dx(), rot.Bounds().Dy()
+px := x0
+switch strings.ToLower(el.Align) {
+case "center":
+if boxW > 0 {
+px = x0 + (boxW-rw)/2
+} else {
+px = x0 - rw/2
+}
+case "right":
+if boxW > 0 {
+px = x0 + boxW - rw
+} else {
+px = x0 - rw
+}
+}
+draw.Draw(img, image.Rect(px, y0, px+rw, y0+rh), rot, image.Point{}, draw.Src)
+return nil
+}
+
+drawTextLines(img, face, lines, x0, y0, lineH, boxW, ascent, el.Align, 1, el.Heavy)
+return nil
 }
 
 // fitMarginDots — запас при автоподборе кегля, в точках.
@@ -498,38 +606,54 @@ func substituteFields(text string, row []string, now time.Time) (string, error) 
 	return text, nil
 }
 
-// drawBarcodeElement рисует штрихкод или QR-код внутри рамки элемента.
+// drawBarcodeElement рисует штрихкод или QR-код строго внутри рамки (X, Y, W, H).
 func drawBarcodeElement(img *image.Gray, el Element, row []string, now time.Time) error {
-	codeVal, err := substituteFields(el.Text, row, now)
-	if err != nil { return err }
-	topVal, err := substituteFields(el.TopText, row, now)
-	if err != nil { return err }
-	botVal, err := substituteFields(el.BottomText, row, now)
-	if err != nil { return err }
-	if strings.TrimSpace(codeVal) == "" { return nil }
+codeVal, err := substituteFields(el.Text, row, now)
+if err != nil {
+return err
+}
+if strings.TrimSpace(codeVal) == "" {
+return nil
+}
 
-	cfg := LoadConfig()
-	wMM := el.W
-	if wMM <= 0 { wMM = float64(img.Bounds().Dx()) / dotsPerMM }
-	opts := BarcodeOptions{
-		Data: codeVal, Format: el.BcFormat, LengthMM: wMM,
-		TopText: topVal, BottomText: botVal,
-		FontName: el.Family, IsMainTextBold: el.Bold, FontSize: el.FontSize,
-		SideMarginPx: cfg.SideMarginPx, MarginPx: cfg.MarginPx,
-		GapPx: el.GapPx, TextGapPx: cfg.TextGapPx,
-	}
-	if opts.GapPx <= 0 { opts.GapPx = cfg.GapPx }
+cfg := LoadConfig()
+wMM := el.W
+if wMM <= 0 {
+wMM = float64(img.Bounds().Dx()) / dotsPerMM
+}
+hMM := el.H
+if hMM <= 0 {
+hMM = labelHeightMM
+}
+targetH := mmToDotsMin(hMM)
 
-	bcImg, err := RenderBarcodeLabel(opts, cfg)
-	if err != nil { return err }
+// Строим код на его реальную высоту targetH (без искусственного сжатия после рендера)
+origHead := printheadPixels
+_ = origHead
+opts := BarcodeOptions{
+Data:           codeVal,
+Format:         el.BcFormat,
+LengthMM:       wMM,
+FontName:       el.Family,
+IsMainTextBold: el.Bold,
+FontSize:       el.FontSize,
+SideMarginPx:   0,
+MarginPx:       0,
+GapPx:          maxInt(0, el.GapPx),
+TextGapPx:      0,
+}
 
-	x0, y0 := mmToDots(el.X), mmToDots(el.Y)
-	if el.H > 0 {
-		targetH := mmToDotsMin(el.H)
-		scaled := image.NewGray(image.Rect(0, 0, bcImg.Bounds().Dx(), targetH))
-		drawScaled(scaled, bcImg)
-		bcImg = scaled
-	}
-	draw.Draw(img, image.Rect(x0, y0, x0+bcImg.Bounds().Dx(), y0+bcImg.Bounds().Dy()), bcImg, image.Point{}, draw.Src)
-	return nil
+bcImg, err := RenderBarcodeLabel(opts, cfg)
+if err != nil {
+return err
+}
+
+x0, y0 := mmToDots(el.X), mmToDots(el.Y)
+if bcImg.Bounds().Dy() != targetH {
+scaled := image.NewGray(image.Rect(0, 0, bcImg.Bounds().Dx(), targetH))
+drawScaled(scaled, bcImg)
+bcImg = scaled
+}
+draw.Draw(img, image.Rect(x0, y0, x0+bcImg.Bounds().Dx(), y0+bcImg.Bounds().Dy()), bcImg, image.Point{}, draw.Src)
+return nil
 }
