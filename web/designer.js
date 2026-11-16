@@ -86,6 +86,7 @@ function renderCanvas() {
       if (el.image) {
         const img = document.createElement('img');
         img.src = el.image;
+      img.style.objectFit = el.stretch ? 'fill' : 'contain';
         img.style.objectFit = el.stretch ? 'fill' : 'contain';
         node.appendChild(img);
       } else {
@@ -436,3 +437,13 @@ async function initDesigner() {
   loadStatus(); loadFonts(); loadTemplates(); renderCanvas(); showProps(); updateCount(); refreshPreview();
 }
 initDesigner();
+
+if ($('p-img-stretch')) {
+  $('p-img-stretch').addEventListener('change', () => {
+    if (selected >= 0 && elements[selected]) {
+      elements[selected].stretch = $('p-img-stretch').checked;
+      renderCanvas();
+      refreshPreview();
+    }
+  });
+}
