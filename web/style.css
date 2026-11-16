@@ -425,3 +425,19 @@ header .design-link {
 #btn-mode-toggle {
   min-width: 168px;
 }
+
+header {
+  min-height: 60px;
+  flex-wrap: nowrap;
+}
+header .brand,
+header h1 {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+header .status {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
