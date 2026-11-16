@@ -397,15 +397,24 @@ async function loadTemplates() {
     list.forEach((t) => { const o = document.createElement('option'); o.value = t.name; o.textContent = t.name; o.dataset.tpl = JSON.stringify(t); sel.appendChild(o); });
   } catch (e) {}
 }
-if ($('templates')) $('templates').addEventListener('change', (e) => {
-  const opt = e.target.selectedOptions[0]; if (!opt?.dataset.tpl) return;
-  const t = JSON.parse(opt.dataset.tpl);
+function applyTemplateObject(t) {
   elements = t.elements ? JSON.parse(JSON.stringify(t.elements)) : [];
   if ($('tpl-name')) $('tpl-name').value = t.name || '';
   if (t.length && $('length')) $('length').value = t.length;
   if (t.density && $('density')) $('density').value = t.density;
+  if (t.label !== undefined && $('label')) $('label').value = t.label;
+  if (t.copies && $('copies')) $('copies').value = t.copies;
   if (t.threshold && $('threshold')) $('threshold').value = t.threshold;
-  select(-1); renderCanvas(); refreshPreview();
+  if ($('flip')) $('flip').checked = !!t.flip;
+  select(-1);
+  renderCanvas();
+  refreshPreview();
+}
+
+if ($('templates')) $('templates').addEventListener('change', (e) => {
+  const opt = e.target.selectedOptions[0];
+  if (!opt?.dataset.tpl) return;
+  applyTemplateObject(JSON.parse(opt.dataset.tpl));
 });
 function tplMsg(txt, bad) { if ($('tpl-msg')) { $('tpl-msg').textContent = txt; $('tpl-msg').style.color = bad ? '#B3392F' : 'var(--green)'; } }
 if ($('tpl-save')) $('tpl-save').onclick = async () => {
@@ -418,16 +427,33 @@ if ($('tpl-new')) $('tpl-new').onclick = () => { elements = []; if ($('tpl-name'
 if ($('tpl-export')) $('tpl-export').onclick = () => {
   if (!elements.length) return;
   const name = $('tpl-name')?.value.trim() || 'template';
+  const payload = {
+    name,
+    length: labelLength(),
+    density: parseInt($('density')?.value, 10) || 2,
+    label: $('label')?.value || '',
+    copies: parseInt($('copies')?.value, 10) || 1,
+    threshold: parseInt($('threshold')?.value, 10) || 200,
+    flip: !!$('flip')?.checked,
+    elements
+  };
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify({ name, length: labelLength(), elements }, null, 2)], { type: 'application/json' }));
-  a.download = name + '.niimbot.json'; a.click();
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+  a.download = name + '.niimbot.json';
+  a.click();
+  tplMsg(`шаблон «${name}» экспортирован со всеми параметрами`);
 };
 if ($('tpl-import') && $('tpl-import-file')) {
   $('tpl-import').onclick = () => $('tpl-import-file').click();
   $('tpl-import-file').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    const p = JSON.parse(await f.text()); const t = Array.isArray(p) ? p[0] : p;
-    if (t?.elements) { elements = t.elements; if ($('tpl-name')) $('tpl-name').value = t.name || ''; if (t.length && $('length')) $('length').value = t.length; select(-1); renderCanvas(); refreshPreview(); }
+    const p = JSON.parse(await f.text());
+    const t = Array.isArray(p) ? p[0] : p;
+    if (t?.elements) {
+      if (!t.name) t.name = f.name.replace(/\.niimbot\.json$|\.json$/i, '');
+      applyTemplateObject(t);
+      tplMsg(`шаблон «${t.name}» загружен (нажмите «Сохранить» для записи в список)`);
+    }
     e.target.value = '';
   });
 }
