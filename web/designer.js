@@ -189,13 +189,30 @@ $('label').addEventListener('mousedown', (e) => {
   const el = elements[i];
   const startX = e.clientX, startY = e.clientY;
   const ox = el.x, oy = el.y;
+  const sz = sizeOf(el);
+  const ow = el.w || sz.w || 4;
+  const oh = el.h || sz.h || 2;
+  const isResize = e.shiftKey || e.target.classList.contains('resize-handle');
 
   const move = (ev) => {
     const dx = (ev.clientX - startX) / scale;
     const dy = (ev.clientY - startY) / scale;
+
+    if (isResize || ev.shiftKey) {
+      const maxW = Math.max(1, labelLength() - el.x);
+      const maxH = Math.max(0.5, LABEL_H_MM - el.y);
+      el.w = Math.min(maxW, Math.max(1, snap(ow + dx)));
+      if (el.kind !== 'text') {
+        el.h = Math.min(maxH, Math.max(0.2, snap(oh + dy)));
+      }
+      renderCanvas();
+      showProps();
+      return;
+    }
+
     let nx = snap(Math.max(0, ox + dx));
     let ny = snap(Math.max(0, oy + dy));
-    if (!ev.altKey) { // Alt отключает прилипание к краям
+    if (!ev.altKey) {
       const r = snapToEdges(el, nx, ny);
       nx = r.x; ny = r.y;
     } else {
@@ -705,99 +722,29 @@ $('tpl-new').onclick = () => {
 
 // --------------------------------------------------------------------- запуск
 
-// Пустой конструктор встречаем одной готовой надписью: с чего-то надо начать.
-if (!elements.length) {
-  elements.push({ kind: 'text', x: 1, y: 4, w: labelLength() - 2, text: '{1}', font: 3, align: 'center' });
-}
-
-
-loadStatus();
-loadFonts();
-loadTemplates();
-renderCanvas();
-showProps();
-updateCount();
-
-// Экспорт и импорт шаблонов в JSON-файл
-if ($('tpl-export')) {
-  $('tpl-export').onclick = () => {
-    if (!elements.length) {
-      tplMsg('На холсте нет ни одного элемента для экспорта', true);
-      return;
+async function initDesigner() {
+  try {
+    const r = await fetch('/api/config');
+    if (r.ok) {
+      const c = await r.json();
+      if (c && c.length > 0 && $('length')) $('length').value = c.length;
+      if (c && c.density > 0 && $('density')) $('density').value = c.density;
+      if (c && c.threshold > 0 && $('threshold')) $('threshold').value = c.threshold;
+      if (c && $('flip')) $('flip').checked = !!c.flip;
     }
-    const name = ($('tpl-name').value.trim() || $('templates').value || 'niimbot_template');
-    const payload = {
-      name,
-      length: labelLength(),
-      density: parseInt($('density').value, 10) || 2,
-      label: $('label').value,
-      copies: parseInt($('copies').value, 10) || 1,
-      threshold: parseInt($('threshold').value, 10) || 200,
-      flip: $('flip').checked,
-      elements: elements
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const cleanName = name.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^[._]+|[._]+$/g, '') || 'template';
-    a.href = url;
-    a.download = cleanName + '.niimbot.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    tplMsg(`шаблон «${name}» экспортирован в файл`);
-  };
+  } catch (e) { /* используем значения по умолчанию */ }
+
+  if (!elements.length) {
+    elements.push({ kind: 'text', x: 1, y: 4, w: labelLength() - 2, text: '{1}', font: 3, align: 'center' });
+  }
+
+  loadStatus();
+  loadFonts();
+  loadTemplates();
+  renderCanvas();
+  showProps();
+  updateCount();
+  refreshPreview();
 }
 
-if ($('tpl-import') && $('tpl-import-file')) {
-  $('tpl-import').onclick = () => $('tpl-import-file').click();
-
-  $('tpl-import-file').addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files;
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      const list = Array.isArray(parsed) ? parsed : [parsed];
-      const valid = list.filter((t) => t && Array.isArray(t.elements));
-      if (!valid.length) {
-        throw new Error('Файл не содержит корректного шаблона этикетки');
-      }
-
-      // Если импортирован массив шаблонов (например, весь templates.json) — сохраняем все в базу
-      if (Array.isArray(parsed)) {
-        for (const t of valid) {
-          if (!t.name) t.name = file.name.replace(/\.json$/i, '');
-          await fetch('/api/templates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(t)
-          });
-        }
-        await loadTemplates();
-      }
-
-      // Загружаем первый шаблон из файла на холст
-      const t = valid;
-      elements = JSON.parse(JSON.stringify(t.elements));
-      $('tpl-name').value = t.name || file.name.replace(/\.niimbot\.json$|\.json$/i, '');
-      if (t.length) $('length').value = t.length;
-      if (t.density) $('density').value = t.density;
-      if (t.label !== undefined) $('label').value = t.label;
-      if (t.copies) $('copies').value = t.copies;
-      if (t.threshold) $('threshold').value = t.threshold;
-      $('flip').checked = !!t.flip;
-
-      select(-1);
-      renderCanvas();
-      refreshPreview();
-      tplMsg(valid.length > 1
-        ? `импортировано шаблонов: ${valid.length}`
-        : `шаблон «${$('tpl-name').value}» загружен (нажмите «Сохранить» для записи в список)`);
-    } catch (err) {
-      tplMsg('ошибка импорта: ' + err.message, true);
-    }
-    e.target.value = '';
-  });
-}
+initDesigner();
