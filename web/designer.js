@@ -447,3 +447,28 @@ if ($('p-img-stretch')) {
     }
   });
 }
+
+// Управление порядком слоёв (на передний / задний план)
+if ($('layer-up')) {
+  $('layer-up').onclick = () => {
+    if (selected < 0 || selected >= elements.length - 1) return;
+    const [item] = elements.splice(selected, 1);
+    elements.push(item);
+    selected = elements.length - 1;
+    renderCanvas();
+    showProps();
+    refreshPreview();
+  };
+}
+
+if ($('layer-down')) {
+  $('layer-down').onclick = () => {
+    if (selected <= 0) return;
+    const [item] = elements.splice(selected, 1);
+    elements.unshift(item);
+    selected = 0;
+    renderCanvas();
+    showProps();
+    refreshPreview();
+  };
+}
