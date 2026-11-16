@@ -461,7 +461,8 @@ if ($('tpl-import') && $('tpl-import-file')) {
 async function initDesigner() {
   try {
     const r = await fetch('/api/config');
-    if (r.ok) { const c = await r.json(); if (c?.length > 0 && $('length')) $('length').value = c.length; }
+    if (r.ok) { const c = await r.json(); if (c?.length > 0 && $('length')) $('length').value = c.length;
+      if (c) updateModeButton(!!c.keepAlive); }
   } catch (e) {}
   if (!elements.length) elements.push({ kind: 'text', x: 1, y: 3, w: labelLength() - 2, h: 6, text: '{1}', fontSize: '-1', align: 'center' });
   loadStatus(); loadFonts(); loadTemplates(); renderCanvas(); showProps(); updateCount(); refreshPreview();
@@ -522,4 +523,63 @@ function moveSelectedToOrder(newOrder1Based) {
 if ($('p-order')) {
   $('p-order').addEventListener('change', () => moveSelectedToOrder($('p-order').value));
   $('p-order').addEventListener('input', () => moveSelectedToOrder($('p-order').value));
+}
+
+// Управление связью, режимом Keep-Alive и выключением сервера из шапки конструктора
+function updateModeButton(keepAlive) {
+  const btn = $('btn-mode-toggle');
+  if (!btn) return;
+  btn.dataset.keep = keepAlive ? 'true' : 'false';
+  btn.textContent = keepAlive ? 'Режим: Keep-Alive' : 'Режим: On-Demand';
+}
+
+async function postHeaderAction(url, bodyObj, okMsg) {
+  try {
+    const opts = { method: 'POST' };
+    if (bodyObj !== undefined) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(bodyObj);
+    }
+    const r = await fetch(url, opts);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка запроса');
+    if (okMsg && $('status')) $('status').textContent = okMsg;
+    return d;
+  } catch (e) {
+    alert(e.message);
+    return null;
+  }
+}
+
+if ($('btn-connect')) {
+  $('btn-connect').onclick = async () => {
+    if ($('status')) $('status').textContent = 'подключаюсь к принтеру…';
+    const d = await postHeaderAction('/api/connect', undefined, null);
+    if (d) loadStatus();
+  };
+}
+if ($('btn-disconnect')) {
+  $('btn-disconnect').onclick = async () => {
+    await postHeaderAction('/api/disconnect', undefined, 'отключено вручную');
+  };
+}
+if ($('btn-mode-toggle')) {
+  $('btn-mode-toggle').onclick = async () => {
+    const nextKeep = $('btn-mode-toggle').dataset.keep !== 'true';
+    const d = await postHeaderAction('/api/mode', { keepAlive: nextKeep }, null);
+    if (d) {
+      updateModeButton(!!d.keepAlive);
+      loadStatus();
+    }
+  };
+}
+if ($('refresh')) {
+  $('refresh').onclick = () => loadStatus();
+}
+if ($('btn-shutdown')) {
+  $('btn-shutdown').onclick = async () => {
+    if (!confirm('Остановить локальный веб-сервер NIIMBOT?')) return;
+    await postHeaderAction('/api/shutdown', undefined, 'сервер остановлен');
+    document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;text-align:center"><h2>Сервер NIIMBOT N1 остановлен</h2><p>Эту вкладку можно закрыть.</p></div>';
+  };
 }

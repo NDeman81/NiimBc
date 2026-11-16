@@ -10,14 +10,19 @@
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    <span class="dot"></span>
-    <h1>Конструктор этикеток</h1>
-  </div>
-  <a href="/" class="back">← обычная печать</a>
-  <div id="status" class="status">читаю состояние…</div>
-</header>
+  <header>
+    <div class="brand">
+      <div class="dot"></div>
+      <h1>Конструктор этикеток</h1>
+    </div>
+    <div id="status" class="status">читаю состояние…</div>
+    <button id="btn-connect" type="button" class="ghost">Подключить</button>
+    <button id="btn-disconnect" type="button" class="ghost">Отключить</button>
+    <button id="btn-mode-toggle" type="button" class="ghost" title="Переключить режим удержания Bluetooth-связи">Режим: Keep-Alive</button>
+    <a href="index.html" class="design-link">Одиночная печать</a>
+    <button id="refresh" type="button" class="ghost">Обновить</button>
+    <button id="btn-shutdown" type="button" class="ghost danger" title="Остановить локальный веб-сервер">Выключить</button>
+  </header>
 
 <main class="designer">
 
@@ -203,6 +208,6 @@
 
 </main>
 
-<script src="designer.js?v=16"></script>
+<script src="designer.js?v=17"></script>
 </body>
 </html>
