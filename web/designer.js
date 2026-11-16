@@ -341,6 +341,7 @@ function showProps() {
 }
 
 function bindProp(id, apply) {
+  if (!$(id)) return;
   $(id).addEventListener('input', () => {
     if (selected < 0) return;
     apply(elements[selected], $(id).value);
@@ -354,10 +355,8 @@ bindProp('p-y', (el, v) => { el.y = Math.max(0, parseFloat(v) || 0); });
 bindProp('p-w', (el, v) => { el.w = Math.max(0, parseFloat(v) || 0); });
 bindProp('p-h', (el, v) => { el.h = Math.max(0, parseFloat(v) || 0); });
 bindProp('p-text', (el, v) => { el.text = v; });
-bindProp('p-font', (el, v) => { el.font = Math.max(1, parseFloat(v) || 2.5); });
 bindProp('p-align', (el, v) => { el.align = v; });
 bindProp('p-family', (el, v) => { el.family = v; });
-bindProp('p-line', (el, v) => { el.line = Math.max(0, parseFloat(v) || 0); });
 bindProp('p-rotate', (el, v) => { el.rotate = parseInt(v, 10) || 0; });
 bindProp('p-thickness', (el, v) => { el.thickness = Math.max(0.05, parseFloat(v) || 0.3); });
 $('p-bold').addEventListener('change', () => {
@@ -425,19 +424,7 @@ if ($('p-bc-format')) $('p-bc-format').addEventListener('change', () => {
 });
 if ($('p-bc-top')) bindProp('p-bc-top', (el, v) => { el.topText = v; });
 if ($('p-bc-bot')) bindProp('p-bc-bot', (el, v) => { el.bottomText = v; });
-if ($('p-bc-family')) $('p-bc-family').addEventListener('change', () => {
-  if (selected < 0) return;
-  elements[selected].family = $('p-bc-family').value;
-  renderCanvas();
-  schedulePreview();
-});
 if ($('p-bc-fontsize')) bindProp('p-bc-fontsize', (el, v) => { el.fontSize = v; });
-if ($('p-bc-bold')) $('p-bc-bold').addEventListener('change', () => {
-  if (selected < 0) return;
-  elements[selected].bold = $('p-bc-bold').checked;
-  renderCanvas();
-  schedulePreview();
-});
 
 if ($('add-barcode')) {
   $('add-barcode').onclick = () => {
