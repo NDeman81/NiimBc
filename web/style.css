@@ -412,3 +412,16 @@ button:disabled { opacity: .45; cursor: default; }
   background: #eff6ff;
   color: #1d4ed8;
 }
+
+header button,
+header .design-link {
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#btn-mode-toggle {
+  min-width: 168px;
+}
