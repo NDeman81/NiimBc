@@ -708,3 +708,87 @@ loadTemplates();
 renderCanvas();
 showProps();
 updateCount();
+
+// Экспорт и импорт шаблонов в JSON-файл
+if ($('tpl-export')) {
+  $('tpl-export').onclick = () => {
+    if (!elements.length) {
+      tplMsg('На холсте нет ни одного элемента для экспорта', true);
+      return;
+    }
+    const name = ($('tpl-name').value.trim() || $('templates').value || 'niimbot_template');
+    const payload = {
+      name,
+      length: labelLength(),
+      density: parseInt($('density').value, 10) || 2,
+      label: $('label').value,
+      copies: parseInt($('copies').value, 10) || 1,
+      threshold: parseInt($('threshold').value, 10) || 200,
+      flip: $('flip').checked,
+      elements: elements
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const cleanName = name.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^[._]+|[._]+$/g, '') || 'template';
+    a.href = url;
+    a.download = cleanName + '.niimbot.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    tplMsg(`шаблон «${name}» экспортирован в файл`);
+  };
+}
+
+if ($('tpl-import') && $('tpl-import-file')) {
+  $('tpl-import').onclick = () => $('tpl-import-file').click();
+
+  $('tpl-import-file').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files;
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      const valid = list.filter((t) => t && Array.isArray(t.elements));
+      if (!valid.length) {
+        throw new Error('Файл не содержит корректного шаблона этикетки');
+      }
+
+      // Если импортирован массив шаблонов (например, весь templates.json) — сохраняем все в базу
+      if (Array.isArray(parsed)) {
+        for (const t of valid) {
+          if (!t.name) t.name = file.name.replace(/\.json$/i, '');
+          await fetch('/api/templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(t)
+          });
+        }
+        await loadTemplates();
+      }
+
+      // Загружаем первый шаблон из файла на холст
+      const t = valid;
+      elements = JSON.parse(JSON.stringify(t.elements));
+      $('tpl-name').value = t.name || file.name.replace(/\.niimbot\.json$|\.json$/i, '');
+      if (t.length) $('length').value = t.length;
+      if (t.density) $('density').value = t.density;
+      if (t.label !== undefined) $('label').value = t.label;
+      if (t.copies) $('copies').value = t.copies;
+      if (t.threshold) $('threshold').value = t.threshold;
+      $('flip').checked = !!t.flip;
+
+      select(-1);
+      renderCanvas();
+      refreshPreview();
+      tplMsg(valid.length > 1
+        ? `импортировано шаблонов: ${valid.length}`
+        : `шаблон «${$('tpl-name').value}» загружен (нажмите «Сохранить» для записи в список)`);
+    } catch (err) {
+      tplMsg('ошибка импорта: ' + err.message, true);
+    }
+    e.target.value = '';
+  });
+}

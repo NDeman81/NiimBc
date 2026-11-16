@@ -155,7 +155,12 @@
       <button id="tpl-del" class="ghost danger">Удалить</button>
       <button id="tpl-new" class="ghost">Очистить холст</button>
     </div>
-    <p id="tpl-msg" class="hint"></p>
+            <div class="row" style="margin-top:8px">
+          <button id="tpl-export" class="ghost" title="Скачать текущий шаблон в JSON-файл">Экспорт JSON</button>
+          <button id="tpl-import" class="ghost" title="Загрузить шаблон из JSON-файла">Импорт JSON</button>
+          <input type="file" id="tpl-import-file" accept=".json,application/json" class="hidden">
+        </div>
+        <p id="tpl-msg" class="hint"></p>
     <p class="hint">Шаблон хранит <b>и элементы</b> (что где стоит), и настройки печати.
       Сохранённые шаблоны доступны по кнопке «обычная печать» тоже.</p>
 
@@ -205,6 +210,6 @@
 
 </main>
 
-<script src="designer.js?v=2"></script>
+<script src="designer.js?v=3"></script>
 </body>
 </html>
