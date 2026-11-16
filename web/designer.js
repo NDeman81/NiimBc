@@ -246,7 +246,11 @@ function showProps() {
   if ($('p-x')) $('p-x').value = el.x;
   if ($('p-y')) $('p-y').value = el.y;
   if ($('p-w')) $('p-w').value = el.w || 4;
-  if ($('p-h')) $('p-h').value = el.h || 3;
+    if ($('p-h')) $('p-h').value = el.h || 3;
+  if ($('p-order')) {
+    $('p-order').max = Math.max(1, elements.length);
+    $('p-order').value = selected + 1;
+  }
 
   const isText = el.kind === 'text', isBc = el.kind === 'barcode';
   if ($('text-props')) $('text-props').classList.toggle('hidden', !isText);
@@ -471,4 +475,25 @@ if ($('layer-down')) {
     showProps();
     refreshPreview();
   };
+}
+
+// Перемещение выбранного элемента на заданную позицию слоя (1..elements.length)
+function moveSelectedToOrder(newOrder1Based) {
+  if (selected < 0 || elements.length < 2) return;
+  const targetIdx = Math.max(0, Math.min(elements.length - 1, (parseInt(newOrder1Based, 10) || 1) - 1));
+  if (targetIdx === selected) {
+    if ($('p-order')) $('p-order').value = selected + 1;
+    return;
+  }
+  const [item] = elements.splice(selected, 1);
+  elements.splice(targetIdx, 0, item);
+  selected = targetIdx;
+  renderCanvas();
+  showProps();
+  refreshPreview();
+}
+
+if ($('p-order')) {
+  $('p-order').addEventListener('change', () => moveSelectedToOrder($('p-order').value));
+  $('p-order').addEventListener('input', () => moveSelectedToOrder($('p-order').value));
 }

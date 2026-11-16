@@ -71,7 +71,14 @@
           <label>X, мм <input type="number" id="p-x" step="0.5" min="0"></label>
           <label>Y, мм <input type="number" id="p-y" step="0.5" min="0"></label>
           <label>Ширина, мм <input type="number" id="p-w" step="0.5" min="0.5"></label>
-          <label>Высота, мм <input type="number" id="p-h" step="0.5" min="0.2"></label>
+                    <label>Высота, мм <input type="number" id="p-h" step="0.5" min="0.2"></label>
+        </div>
+        <div class="row" style="margin-top:8px;align-items:end">
+          <label style="margin-bottom:0;width:110px">Порядок (слой)
+            <input type="number" id="p-order" min="1" step="1" value="1">
+          </label>
+          <button id="layer-down" type="button" class="ghost" title="В самый низ (слой 1)">На задний план</button>
+          <button id="layer-up" type="button" class="ghost" title="На самый верх">На передний план</button>
         </div>
 
         <div id="text-props">
@@ -196,6 +203,6 @@
 
 </main>
 
-<script src="designer.js?v=14"></script>
+<script src="designer.js?v=15"></script>
 </body>
 </html>
