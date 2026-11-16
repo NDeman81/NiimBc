@@ -57,6 +57,7 @@ type Element struct {
 	GapPx      int    `json:"gapPx,omitempty"`      // зазор до подписи, px
 	// Картинка: путь к файлу или data:URL с base64
 	Image string `json:"image,omitempty"`
+	Stretch bool `json:"stretch,omitempty"` // true = растянуть без сохранения пропорций
 }
 
 // LabelTemplate — шаблон этикетки для конструктора.
@@ -503,40 +504,61 @@ func pickFont(family string, bold bool) (string, error) {
 	return path, nil
 }
 
-// drawImageElement рисует картинку в её рамке.
+// drawImageElement рисует картинку в её рамке (с сохранением пропорций или растяжением).
 func drawImageElement(img *image.Gray, el Element) error {
-	if el.Image == "" {
-		return fmt.Errorf("у картинки не указан источник")
-	}
-	src, err := loadImageSource(el.Image)
-	if err != nil {
-		return err
-	}
-	wMM, hMM := el.W, el.H
-	if wMM <= 0 || hMM <= 0 {
-		return fmt.Errorf("у картинки не заданы размеры (w и h в мм)")
-	}
-	dw := int(math.Round(wMM * dotsPerMM))
-	dh := int(math.Round(hMM * dotsPerMM))
-	if dw < 1 || dh < 1 {
-		return fmt.Errorf("картинка получается меньше точки")
-	}
+if el.Image == "" {
+return fmt.Errorf("у картинки не указан источник")
+}
+src, err := loadImageSource(el.Image)
+if err != nil {
+return err
+}
+wMM, hMM := el.W, el.H
+if wMM <= 0 || hMM <= 0 {
+return fmt.Errorf("у картинки не заданы размеры (w и h в мм)")
+}
+boxW := int(math.Round(wMM * dotsPerMM))
+boxH := int(math.Round(hMM * dotsPerMM))
+if boxW < 1 || boxH < 1 {
+return fmt.Errorf("картинка получается меньше точки")
+}
 
-	angle := ((el.Rotate % 360) + 360) % 360
-	if angle == 90 || angle == 270 {
-		dw, dh = dh, dw // поворот меняет местами ширину и высоту
-	}
-	scaled := image.NewGray(image.Rect(0, 0, dw, dh))
-	drawScaled(scaled, src)
-	if angle != 0 {
-		scaled = rotateGray(scaled, angle)
-	}
+angle := ((el.Rotate % 360) + 360) % 360
+workW, workH := boxW, boxH
+if angle == 90 || angle == 270 {
+workW, workH = boxH, boxW
+}
 
-	x0 := int(math.Round(el.X * dotsPerMM))
-	y0 := int(math.Round(el.Y * dotsPerMM))
-	draw.Draw(img, image.Rect(x0, y0, x0+scaled.Bounds().Dx(), y0+scaled.Bounds().Dy()),
-		scaled, image.Point{}, draw.Src)
-	return nil
+sb := src.Bounds()
+sw, sh := sb.Dx(), sb.Dy()
+if sw < 1 || sh < 1 {
+return fmt.Errorf("пустое изображение")
+}
+
+dw, dh := workW, workH
+if !el.Stretch {
+scale := math.Min(float64(workW)/float64(sw), float64(workH)/float64(sh))
+dw = maxInt(1, int(math.Round(float64(sw)*scale)))
+dh = maxInt(1, int(math.Round(float64(sh)*scale)))
+}
+
+scaled := image.NewGray(image.Rect(0, 0, dw, dh))
+drawScaled(scaled, src)
+
+box := whiteCanvas(workW, workH)
+offX := (workW - dw) / 2
+offY := (workH - dh) / 2
+draw.Draw(box, image.Rect(offX, offY, offX+dw, offY+dh), scaled, image.Point{}, draw.Src)
+
+if angle != 0 {
+box = rotateGray(box, angle)
+}
+
+x0 := int(math.Round(el.X * dotsPerMM))
+y0 := int(math.Round(el.Y * dotsPerMM))
+draw.Draw(img, image.Rect(x0, y0, x0+box.Bounds().Dx(), y0+box.Bounds().Dy()),
+box, image.Point{}, draw.Src)
+return nil
 }
 
 // drawScaled уменьшает или увеличивает картинку в подготовленный холст.

@@ -143,6 +143,7 @@
         </div>
 
         <div id="image-props" class="hidden">
+          <label class="check" style="margin-bottom:8px"><input type="checkbox" id="p-img-stretch"> Растянуть по рамке (без пропорций)</label>
           <input type="file" id="p-image-file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
           <button id="p-image-btn" type="button" class="ghost" onclick="document.getElementById('p-image-file').click()">Заменить картинку</button>
         </div>
@@ -151,6 +152,25 @@
           <label>Толщина линии/рамки, мм <input type="number" id="p-thickness" step="0.1" min="0.1" value="0.3"></label>
         </div>
       </div>
+      <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+      <h2>Шаблон</h2>
+      <label>Загрузить сохранённый
+        <select id="templates"><option value="">— выберите —</option></select>
+      </label>
+      <label>Название шаблона
+        <input type="text" id="tpl-name" placeholder="Например: Инвентарный №">
+      </label>
+      <div class="row">
+        <button id="tpl-save" type="button" class="primary">Сохранить</button>
+        <button id="tpl-del" type="button" class="ghost danger">Удалить</button>
+        <button id="tpl-new" type="button" class="ghost">Новый</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="tpl-export" type="button" class="ghost">Экспорт JSON</button>
+        <button id="tpl-import" type="button" class="ghost">Импорт JSON</button>
+        <input type="file" id="tpl-import-file" accept=".json,application/json" class="hidden">
+      </div>
+      <p id="tpl-msg" class="hint"></p>
     </aside>
 
   <!-- НИЗ: данные и печать серии -->
@@ -176,6 +196,6 @@
 
 </main>
 
-<script src="designer.js?v=7"></script>
+<script src="designer.js?v=11"></script>
 </body>
 </html>
