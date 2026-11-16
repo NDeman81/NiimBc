@@ -398,7 +398,9 @@ if ($('templates')) $('templates').addEventListener('change', (e) => {
   elements = t.elements ? JSON.parse(JSON.stringify(t.elements)) : [];
   if ($('tpl-name')) $('tpl-name').value = t.name || '';
   if (t.length && $('length')) $('length').value = t.length;
-  select(-1); refreshPreview();
+  if (t.density && $('density')) $('density').value = t.density;
+  if (t.threshold && $('threshold')) $('threshold').value = t.threshold;
+  select(-1); renderCanvas(); refreshPreview();
 });
 function tplMsg(txt, bad) { if ($('tpl-msg')) { $('tpl-msg').textContent = txt; $('tpl-msg').style.color = bad ? '#B3392F' : 'var(--green)'; } }
 if ($('tpl-save')) $('tpl-save').onclick = async () => {
