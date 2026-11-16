@@ -78,15 +78,6 @@ function renderCanvas() {
     if (el.kind === 'line' || el.kind === 'frame') {
       node.style.width = (el.w || 1) * scale + 'px';
       node.style.height = (el.h || 0.4) * scale + 'px';
-          if (el.kind === 'barcode') {
-      node.style.width = (el.w || labelLength()) * scale + 'px';
-      node.style.height = (el.h || 12) * scale + 'px';
-      node.style.background = 'repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 5px, #111 5px 6px, #fff 6px 9px)';
-      node.innerHTML = '<span style="background:rgba(255,255,255,.9);padding:1px 4px;font-size:11px;font-weight:700;position:absolute;bottom:1px;left:4px">' +
-        (el.bcFormat || 'auto').toUpperCase() + ': ' + (el.text || '') + '</span>';
-      label.appendChild(node);
-      return;
-    }
 
     if (el.kind === 'line') {
         node.style.background = '#111';
@@ -275,7 +266,7 @@ async function loadFonts() {
       const o = document.createElement('option');
       o.value = f;
       o.textContent = f;
-      sel.appendChild(o); if (selBc) selBc.appendChild(o.cloneNode(true));
+      sel.appendChild(o);
     });
   } catch (e) { /* без списка шрифтов конструктор всё равно работает */ }
 }
@@ -301,18 +292,18 @@ function showProps() {
   $('p-rotate').value = String(el.rotate || 0);
   $('p-thickness').value = el.thickness || 0.3;
 
-    p-bc-data.value = el.text || '';
-  p-bc-format.value = el.bcFormat || 'auto';
-  p-bc-top.value = el.topText || '';
-  p-bc-bot.value = el.bottomText || '';
-  p-bc-family.value = el.family || '';
-  p-bc-fontsize.value = el.fontSize || '-1';
-  p-bc-bold.checked = !!el.bold;
+  if ($('p-bc-data')) $('p-bc-data').value = el.text || '';
+  if ($('p-bc-format')) $('p-bc-format').value = el.bcFormat || 'auto';
+  if ($('p-bc-top')) $('p-bc-top').value = el.topText || '';
+  if ($('p-bc-bot')) $('p-bc-bot').value = el.bottomText || '';
+  if ($('p-bc-family')) $('p-bc-family').value = el.family || '';
+  if ($('p-bc-fontsize')) $('p-bc-fontsize').value = el.fontSize || '-1';
+  if ($('p-bc-bold')) $('p-bc-bold').checked = !!el.bold;
 
   const isText = el.kind === 'text';
   const isBc = el.kind === 'barcode';
-  text-props.classList.toggle('hidden', !isText);
-  barcode-props.classList.toggle('hidden', !isBc);
+  if ($('text-props')) $('text-props').classList.toggle('hidden', !isText);
+  if ($('barcode-props')) $('barcode-props').classList.toggle('hidden', !isBc);
   $('image-props').classList.toggle('hidden', el.kind !== 'image');
   $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame'));
   $('h-wrap').classList.toggle('hidden', isText);
@@ -394,6 +385,47 @@ $('add-frame').onclick = () => {
   select(elements.length - 1);
   refreshPreview();
 };
+
+if ($('p-bc-data')) bindProp('p-bc-data', (el, v) => { el.text = v; });
+if ($('p-bc-format')) $('p-bc-format').addEventListener('change', () => {
+  if (selected < 0) return;
+  elements[selected].bcFormat = $('p-bc-format').value;
+  renderCanvas();
+  schedulePreview();
+});
+if ($('p-bc-top')) bindProp('p-bc-top', (el, v) => { el.topText = v; });
+if ($('p-bc-bot')) bindProp('p-bc-bot', (el, v) => { el.bottomText = v; });
+if ($('p-bc-family')) $('p-bc-family').addEventListener('change', () => {
+  if (selected < 0) return;
+  elements[selected].family = $('p-bc-family').value;
+  renderCanvas();
+  schedulePreview();
+});
+if ($('p-bc-fontsize')) bindProp('p-bc-fontsize', (el, v) => { el.fontSize = v; });
+if ($('p-bc-bold')) $('p-bc-bold').addEventListener('change', () => {
+  if (selected < 0) return;
+  elements[selected].bold = $('p-bc-bold').checked;
+  renderCanvas();
+  schedulePreview();
+});
+
+if ($('add-barcode')) {
+  $('add-barcode').onclick = () => {
+    elements.push({
+      kind: 'barcode',
+      x: 1,
+      y: 0.5,
+      w: Math.max(10, labelLength() - 2),
+      h: 11,
+      text: '{1}',
+      bcFormat: 'auto',
+      fontSize: '-1',
+      bold: false
+    });
+    select(elements.length - 1);
+    refreshPreview();
+  };
+}
 
 $('image-file').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -580,7 +612,7 @@ async function loadTemplates() {
     o.value = t.name;
     o.textContent = t.name;
     o.dataset.tpl = JSON.stringify(t);
-    sel.appendChild(o); if (selBc) selBc.appendChild(o.cloneNode(true));
+    sel.appendChild(o);
   });
 }
 
