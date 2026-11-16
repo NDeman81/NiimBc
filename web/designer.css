@@ -137,3 +137,15 @@ label.inline input { width: 84px; margin-top: 0; }
   pointer-events: none;
   z-index: 5;
 }
+
+.el .resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--green, #118D6A);
+  cursor: nwse-resize;
+  border-top-left-radius: 2px;
+  z-index: 4;
+}

@@ -132,6 +132,15 @@ function renderCanvas() {
     label.appendChild(node);
   });
 
+  if (selected >= 0) {
+    const selNode = label.querySelector('.el.selected');
+    if (selNode) {
+      const hdl = document.createElement('div');
+      hdl.className = 'resize-handle';
+      hdl.title = 'Тяните для изменения размера (или зажмите Shift в любом месте элемента)';
+      selNode.appendChild(hdl);
+    }
+  }
   drawGuides(label);
   drawRuler();
 }
