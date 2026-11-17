@@ -50,7 +50,9 @@ document.querySelectorAll('.tab').forEach((tab) => {
     if ($('pane-single')) $('pane-single').classList.toggle('hidden', mode !== 'single');
     if ($('pane-image')) $('pane-image').classList.toggle('hidden', mode !== 'image');
     if ($('pane-series')) $('pane-series').classList.toggle('hidden', mode !== 'series');
-    if ($('text-params-block')) $('text-params-block').classList.toggle('hidden', mode === 'image');
+    if ($('pane-tpl')) $('pane-tpl').classList.toggle('hidden', mode !== 'tpl');
+    if (mode === 'tpl' && typeof loadTplTabList === 'function') loadTplTabList();
+    if ($('text-params-block')) $('text-params-block').classList.toggle('hidden', mode === 'image' || mode === 'tpl');
     updateSeriesCount();
   };
 });
@@ -130,6 +132,26 @@ function collectRequest() {
     return {
       ...base,
       items: [$('single-text').value]
+    };
+  }
+
+  if (mode === 'tpl') {
+    const lines = ($('tpl-print-items')?.value || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    if (!selectedDesignTpl) {
+      return { ...base, items: [] };
+    }
+    return {
+      ...base,
+      mode: 'series',
+      items: lines,
+      elements: selectedDesignTpl.elements || [],
+      template: selectedDesignTpl.template || '',
+      length: selectedDesignTpl.length || base.length,
+      density: selectedDesignTpl.density || base.density,
+      label: selectedDesignTpl.label !== undefined ? selectedDesignTpl.label : base.label,
+      copies: parseInt($('copies')?.value, 10) || selectedDesignTpl.copies || 1,
+      threshold: selectedDesignTpl.threshold || base.threshold,
+      flip: !!selectedDesignTpl.flip
     };
   }
 
@@ -701,3 +723,64 @@ if ($('fs-drop-btn') && $('fs-menu') && $('cfg-fontsize')) {
     }
   });
 }
+
+// Вкладка "По шаблону" на главной странице
+let selectedDesignTpl = null;
+
+async function loadTplTabList() {
+  const sel = $('tpl-print-select');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/templates');
+    const list = (await r.json()) || [];
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— выберите сохранённый шаблон —</option>';
+    list.forEach((t) => {
+      const o = document.createElement('option');
+      o.value = t.name;
+      o.textContent = t.name;
+      o.dataset.tpl = JSON.stringify(t);
+      sel.appendChild(o);
+    });
+    if (prev) sel.value = prev;
+  } catch (e) {}
+}
+
+if ($('tpl-print-select')) {
+  $('tpl-print-select').addEventListener('change', (e) => {
+    const opt = e.target.selectedOptions[0];
+    if (!opt || !opt.dataset.tpl) {
+      selectedDesignTpl = null;
+      return;
+    }
+    selectedDesignTpl = JSON.parse(opt.dataset.tpl);
+    if ($('tpl-print-info')) {
+      $('tpl-print-info').textContent = `Шаблон «${selectedDesignTpl.name}»: длина ${selectedDesignTpl.length || 50} мм, элементов: ${(selectedDesignTpl.elements || []).length}`;
+    }
+  });
+}
+
+if ($('tpl-print-file-btn') && $('tpl-print-file')) {
+  $('tpl-print-file-btn').onclick = () => $('tpl-print-file').click();
+  $('tpl-print-file').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const parsed = JSON.parse(await f.text());
+      const t = Array.isArray(parsed) ? parsed[0] : parsed;
+      if (!t || (!Array.isArray(t.elements) && !t.template)) {
+        throw new Error('Файл не содержит корректного шаблона');
+      }
+      selectedDesignTpl = t;
+      if ($('tpl-print-select')) $('tpl-print-select').value = '';
+      if ($('tpl-print-info')) {
+        $('tpl-print-info').textContent = `Загружен из файла «${f.name}»: длина ${t.length || 50} мм, элементов: ${(t.elements || []).length}`;
+      }
+    } catch (err) {
+      alert('Ошибка чтения шаблона: ' + err.message);
+    }
+    e.target.value = '';
+  });
+}
+
+loadTplTabList();

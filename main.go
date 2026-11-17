@@ -2,7 +2,8 @@
 package main
 
 import (
-"flag"
+"encoding/json"
+	"flag"
 "fmt"
 "image"
 "image/png"
@@ -57,6 +58,7 @@ saveCfg   = flagSet.Bool("save-config", false, "сохранить переда�
 	logLevel  = flagSet.String("log-level", "", "уровень логов: error | info | debug (по умолчанию info)")
 	printMode = flagSet.String("print-mode", "", "режим отправки строк: fast (быстрый пачками) | safe (построчный)")
 	calFeed   = flagSet.Bool("feed", false, "протянуть пустую этикетку при калибровке (команда calibrate)")
+	tplArg    = flagSet.String("template", "", "имя сохранённого шаблона или путь к .json-файлу (команды template и preview)")
 )
 
 var activeCfg AppConfig
@@ -192,7 +194,7 @@ fatal(fmt.Errorf("порог должен быть от 1 до 255, а не %d",
 }
 binarizeThreshold = uint8(*threshold)
 
-if (cmd == "text" || cmd == "image" || cmd == "barcode") && *label != "" {
+if (cmd == "text" || cmd == "image" || cmd == "barcode" || cmd == "template") && *label != "" {
 if err := checkLabelType(*label); err != nil {
 fatal(err)
 }
@@ -210,6 +212,21 @@ case "gui":
 if err := startGUI(*addr, *port, !*noBrowser, *appMode, *verbose); err != nil { fatal(err) }
 return
 case "preview":
+if strings.TrimSpace(*tplArg) != "" {
+dataLine := "образец"
+if len(posArgs) > 0 {
+dataLine = posArgs[0]
+}
+lastLabelContent = sanitizeFileName(dataLine)
+imgs, _, err := renderByTemplateArg(*tplArg, []string{dataLine})
+if err != nil {
+fatal(err)
+}
+if len(imgs) > 0 {
+savePreview(imgs[0])
+}
+return
+}
 if *imageFile != "" {
 lastLabelContent = strings.TrimSuffix(filepath.Base(*imageFile), filepath.Ext(*imageFile))
 			img, err := loadImageWithConfig(*imageFile, *length)
@@ -237,7 +254,7 @@ if r != nil { ink++ }
 }
 fmt.Printf("строк с печатью: %d из %d\n", ink, len(rows))
 return
-case "info", "rfid", "testpage", "calibrate", "text", "image", "barcode":
+case "info", "rfid", "testpage", "calibrate", "text", "image", "barcode", "template":
 default:
 usage()
 os.Exit(2)
@@ -290,6 +307,55 @@ lastLabelContent = strings.Join(posArgs, "_")
 if err != nil { fatal(err) }
 savePreview(img)
 if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
+case "template":
+if strings.TrimSpace(*tplArg) == "" {
+fatal(fmt.Errorf("укажите шаблон через --template \"Имя или файл.json\""))
+}
+items := posArgs
+if len(items) == 0 {
+items = []string{""}
+}
+imgs, tplObj, err := renderByTemplateArg(*tplArg, items)
+if err != nil {
+fatal(err)
+}
+if len(imgs) == 0 {
+fatal(fmt.Errorf("нет данных для печати по шаблону"))
+}
+useLabel := *label
+if useLabel == "" && tplObj.Label != "" {
+useLabel = tplObj.Label
+}
+labelName, err := resolveLabel(p, useLabel)
+if err != nil {
+fatal(err)
+}
+useDensity := tplObj.Density
+if visited["density"] || useDensity < 1 || useDensity > 3 {
+useDensity = *density
+}
+useCopies := tplObj.Copies
+if visited["copies"] || useCopies < 1 {
+useCopies = *copies
+}
+useFlip := tplObj.Flip
+if visited["flip"] {
+useFlip = *flip
+}
+useThresh := uint8(*threshold)
+if !visited["threshold"] && tplObj.Threshold >= 1 && tplObj.Threshold <= 255 {
+useThresh = uint8(tplObj.Threshold)
+}
+lastLabelContent = sanitizeFileName(items[0])
+savePreview(imgs[0])
+var pages [][]Row
+for _, im := range imgs {
+pages = append(pages, ImageToRowsAt(im, useFlip, useThresh))
+}
+if err := p.PrintPages(pages, byte(useDensity), labelTypes[labelName], useCopies, nil); err != nil {
+fatal(err)
+}
+fmt.Println("готово")
 case "barcode":
 if len(posArgs) == 0 { fatal(fmt.Errorf("не заданы данные штрихкода")) }
 labelName, err := resolveLabel(p, *label)
@@ -541,4 +607,67 @@ if activeCfg.OffsetPx != 0 {
 shiftImageX(res, activeCfg.OffsetPx)
 }
 return res, nil
+}
+
+func renderByTemplateArg(nameOrPath string, items []string) ([]*image.Gray, Template, error) {
+var found *Template
+rawName := strings.TrimSpace(nameOrPath)
+
+// 1. Если передан путь к существующему .json-файлу — читаем его с диска
+if data, err := os.ReadFile(rawName); err == nil {
+var single Template
+if err := json.Unmarshal(data, &single); err == nil && (len(single.Elements) > 0 || strings.TrimSpace(single.Template) != "") {
+found = &single
+} else {
+var arr []Template
+if err := json.Unmarshal(data, &arr); err == nil && len(arr) > 0 {
+found = &arr[0]
+}
+}
+if found == nil {
+return nil, Template{}, fmt.Errorf("файл %q не содержит корректного шаблона", rawName)
+}
+} else {
+// 2. Иначе ищем по имени среди сохранённых шаблонов в templates.json
+for _, t := range loadTemplates() {
+if strings.EqualFold(strings.TrimSpace(t.Name), rawName) {
+cp := t
+found = &cp
+break
+}
+}
+if found == nil {
+return nil, Template{}, fmt.Errorf("шаблон или файл %q не найден", rawName)
+}
+}
+
+useLen := found.Length
+if useLen <= 0 {
+useLen = *length
+}
+if found.Threshold >= 1 && found.Threshold <= 255 {
+binarizeThreshold = uint8(found.Threshold)
+}
+
+var out []*image.Gray
+for _, line := range items {
+if len(found.Elements) > 0 {
+im, err := RenderTemplate(LabelTemplate{LengthMM: useLen, Elements: found.Elements}, splitFields(line))
+if err != nil {
+return nil, *found, err
+}
+out = append(out, im)
+} else if strings.TrimSpace(found.Template) != "" {
+rows, err := expandTemplate(found.Template, splitFields(line))
+if err != nil {
+return nil, *found, err
+}
+im, err := RenderTextWithOptions(rows, useLen, buildTextOptionsFromConfig())
+if err != nil {
+return nil, *found, err
+}
+out = append(out, im)
+}
+}
+return out, *found, nil
 }

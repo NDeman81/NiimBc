@@ -29,6 +29,7 @@
         <button class="tab" data-mode="single">Текст</button>
         <button class="tab" data-mode="image">Картинка</button>
         <button class="tab" data-mode="series">Серия</button>
+        <button class="tab" data-mode="tpl">По шаблону</button>
       </div>
 
       <div id="pane-barcode">
@@ -102,6 +103,21 @@
         </label>
       </div>
       <hr class="settings-divider">
+
+            <div id="pane-tpl" class="pane hidden">
+        <label>Выберите шаблон из списка
+          <div class="row">
+            <select id="tpl-print-select"><option value="">— выберите сохранённый шаблон —</option></select>
+            <button type="button" id="tpl-print-file-btn" class="ghost">Из файла .json</button>
+            <input type="file" id="tpl-print-file" accept=".json,application/json" class="hidden">
+          </div>
+          <small id="tpl-print-info">Используется разметка и настройки выбранного шаблона из Конструктора.</small>
+        </label>
+        <label>Данные столбцов (одна этикетка в строке, столбцы через <code>;</code>)
+          <textarea id="tpl-print-items" rows="4" placeholder="109660401000099999;Верхний текст;Нижний текст">109660401000099999;!_Верхний_Текст_!;!_Нижний_Текст_!</textarea>
+          <small>Значения подставляются вместо тегов <code>{1}</code>, <code>{2}</code>, <code>{3}</code>… в выбранном шаблоне.</small>
+        </label>
+      </div>
 
       <div id="text-params-block">
         <div class="text-row-grid">
@@ -235,6 +251,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
