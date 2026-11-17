@@ -656,6 +656,9 @@ im, err := RenderTemplate(LabelTemplate{LengthMM: useLen, Elements: found.Elemen
 if err != nil {
 return nil, *found, err
 }
+if activeCfg.OffsetPx != 0 {
+shiftImageX(im, activeCfg.OffsetPx)
+}
 out = append(out, im)
 } else if strings.TrimSpace(found.Template) != "" {
 rows, err := expandTemplate(found.Template, splitFields(line))

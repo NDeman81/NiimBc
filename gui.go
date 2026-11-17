@@ -438,6 +438,9 @@ splitFields(item))
 if err != nil {
 return nil, fmt.Errorf("этикетка %q: %w", item, err)
 }
+if offsetPx != 0 {
+shiftImageX(img, offsetPx)
+}
 return img, nil
 }
 
