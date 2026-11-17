@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NIIMBOT N1 — печать этикеток</title>
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=20">
   <style>.hidden { display: none !important; }</style>
 </head>
 <body>
@@ -34,8 +34,9 @@
 
       <div id="pane-barcode">
         <div class="grid design-grid">
-          <label>Данные штрихкода / QR <small id="bc-len-hint" style="display:inline;margin-left:6px;color:#2563eb"></small>
+          <label>Данные штрихкода / QR
             <input type="text" id="bc-data" value="109660401000099999" placeholder="Например: 109660401000099999 или INV-2026">
+            <small id="bc-len-hint" style="color:#2563eb"></small>
           </label>
           <label>Верхний текст <input type="text" id="bc-top" placeholder="необязательно"></label>
           <label>Нижний текст <input type="text" id="bc-bot" placeholder="необязательно"></label>

@@ -441,3 +441,24 @@ header .status {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Двухстрочная шапка: сверху логотип и все кнопки в одну линию, снизу полный статус принтера */
+header {
+  flex-wrap: wrap !important;
+  row-gap: 8px;
+  padding: 12px 28px;
+}
+header .brand {
+  margin-right: auto;
+}
+header .status {
+  order: 10;
+  flex-basis: 100%;
+  margin-left: 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  min-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
