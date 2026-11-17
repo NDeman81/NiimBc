@@ -3,3 +3,33 @@ NiimBc — Сборник примеров использования (CLI и HT
 2. Barcode...
 3. Text...
 4. Image...
+
+8. Использование из CMD и пакетных файлов (.bat)
+
+     :: Обязательно включайте UTF-8 (chcp 65001) для корректной передачи кириллицы
+     chcp 65001 >nul
+
+     :: Многострочный вызов в CMD с переносом строк через символ ^
+     niimbc.exe ^
+       --log-level info ^
+       --length 50 ^
+       --bc-format auto ^
+       --top-text "Инв. №" ^
+       --bottom-text "Склад 1" ^
+       --font-name "Arial" ^
+       --font-size "35p" ^
+       --bold ^
+       barcode "109660401000099999"
+
+     :: Пакетная печать из CSV-файла (строки вида: Код;Верх;Низ)
+     for /f "usebackq tokens=1,2,3 delims=;" %%A in ("labels.csv") do (
+       niimbc.exe --log-level error --top-text "%%B" --bottom-text "%%C" --bold barcode "%%A"
+     )
+
+     :: Запуск фонового сервера и отправка задания через встроенный curl.exe
+     set "SERVER_URL=http://localhost:8765"
+     start "" /b niimbc.exe gui --no-browser
+     timeout /t 2 /nobreak >nul
+     curl.exe -s -X POST "%SERVER_URL%/api/print-template" ^
+       -H "Content-Type: application/json; charset=utf-8" ^
+       -d "{\"templateName\":\"Инвентарный штрихкод\",\"items\":[\"109660401000099999;Насос;Склад 1\"]}"
