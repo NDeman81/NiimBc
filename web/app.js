@@ -1009,3 +1009,39 @@ document.querySelectorAll('.tab').forEach((tab) => {
 });
 syncListNavUI();
 if ($('preview-btn')) $('preview-btn').onclick = () => doPreview();
+
+// Прямое сохранение PNG-макетов на диск в папку saveDir через POST /api/save-preview
+if ($('save-file-btn')) {
+  $('save-file-btn').onclick = async () => {
+    const req = collectRequest(false);
+    if (!req.items.length || !String(req.items || '').trim()) {
+      alert('Сначала заполните данные этикетки');
+      return;
+    }
+    $('save-file-btn').disabled = true;
+    try {
+      const r = await fetch('/api/save-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new Error(d.error || 'не удалось сохранить файлы');
+      }
+      const msg = d.count === 1
+        ? `Файл сохранён:\n${d.files}`
+        : `Сохранено файлов: ${d.count}\nПапка: ${d.dir}`;
+      if ($('preview-info')) {
+        $('preview-info').textContent = d.count === 1
+          ? `сохранено: ${d.files}`
+          : `сохранено ${d.count} шт. в ${d.dir}`;
+      }
+      alert(msg);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      $('save-file-btn').disabled = false;
+    }
+  };
+}

@@ -641,6 +641,11 @@ func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) 
 		return req, true
 	}
 
+	mux.HandleFunc("/api/save-preview", func(w http.ResponseWriter, r *http.Request) {
+		if req, ok := readRequest(w, r); ok {
+			apiSavePreview(w, req)
+		}
+	})
 	mux.HandleFunc("/api/preview", func(w http.ResponseWriter, r *http.Request) {
 		if req, ok := readRequest(w, r); ok {
 			apiPreview(w, req)
@@ -1050,4 +1055,102 @@ req.Density = body.Density
 }
 
 apiPrint(w, req)
+}
+
+// apiSavePreview сохраняет одну или несколько этикеток напрямую в папку saveDir на диске.
+func apiSavePreview(w http.ResponseWriter, req printRequest) {
+length := req.Length
+if length <= 0 {
+length = 30
+}
+if len(req.Items) == 0 {
+writeErr(w, http.StatusBadRequest, fmt.Errorf("нет данных для сохранения"))
+return
+}
+
+cfg := LoadConfig()
+dir := strings.TrimSpace(cfg.SaveDir)
+if dir == "" {
+dir = executableDir()
+}
+if dir == "" {
+if wd, err := os.Getwd(); err == nil {
+dir = wd
+}
+}
+if dir == "" {
+dir = "."
+}
+if err := os.MkdirAll(dir, 0o755); err != nil {
+writeErr(w, http.StatusInternalServerError, err)
+return
+}
+
+baseName := strings.TrimSpace(cfg.SaveFile)
+if baseName == "" {
+baseName = "niimbot_label_preview.png"
+}
+if filepath.Ext(baseName) == "" {
+baseName += ".png"
+}
+ext := filepath.Ext(baseName)
+stem := strings.TrimSuffix(baseName, ext)
+
+var saved []string
+usedNames := map[string]int{}
+
+for i, item := range req.Items {
+img, err := renderOne(req, item, length)
+if err != nil {
+writeErr(w, http.StatusBadRequest, err)
+return
+}
+if img == nil {
+continue
+}
+
+fname := ""
+if cfg.AutoFileName {
+if clean := sanitizeFileName(item); clean != "" {
+fname = clean + ".png"
+}
+}
+if fname == "" {
+if len(req.Items) > 1 {
+fname = fmt.Sprintf("%s_%d%s", stem, i+1, ext)
+} else {
+fname = baseName
+}
+}
+
+// Защита от перезаписи при одинаковых именах внутри одного пакета
+key := strings.ToLower(fname)
+usedNames[key]++
+if usedNames[key] > 1 {
+fExt := filepath.Ext(fname)
+fStem := strings.TrimSuffix(fname, fExt)
+fname = fmt.Sprintf("%s_%d%s", fStem, usedNames[key], fExt)
+}
+
+fullPath := filepath.Join(dir, fname)
+f, err := os.Create(fullPath)
+if err != nil {
+writeErr(w, http.StatusInternalServerError, err)
+return
+}
+encErr := png.Encode(f, BinarizeAt(img, req.threshold()))
+_ = f.Close()
+if encErr != nil {
+writeErr(w, http.StatusInternalServerError, encErr)
+return
+}
+saved = append(saved, fullPath)
+}
+
+writeJSON(w, map[string]any{
+"ok":    true,
+"dir":   dir,
+"count": len(saved),
+"files": saved,
+})
 }
