@@ -152,8 +152,9 @@
 
       <div class="grid design-grid">
         <label>Копий каждой этикетки <input type="number" id="copies" value="1" min="1" max="99"></label>
-        <label>Поля верх/низ, px <input type="number" id="cfg-margin" min="0" value="4"></label>
-        <label>Боковые поля, px <input type="number" id="cfg-sidemargin" min="0" value="10"></label>
+        <label class="non-tpl-field">Поля верх/низ, px <input type="number" id="cfg-margin" min="0" value="4"></label>
+        <label class="non-tpl-field">Боковые поля, px <input type="number" id="cfg-sidemargin" min="0" value="10"></label>
+        <label>Сдвиг по X, px <input type="number" id="cfg-offset" value="0"></label>
       </div>
 
       <input type="hidden" id="font" value="0">
@@ -194,8 +195,7 @@
               <option value="debug">debug (полный дамп BLE)</option>
             </select>
           </label>
-          <label>Сдвиг по X, px <input type="number" id="cfg-offset" value="0"></label>
-        </div>
+          </div>
         <label>Папка превью (пусто = папка программы)
           <input type="text" id="cfg-savedir" placeholder="Например: C:\Labels\Preview">
         </label>
@@ -251,6 +251,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

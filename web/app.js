@@ -53,6 +53,7 @@ document.querySelectorAll('.tab').forEach((tab) => {
     if ($('pane-tpl')) $('pane-tpl').classList.toggle('hidden', mode !== 'tpl');
     if (mode === 'tpl' && typeof loadTplTabList === 'function') loadTplTabList();
     if ($('text-params-block')) $('text-params-block').classList.toggle('hidden', mode === 'image' || mode === 'tpl');
+    document.querySelectorAll('.non-tpl-field').forEach((el) => el.classList.toggle('hidden', mode === 'tpl'));
     updateSeriesCount();
   };
 });
