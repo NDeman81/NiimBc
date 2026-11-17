@@ -343,6 +343,21 @@ CGO-free and builds anywhere with one command — that is what goes into release
 longer ships (only 4.1 remains). `build-webview.sh` supplies a shim from
 `third_party/pkgconfig` instead of patching somebody else's library.
 
+### HTTP API for external apps (Excel, scripts)
+
+With the background server running (`niimbc gui --no-browser`), send print jobs over HTTP on port `8765`:
+
+- **`POST /api/print-template`** — print a series using a saved template name from `templates.json`:
+  ```json
+  {
+    "templateName": "Inventory Barcode",
+    "items": ["109660401000099999;Pump;Warehouse 1"]
+  }
+  ```
+- **`POST /api/print`** — direct print request (`mode`: `barcode`, `single`, `image`, `series`, or `elements`).
+- **`POST /api/connect`**, **`POST /api/disconnect`**, **`POST /api/mode`**, **`POST /api/shutdown`** — BLE connection and server control.
+
+The Label Designer (`designer.html`) also supports box-fitted text containers, barcode/QR elements, mouse resizing (`Shift` or corner handle), layer ordering (`1..N`), image aspect ratio / stretch toggle, and `.niimbot.json` template export/import.
 ## Labels with a picture
 
 ```bash
