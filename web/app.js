@@ -873,7 +873,7 @@ collectRequest = function(forPreview = false) {
 doPreview = async function() {
   syncListNavUI();
   const req = collectRequest(true);
-  if (!req.items.length || !req.items.trim()) {
+  if (!req.items.length || !String(req.items[0] || '').trim()) {
     alert('Введите текст этикетки');
     return;
   }
@@ -911,7 +911,7 @@ doPreview = async function() {
 if ($('save-file-btn')) {
   $('save-file-btn').onclick = async () => {
     const req = collectRequest(false);
-    if (!req.items.length || !req.items.trim()) {
+    if (!req.items.length || !String(req.items[0] || '').trim()) {
       alert('Сначала заполните данные этикетки');
       return;
     }
@@ -1008,3 +1008,4 @@ document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => setTimeout(syncListNavUI, 0));
 });
 syncListNavUI();
+if ($('preview-btn')) $('preview-btn').onclick = () => doPreview();

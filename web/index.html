@@ -245,12 +245,12 @@
         <button id="save-file-btn" class="ghost">Сохранить в файл</button>
       </div>
       <div id="list-nav-box" class="hidden" style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:6px">
-          <button type="button" id="nav-prev" class="ghost" style="padding:6px 10px" title="Предыдущая строка">◀ Пред.</button>
-          <span style="font-size:13px;color:#334155;display:inline-flex;align-items:center;gap:6px">
-            Строка <input type="number" id="nav-idx" min="1" value="1" style="width:64px;height:30px;margin:0;padding:4px 6px;text-align:center"> из <b id="nav-total">0</b>
+        <div class="row" style="flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:4px">
+          <button type="button" id="nav-prev" class="ghost" style="padding:5px 8px;font-size:12.5px;white-space:nowrap" title="Предыдущая строка">◀ Пред.</button>
+          <span style="font-size:12.5px;color:#334155;display:inline-flex;align-items:center;gap:4px;white-space:nowrap">
+            Строка <input type="number" id="nav-idx" min="1" value="1" style="width:52px;height:28px;margin:0;padding:2px 4px;text-align:center"> из <b id="nav-total">0</b>
           </span>
-          <button type="button" id="nav-next" class="ghost" style="padding:6px 10px" title="Следующая строка">След. ▶</button>
+          <button type="button" id="nav-next" class="ghost" style="padding:5px 8px;font-size:12.5px;white-space:nowrap" title="Следующая строка">След. ▶</button>
         </div>
         <div class="row" style="margin-top:10px;padding-top:8px;border-top:1px solid #e2e8f0;gap:8px;align-items:center">
           <label style="margin:0;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">Диапазон:
@@ -274,6 +274,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>
