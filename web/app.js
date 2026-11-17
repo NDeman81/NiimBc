@@ -785,3 +785,226 @@ if ($('tpl-print-file-btn') && $('tpl-print-file')) {
 }
 
 loadTplTabList();
+
+// ==========================================================================
+// Навигация по строкам списка (предпросмотр) и диапазон печати/сохранения
+// ==========================================================================
+let currentPreviewRow = 1; // 1-based индекс текущей строки
+
+function activeListLines() {
+  if (mode === 'series') return seriesItems();
+  if (mode === 'tpl') {
+    return ($('tpl-print-items')?.value || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function syncListNavUI() {
+  const box = $('list-nav-box');
+  if (!box) return;
+  const isListMode = (mode === 'series' || mode === 'tpl');
+  box.classList.toggle('hidden', !isListMode);
+  if (!isListMode) return;
+
+  const lines = activeListLines();
+  const total = lines.length;
+  if ($('nav-total')) $('nav-total').textContent = String(total);
+
+  if (total === 0) {
+    currentPreviewRow = 1;
+    if ($('nav-idx')) { $('nav-idx').value = 1; $('nav-idx').max = 1; }
+    return;
+  }
+
+  if (currentPreviewRow > total) currentPreviewRow = total;
+  if (currentPreviewRow < 1) currentPreviewRow = 1;
+
+  if ($('nav-idx')) {
+    $('nav-idx').max = total;
+    $('nav-idx').value = currentPreviewRow;
+  }
+  if ($('range-from')) {
+    $('range-from').max = total;
+    if ((parseInt($('range-from').value, 10) || 1) > total) $('range-from').value = 1;
+  }
+  if ($('range-to')) {
+    $('range-to').max = total;
+    const curTo = parseInt($('range-to').value, 10) || 0;
+    if (curTo < 1 || curTo > total) $('range-to').value = total;
+  }
+}
+
+function getSelectedRangeItems(allItems) {
+  if (!allItems.length) return [];
+  const rMode = $('range-mode') ? $('range-mode').value : 'all';
+  if (rMode === 'current') {
+    const idx = Math.max(0, Math.min(allItems.length - 1, currentPreviewRow - 1));
+    return [allItems[idx]];
+  }
+  if (rMode === 'custom') {
+    let from = parseInt($('range-from')?.value, 10) || 1;
+    let to = parseInt($('range-to')?.value, 10) || allItems.length;
+    if (from > to) { const tmp = from; from = to; to = tmp; }
+    from = Math.max(1, Math.min(allItems.length, from));
+    to = Math.max(1, Math.min(allItems.length, to));
+    return allItems.slice(from - 1, to);
+  }
+  return allItems;
+}
+
+// Перехватываем collectRequest для подстановки текущей строки в предпросмотр и диапазона в печать/сохранение
+const _origCollectRequest = collectRequest;
+collectRequest = function(forPreview = false) {
+  const req = _origCollectRequest();
+  if (mode === 'series' || mode === 'tpl') {
+    const all = req.items || [];
+    if (!all.length) return req;
+    if (forPreview) {
+      const idx = Math.max(0, Math.min(all.length - 1, currentPreviewRow - 1));
+      req.items = [all[idx]];
+    } else {
+      req.items = getSelectedRangeItems(all);
+    }
+  }
+  return req;
+};
+
+// Переназначаем doPreview, чтобы передавать флаг forPreview = true и показывать номер строки
+doPreview = async function() {
+  syncListNavUI();
+  const req = collectRequest(true);
+  if (!req.items.length || !req.items.trim()) {
+    alert('Введите текст этикетки');
+    return;
+  }
+  try {
+    const r = await fetch('/api/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || 'не удалось построить макет');
+    }
+    const blob = await r.blob();
+    if (previewURL) URL.revokeObjectURL(previewURL);
+    previewURL = URL.createObjectURL(blob);
+
+    const img = $('preview');
+    img.src = previewURL;
+    img.classList.add('ready');
+
+    const px = await imageSize(previewURL);
+    const total = activeListLines().length;
+    const rowNote = (mode === 'series' || mode === 'tpl') && total > 0
+      ? ` · строка ${currentPreviewRow} из ${total}`
+      : '';
+    $('preview-info').textContent =
+      `${px.w}×${px.h} точек · ${(px.w / 8).toFixed(1)}×${(px.h / 8).toFixed(1)} мм` + rowNote;
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+// Переназначаем сохранение в файл: для списков сохраняет все выбранные в диапазоне этикетки
+if ($('save-file-btn')) {
+  $('save-file-btn').onclick = async () => {
+    const req = collectRequest(false);
+    if (!req.items.length || !req.items.trim()) {
+      alert('Сначала заполните данные этикетки');
+      return;
+    }
+    if (req.items.length > 1 && !confirm(`Сохранить ${req.items.length} PNG-файлов по выбранному диапазону?`)) {
+      return;
+    }
+    for (let i = 0; i < req.items.length; i++) {
+      const singleReq = { ...req, items: [req.items[i]] };
+      try {
+        const r = await fetch('/api/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(singleReq),
+        });
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(d.error || 'не удалось построить макет');
+        }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        let fname = buildDownloadName(singleReq);
+        if (req.items.length > 1 && !($('cfg-autoname')?.checked)) {
+          fname = fname.replace(/\.png$/i, `_${i + 1}.png`);
+        }
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (req.items.length > 1) await new Promise((res) => setTimeout(res, 150));
+      } catch (e) {
+        alert(e.message);
+        break;
+      }
+    }
+  };
+}
+
+// События навигации, кнопки "Очистить" и режима диапазона
+if ($('series-clear-btn')) {
+  $('series-clear-btn').onclick = () => {
+    if ($('series-text')) $('series-text').value = '';
+    if ($('csv-cols')) $('csv-cols').textContent = '';
+    currentPreviewRow = 1;
+    updateSeriesCount();
+    syncListNavUI();
+  };
+}
+
+if ($('nav-prev')) {
+  $('nav-prev').onclick = () => {
+    const total = activeListLines().length;
+    if (!total) return;
+    currentPreviewRow = currentPreviewRow > 1 ? currentPreviewRow - 1 : total;
+    syncListNavUI();
+    doPreview();
+  };
+}
+
+if ($('nav-next')) {
+  $('nav-next').onclick = () => {
+    const total = activeListLines().length;
+    if (!total) return;
+    currentPreviewRow = currentPreviewRow < total ? currentPreviewRow + 1 : 1;
+    syncListNavUI();
+    doPreview();
+  };
+}
+
+if ($('nav-idx')) {
+  $('nav-idx').addEventListener('change', () => {
+    const total = activeListLines().length;
+    if (!total) return;
+    const v = parseInt($('nav-idx').value, 10) || 1;
+    currentPreviewRow = Math.max(1, Math.min(total, v));
+    syncListNavUI();
+    doPreview();
+  });
+}
+
+if ($('range-mode')) {
+  $('range-mode').addEventListener('change', () => {
+    if ($('range-custom-wrap')) {
+      $('range-custom-wrap').classList.toggle('hidden', $('range-mode').value !== 'custom');
+    }
+  });
+}
+
+if ($('series-text')) $('series-text').addEventListener('input', syncListNavUI);
+if ($('tpl-print-items')) $('tpl-print-items').addEventListener('input', syncListNavUI);
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => setTimeout(syncListNavUI, 0));
+});
+syncListNavUI();
