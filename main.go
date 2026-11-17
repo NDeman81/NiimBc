@@ -198,7 +198,10 @@ fatal(err)
 }
 }
 switch cmd {
-case "scan":
+case "examples":
+		printExamples()
+		return
+	case "scan":
 mac, err := ScanPrinter("N1-", 12*time.Second, *verbose)
 if err != nil { fatal(err) }
 fmt.Println(mac)
