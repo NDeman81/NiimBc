@@ -644,10 +644,11 @@ func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) 
 		}
 	})
 	mux.HandleFunc("/api/print", func(w http.ResponseWriter, r *http.Request) {
-		if req, ok := readRequest(w, r); ok {
-			apiPrint(w, req)
-		}
-	})
+if req, ok := readRequest(w, r); ok {
+apiPrint(w, req)
+}
+})
+mux.HandleFunc("/api/print-template", apiPrintTemplateHandler)
 
 
 	// Список системных шрифтов для конструктора.
@@ -978,4 +979,72 @@ time.Sleep(150 * time.Millisecond)
 disconnectSharedPrinter()
 os.Exit(0)
 }()
+}
+
+// apiPrintTemplateHandler запускает печать серии по имени сохранённого шаблона из templates.json.
+func apiPrintTemplateHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("нужен POST"))
+return
+}
+var body struct {
+TemplateName string   `json:"templateName"`
+Name         string   `json:"name"`
+Items        []string `json:"items"`
+Copies       int      `json:"copies"`
+Length       float64  `json:"length"`
+Density      int      `json:"density"`
+Address      string   `json:"address"`
+}
+if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+writeErr(w, http.StatusBadRequest, err)
+return
+}
+tName := strings.TrimSpace(body.TemplateName)
+if tName == "" {
+tName = strings.TrimSpace(body.Name)
+}
+if tName == "" {
+writeErr(w, http.StatusBadRequest, fmt.Errorf("укажите имя шаблона (templateName)"))
+return
+}
+
+var found *Template
+for _, t := range loadTemplates() {
+if strings.EqualFold(strings.TrimSpace(t.Name), tName) {
+cp := t
+found = &cp
+break
+}
+}
+if found == nil {
+writeErr(w, http.StatusNotFound, fmt.Errorf("шаблон %q не найден", tName))
+return
+}
+
+req := printRequest{
+Mode:      "series",
+Items:     body.Items,
+Template:  found.Template,
+Elements:  found.Elements,
+Length:    found.Length,
+Font:      found.Font,
+Density:   found.Density,
+Label:     found.Label,
+Copies:    found.Copies,
+Flip:      found.Flip,
+Threshold: found.Threshold,
+Address:   body.Address,
+}
+if body.Copies > 0 {
+req.Copies = body.Copies
+}
+if body.Length > 0 {
+req.Length = body.Length
+}
+if body.Density >= 1 && body.Density <= 3 {
+req.Density = body.Density
+}
+
+apiPrint(w, req)
 }
