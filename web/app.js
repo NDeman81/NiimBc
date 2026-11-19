@@ -1585,3 +1585,24 @@ applyCombinedTemplate = function(t) {
   if ($('series-cnt-step')) $('series-cnt-step').value = cStep;
   if ($('tpl-cnt-step')) $('tpl-cnt-step').value = cStep;
 };
+
+// Генерация N пустых строк (;) для чистой автонумерации по счётчику {c} / {n}
+function appendDummyRows(textareaId, countInputId, updateFn) {
+  const ta = $(textareaId);
+  const cntInp = $(countInputId);
+  if (!ta || !cntInp) return;
+  const n = Math.max(1, Math.min(500, parseInt(cntInp.value, 10) || 10));
+  const cur = ta.value.trim();
+  const dummy = Array(n).fill(';').join('\n');
+  ta.value = cur ? (cur + '\n' + dummy) : dummy;
+  currentPreviewRow = 1;
+  if (typeof updateFn === 'function') updateFn();
+  if (typeof syncListNavUI === 'function') syncListNavUI();
+}
+
+if ($('series-gen-btn')) {
+  $('series-gen-btn').onclick = () => appendDummyRows('series-text', 'series-gen-cnt', updateSeriesCount);
+}
+if ($('tpl-gen-btn')) {
+  $('tpl-gen-btn').onclick = () => appendDummyRows('tpl-print-items', 'tpl-gen-cnt', updateTplSeriesCount);
+}
