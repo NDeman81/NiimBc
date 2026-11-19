@@ -388,13 +388,20 @@ if ($('print-btn')) $('print-btn').onclick = async () => {
   }
 };
 
+function formatTemplateBadge(t) {
+  const parts = [];
+  if (t.hasDesigner || (t.elements && t.elements.length > 0)) parts.push('Дизайн');
+  if (t.hasSingle) parts.push('Одиночная');
+  if (t.hasSystem || t.system) parts.push('Системные');
+  return parts.length ? `${t.name} [${parts.join(' + ')}]` : t.name;
+}
 async function loadTemplates() {
   try {
     const r = await fetch('/api/templates');
     const list = (await r.json()) || [];
     const sel = $('templates'); if (!sel) return;
     sel.innerHTML = '<option value="">— выберите —</option>';
-    list.forEach((t) => { const o = document.createElement('option'); o.value = t.name; o.textContent = t.name; o.dataset.tpl = JSON.stringify(t); sel.appendChild(o); });
+    list.forEach((t) => { const o = document.createElement('option'); o.value = t.name; o.textContent = formatTemplateBadge(t); o.dataset.tpl = JSON.stringify(t); sel.appendChild(o); });
   } catch (e) {}
 }
 function applyTemplateObject(t) {
@@ -419,7 +426,7 @@ if ($('templates')) $('templates').addEventListener('change', (e) => {
 function tplMsg(txt, bad) { if ($('tpl-msg')) { $('tpl-msg').textContent = txt; $('tpl-msg').style.color = bad ? '#B3392F' : 'var(--green)'; } }
 if ($('tpl-save')) $('tpl-save').onclick = async () => {
   const name = $('tpl-name')?.value.trim(); if (!name || !elements.length) { tplMsg('Укажите имя и добавьте элементы', true); return; }
-  await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(JSON.parse($("templates")?.selectedOptions?.dataset.tpl || "{}")), name, hasDesigner: true, length: labelLength(), density: parseInt($('density')?.value, 10) || 2, label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1, threshold: parseInt($('threshold')?.value, 10) || 200, flip: !!$('flip')?.checked, elements }) });
+  await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(JSON.parse($("templates")?.selectedOptions?.[0]?.dataset.tpl || "{}")), name, hasDesigner: true, length: labelLength(), density: parseInt($('density')?.value, 10) || 2, label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1, threshold: parseInt($('threshold')?.value, 10) || 200, flip: !!$('flip')?.checked, elements }) });
   await loadTemplates(); if ($('templates')) $('templates').value = name; tplMsg(`шаблон «${name}» сохранён`);
 };
 if ($('tpl-del')) $('tpl-del').onclick = async () => { const n = $('templates')?.value; if (!n) return; await fetch('/api/templates?name=' + encodeURIComponent(n), { method: 'DELETE' }); await loadTemplates(); tplMsg(`шаблон «${n}» удалён`); };

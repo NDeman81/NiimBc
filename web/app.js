@@ -1210,7 +1210,7 @@ function applyCombinedTemplate(t) {
     if (t.template !== undefined && $('template')) $('template').value = t.template;
   }
   const hasDes = !!(t.hasDesigner || (t.elements && t.elements.length > 0));
-  if ($('tpl-inc-designer')) { $('tpl-inc-designer').disabled = !hasDes; $('tpl-inc-designer').checked = hasDes; }
+  if ($('tpl-inc-designer')) { $('tpl-inc-designer').checked = hasDes; $('tpl-inc-designer').disabled = true; }
   if ($('tpl-inc-single')) $('tpl-inc-single').checked = !!t.hasSingle;
   if ($('tpl-inc-system')) $('tpl-inc-system').checked = !!t.hasSystem;
   if (hasDes) {
@@ -1239,7 +1239,7 @@ loadTemplates = async function() {
 
 if ($('templates')) {
   $('templates').onchange = (e) => {
-    const opt = e.target.selectedOptions;
+    const opt = e.target.selectedOptions && e.target.selectedOptions[0];
     if (!opt || !opt.dataset.tpl) {
       loadedIndexTemplate = null;
       if ($('tpl-inc-designer')) { $('tpl-inc-designer').checked = false; $('tpl-inc-designer').disabled = true; }
@@ -1279,7 +1279,19 @@ if ($('tpl-save')) {
       });
     }
     if (incSystem) tplObj.system = collectSystemSection();
-    if (incDesigner && loadedIndexTemplate?.elements) tplObj.elements = loadedIndexTemplate.elements;
+        let existingByName = null;
+    if ($('templates')) {
+      [...$('templates').options].forEach((o) => {
+        if (o.value === cleanName && o.dataset.tpl) {
+          try { existingByName = JSON.parse(o.dataset.tpl); } catch (e) {}
+        }
+      });
+    }
+    const sourceDes = (loadedIndexTemplate && loadedIndexTemplate.elements) ? loadedIndexTemplate : existingByName;
+    if ((incDesigner || (sourceDes && sourceDes.hasDesigner)) && sourceDes && Array.isArray(sourceDes.elements)) {
+      tplObj.hasDesigner = true;
+      tplObj.elements = sourceDes.elements;
+    }
 
     const r = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tplObj) });
     if (!r.ok) { alert('Не удалось сохранить шаблон'); return; }
@@ -1293,7 +1305,7 @@ if ($('tpl-save')) {
 
 if ($('tpl-idx-export')) {
   $('tpl-idx-export').onclick = () => {
-    const opt = $('templates')?.selectedOptions;
+    const opt = $('templates')?.selectedOptions && $('templates').selectedOptions[0];
     if (!opt || !opt.dataset.tpl) { alert('Выберите шаблон для экспорта'); return; }
     const t = JSON.parse(opt.dataset.tpl);
     const a = document.createElement('a');
