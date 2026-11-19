@@ -1,7 +1,31 @@
-NiimBc — Сборник примеров использования (CLI, PowerShell, CMD и HTTP API)
-1. Поиск принтера и сохранение настроек (scan)
+NiimBc — Сборник примеров (CLI, PowerShell, CMD, HTTP API)
+
+1. Поиск принтера и сохранение config.json
+   niimbc.exe scan
+   niimbc.exe --address "21:03:11:2F:39:1F" --length 50 --height 14 --density 2 --print-mode fast --save-config
+
 2. Печать штрихкодов и QR-кодов (barcode)
+   niimbc.exe --top-text "Инв. №" --bottom-text "Склад 1" --font-name "Arial" --font-size "35p" --bold barcode "109660401000099999"
+   niimbc.exe --bc-format code128 --font-size 0 barcode "12345678"
+   niimbc.exe --bc-format qrl --top-text "Склад 1" --bottom-text "Рязань" barcode "INV-2026-01"
+
 3. Печать многострочного текста и картинок (text и image)
+   niimbc.exe --length 50 --font-name "Arial" --font-size "85p" --bold text "Инв. № 1096604010" "Кабинет 304" "Отдел ИТ"
+   niimbc.exe --length 50 --margin 2 --side-margin 4 --threshold 200 --stretch image ".\logo.png"
+
 4. Автономный предпросмотр без принтера (preview)
+   niimbc.exe --save-dir ".\previews" --auto-name --top-text "Инв. №" --bold --bc preview "109660401000099999"
+   niimbc.exe --save-dir ".\previews" --out "text_preview.png" preview "Первая строка" "Вторая строка"
+   niimbc.exe --save-dir ".\previews" --out "img_preview.png" --file ".\logo.png" preview
+
 5. Печать и предпросмотр по шаблонам Конструктора (template)
+   niimbc.exe --template "Инвентарный штрихкод" preview "109660401000099999;Насос;Склад 1"
+   niimbc.exe --template "Инвентарный штрихкод" --offset 8 template "109660401000099999;Насос;Склад 1"
+   niimbc.exe --template ".\my_label.niimbot.json" template "109660401000099999;Насос;Склад 1"
+
 6. Пакетная печать из CMD (.bat) и фоновый HTTP-сервер (gui)
+   chcp 65001 >nul
+   for /f "usebackq tokens=1,2,3 delims=;" %%A in ("labels.csv") do niimbc.exe --log-level error --top-text "%%B" --bottom-text "%%C" --bold barcode "%%A"
+   set "SERVER_URL=http://localhost:8765"
+   start "" /b niimbc.exe gui --no-browser
+   curl.exe -s -X POST "%SERVER_URL%/api/print-template" -H "Content-Type: application/json; charset=utf-8" -d "{\"templateName\":\"Инвентарный штрихкод\",\"items\":[\"109660401000099999;Насос;Склад 1\"]}"
