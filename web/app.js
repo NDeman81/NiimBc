@@ -1045,3 +1045,81 @@ if ($('save-file-btn')) {
     }
   };
 }
+
+// ==========================================================================
+// Загрузка CSV, очистка и порядок столбцов для вкладки "По шаблону"
+// ==========================================================================
+function updateTplSeriesCount() {
+  const inp = $('tpl-print-items');
+  const cnt = $('tpl-series-count');
+  if (!inp || !cnt) return;
+  const n = inp.value.split('\n').map((s) => s.trim()).filter(Boolean).length;
+  cnt.textContent = `${n} ${plural(n, 'этикетка', 'этикетки', 'этикеток')}`;
+}
+
+function reorderRowColumns(line, colOrderRaw) {
+  const raw = String(colOrderRaw || '').trim();
+  if (!raw) return line;
+  const nums = raw.split(/[^0-9]+/).filter(Boolean).map((n) => parseInt(n, 10));
+  if (!nums.length) return line;
+  const cols = parseCsvLine(line);
+  return nums.map((idx) => (idx >= 1 && idx <= cols.length ? cols[idx - 1] : '')).join(';');
+}
+
+// Перехватываем collectRequest для применения "Порядок столбцов на этикетке" в режиме tpl
+const _prevCollectRequestTpl = collectRequest;
+collectRequest = function(forPreview = false) {
+  const req = _prevCollectRequestTpl(forPreview);
+  if (mode === 'tpl' && Array.isArray(req.items)) {
+    const orderVal = $('tpl-colorder') ? $('tpl-colorder').value : '';
+    if (orderVal.trim()) {
+      req.items = req.items.map((line) => reorderRowColumns(line, orderVal));
+    }
+  }
+  return req;
+};
+
+if ($('tpl-print-items')) {
+  $('tpl-print-items').addEventListener('input', () => {
+    updateTplSeriesCount();
+    syncListNavUI();
+  });
+  updateTplSeriesCount();
+}
+
+if ($('tpl-clear-btn')) {
+  $('tpl-clear-btn').onclick = () => {
+    if ($('tpl-print-items')) $('tpl-print-items').value = '';
+    if ($('tpl-csv-cols')) $('tpl-csv-cols').textContent = '';
+    currentPreviewRow = 1;
+    updateTplSeriesCount();
+    syncListNavUI();
+  };
+}
+
+if ($('tpl-csv-btn') && $('tpl-csv-file')) {
+  $('tpl-csv-btn').onclick = () => $('tpl-csv-file').click();
+  $('tpl-csv-file').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files;
+    if (!file) return;
+    const text = await file.text();
+    let rows = text.split(/\r?\n/)
+      .map(parseCsvLine)
+      .filter((cols) => cols.some((c) => c.length > 0));
+    if ($('tpl-csv-header')?.checked && rows.length > 1) rows = rows.slice(1);
+
+    const width = rows.reduce((m, cols) => Math.max(m, cols.length), 0);
+    if ($('tpl-csv-cols')) {
+      $('tpl-csv-cols').textContent = width
+        ? `в данных ${width} ${plural(width, 'столбец', 'столбца', 'столбцов')}`
+        : '';
+    }
+    if ($('tpl-print-items')) {
+      $('tpl-print-items').value = rows.map((cols) => cols.join(';')).join('\n');
+    }
+    currentPreviewRow = 1;
+    updateTplSeriesCount();
+    syncListNavUI();
+    e.target.value = '';
+  });
+}

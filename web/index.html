@@ -105,7 +105,7 @@
       </div>
       <hr class="settings-divider">
 
-            <div id="pane-tpl" class="pane hidden">
+                  <div id="pane-tpl" class="pane hidden">
         <label>Выберите шаблон из списка
           <div class="row">
             <select id="tpl-print-select"><option value="">— выберите сохранённый шаблон —</option></select>
@@ -117,6 +117,18 @@
         <label>Данные столбцов (одна этикетка в строке, столбцы через <code>;</code>)
           <textarea id="tpl-print-items" rows="4" placeholder="109660401000099999;Верхний текст;Нижний текст">109660401000099999;!_Верхний_Текст_!;!_Нижний_Текст_!</textarea>
           <small>Значения подставляются вместо тегов <code>{1}</code>, <code>{2}</code>, <code>{3}</code>… в выбранном шаблоне.</small>
+        </label>
+        <div class="row">
+          <button type="button" id="tpl-csv-btn" class="ghost">Загрузить CSV</button>
+          <button type="button" id="tpl-clear-btn" class="ghost danger">Очистить</button>
+          <input type="file" id="tpl-csv-file" accept=".csv,.txt,text/csv" class="hidden">
+          <span id="tpl-series-count" class="hint" style="margin:0">1 этикетка</span>
+          <span id="tpl-csv-cols" class="hint" style="margin:0"></span>
+        </div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="tpl-csv-header"> первая строка — заголовки</label>
+        <label>Порядок столбцов на этикетке
+          <input type="text" id="tpl-colorder" placeholder="Например: 2, 1, 3">
+          <small>Номера столбцов из таблицы для тегов {1}, {2}, {3}… (пусто — исходный порядок).</small>
         </label>
       </div>
 
@@ -274,6 +286,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
