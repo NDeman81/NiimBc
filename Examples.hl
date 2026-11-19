@@ -29,3 +29,4 @@ NiimBc — Сборник примеров (CLI, PowerShell, CMD, HTTP API)
    set "SERVER_URL=http://localhost:8765"
    start "" /b niimbc.exe gui --no-browser
    curl.exe -s -X POST "%SERVER_URL%/api/print-template" -H "Content-Type: application/json; charset=utf-8" -d "{\"templateName\":\"Инвентарный штрихкод\",\"items\":[\"109660401000099999;Насос;Склад 1\"]}"
+   Готовые .bat-скрипты и тестовый CSV также лежат в папке examples_cmd\ (1_print_bc.bat, 2_print_qr_side.bat, 3_batch_csv.bat, 4_fast_http_curl.bat).
