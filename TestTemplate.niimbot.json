@@ -1,0 +1,41 @@
+{
+  "name": "TestTemplate",
+  "length": 50,
+  "density": 2,
+  "label": "",
+  "copies": 1,
+  "threshold": 200,
+  "flip": false,
+  "elements": [
+    {
+      "kind": "text",
+      "x": 1,
+      "y": 0,
+      "w": 48,
+      "h": 2.5,
+      "text": "{2}",
+      "align": "center",
+      "fontSize": "-1"
+    },
+    {
+      "kind": "text",
+      "x": 1,
+      "y": 10,
+      "w": 48,
+      "h": 2,
+      "text": "{3}",
+      "align": "center",
+      "fontSize": "-1"
+    },
+    {
+      "kind": "barcode",
+      "x": 1,
+      "y": 2.5,
+      "w": 48,
+      "h": 7.5,
+      "text": "{1}",
+      "bcFormat": "auto",
+      "fontSize": "-1"
+    }
+  ]
+}

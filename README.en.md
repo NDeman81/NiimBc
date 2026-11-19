@@ -351,7 +351,7 @@ With the background server running (`niimbc gui --no-browser`), send print jobs 
   ```json
   {
     "templateName": "Inventory Barcode",
-    "items": ["109660401000099999;Pump;Warehouse 1"]
+    "items": ["123498756000099999;Pump;Warehouse 1"]
   }
   ```
 - **`POST /api/print`** — direct print request (`mode`: `barcode`, `single`, `image`, `series`, or `elements`).

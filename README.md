@@ -66,7 +66,7 @@ niimbc scan
 niimbc --address "21:03:11:2F:39:1F" --length 50 --height 14 --print-mode fast --save-config
 
 # 2. Печать штрихкода (автовыбор: ITF для чётного числа цифр, Code 128 для остальных)
-niimbc --top-text "Инв. №" --bold barcode "109660401000099999"
+niimbc --top-text "Инв. №" --bold barcode "123498756000099999"
 
 # 3. Принудительный Code 128 без нижней текстовой подписи
 niimbc --bc-format code128 --font-size 0 barcode "12345678"
@@ -76,7 +76,7 @@ niimbc --bc-format qrl --top-text "Склад 1" --bottom-text "Рязань" ba
 niimbc --bc-format qrr --top-text "Склад 1" --bottom-text "Рязань" barcode "INV-2026-01"
 
 # 5. Отрисовка макетов в PNG без расхода ленты (с произвольным именем или автоименем)
-niimbc --out "etiketka1.png" preview --bc "109660401000099999"
+niimbc --out "etiketka1.png" preview --bc "123498756000099999"
 niimbc --auto-name --save-dir "./out" preview --bc "INV-2026/01"
 niimbc preview "Первая строка" "Вторая строка"
 niimbc preview --file logo.png
@@ -379,7 +379,7 @@ sudo apt install libwebkit2gtk-4.1-dev   # один раз
   ```json
   {
     "templateName": "Инвентарный штрихкод",
-    "items": ["109660401000099999;Насос;Склад 1"]
+    "items": ["123498756000099999;Насос;Склад 1"]
   }
   ```
 - **`POST /api/print`** — прямая передача данных (`mode`: `barcode`, `single`, `image`, `series` или `elements`).
@@ -392,8 +392,8 @@ sudo apt install libwebkit2gtk-4.1-dev   # один раз
 Команда `template` и флаг `--template` позволяют печатать или строить PNG-превью по имени сохранённого шаблона из `templates.json` либо напрямую из `.niimbot.json`-файла (с поддержкой сдвига `--offset`):
 
 ```bash
-niimbc --template "Инвентарный штрихкод" preview "109660401000099999;Насос;Склад 1"
-niimbc --template "Инвентарный штрихкод" --offset 8 template "109660401000099999;Насос;Склад 1"
+niimbc --template "Инвентарный штрихкод" preview "123498756000099999;Насос;Склад 1"
+niimbc --template "Инвентарный штрихкод" --offset 8 template "123498756000099999;Насос;Склад 1"
 niimbc examples   # вывести полный сборник примеров для CLI, CMD и HTTP API
 ```
 

@@ -1183,7 +1183,7 @@ func TestExplicitFontWins(t *testing.T) {
 func TestBarcodeFormatsAndQr(t *testing.T) {
 	cfg := DefaultConfig()
 
-	imgItf, err := RenderBarcodeLabel(BarcodeOptions{Data: "109660401000099999", Format: "auto", LengthMM: 50}, cfg)
+	imgItf, err := RenderBarcodeLabel(BarcodeOptions{Data: "123498756000099999", Format: "auto", LengthMM: 50}, cfg)
 	if err != nil || imgItf.Bounds().Dx() != 400 || imgItf.Bounds().Dy() != 96 {
 		t.Fatalf("ошибка рендера ITF: %v", err)
 	}

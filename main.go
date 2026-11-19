@@ -322,29 +322,49 @@ fatal(err)
 if len(imgs) == 0 {
 fatal(fmt.Errorf("нет данных для печати по шаблону"))
 }
+effLabel := tplObj.Label
+effDensity := tplObj.Density
+effCopies := tplObj.Copies
+effFlip := tplObj.Flip
+effThresh := tplObj.Threshold
+if tplObj.HasSystem && tplObj.System != nil {
+if tplObj.System.Label != "" {
+effLabel = tplObj.System.Label
+}
+if tplObj.System.Density >= 1 && tplObj.System.Density <= 3 {
+effDensity = tplObj.System.Density
+}
+if tplObj.System.Copies > 0 {
+effCopies = tplObj.System.Copies
+}
+effFlip = tplObj.System.Flip
+if tplObj.System.Threshold >= 1 && tplObj.System.Threshold <= 255 {
+effThresh = tplObj.System.Threshold
+}
+}
 useLabel := *label
-if useLabel == "" && tplObj.Label != "" {
-useLabel = tplObj.Label
+if useLabel == "" && effLabel != "" {
+useLabel = effLabel
 }
 labelName, err := resolveLabel(p, useLabel)
 if err != nil {
 fatal(err)
 }
-useDensity := tplObj.Density
+useDensity := effDensity
 if visited["density"] || useDensity < 1 || useDensity > 3 {
 useDensity = *density
 }
-useCopies := tplObj.Copies
+useCopies := effCopies
 if visited["copies"] || useCopies < 1 {
 useCopies = *copies
 }
-useFlip := tplObj.Flip
+useFlip := effFlip
 if visited["flip"] {
 useFlip = *flip
 }
 useThresh := uint8(*threshold)
-if !visited["threshold"] && tplObj.Threshold >= 1 && tplObj.Threshold <= 255 {
-useThresh = uint8(tplObj.Threshold)
+if !visited["threshold"] && effThresh >= 1 && effThresh <= 255 {
+useThresh = uint8(effThresh)
 }
 lastLabelContent = sanitizeFileName(items[0])
 savePreview(imgs[0])

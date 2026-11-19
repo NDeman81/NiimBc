@@ -93,19 +93,61 @@ func (j *job) snapshot() job {
 // Шаблоны настроек
 // --------------------------------------------------------------------------
 
-// Template — сохранённый набор настроек под типовую задачу.
+// Template — комбинированный профиль задачи: может включать дизайн (elements),
+// настройки одиночной/серийной печати и системные параметры (system).
 type Template struct {
-	Name      string    `json:"name"`
-	Length    float64   `json:"length"`
-	Font      float64   `json:"font"`
-	Density   int       `json:"density"`
-	Label     string    `json:"label"`
-	Copies    int       `json:"copies"`
-	Flip      bool      `json:"flip"`
-	Threshold int       `json:"threshold,omitempty"`
-	Template  string    `json:"template"`
-	Colorder  string    `json:"colorder,omitempty"`
-	Elements  []Element `json:"elements,omitempty"` // шаблон из конструктора
+Name        string `json:"name"`
+HasDesigner bool   `json:"hasDesigner,omitempty"`
+HasSingle   bool   `json:"hasSingle,omitempty"`
+HasSystem   bool   `json:"hasSystem,omitempty"`
+
+// Базовые параметры этикетки
+Length    float64 `json:"length"`
+Font      float64 `json:"font,omitempty"`
+Density   int     `json:"density,omitempty"`
+Label     string  `json:"label,omitempty"`
+Copies    int     `json:"copies,omitempty"`
+Flip      bool    `json:"flip,omitempty"`
+Threshold int     `json:"threshold,omitempty"`
+
+// Секция 1: Настройки одиночной и серийной печати
+BcFormat     string `json:"bcFormat,omitempty"`
+GapPx        *int   `json:"gapPx,omitempty"`
+TextGapPx    *int   `json:"textGapPx,omitempty"`
+FontName     string `json:"fontName,omitempty"`
+FontSize     string `json:"fontSize,omitempty"`
+Bold         bool   `json:"bold,omitempty"`
+MarginPx     *int   `json:"marginPx,omitempty"`
+SideMarginPx *int   `json:"sideMarginPx,omitempty"`
+OffsetPx     *int   `json:"offsetPx,omitempty"`
+BcData       string `json:"bcData,omitempty"`
+TopText      string `json:"topText,omitempty"`
+BottomText   string `json:"bottomText,omitempty"`
+SingleText   string `json:"singleText,omitempty"`
+CsvHeader    bool   `json:"csvHeader,omitempty"`
+Template     string `json:"template,omitempty"`
+Colorder     string `json:"colorder,omitempty"`
+
+// Секция 2: Визуальный макет из Конструктора
+Elements []Element `json:"elements,omitempty"`
+
+// Секция 3: Системные параметры (приоритет выше config.json)
+System *AppConfig `json:"system,omitempty"`
+}
+
+func normalizeTemplateFlags(t *Template) {
+if !t.HasDesigner && !t.HasSingle && !t.HasSystem {
+if len(t.Elements) > 0 {
+t.HasDesigner = true
+}
+if strings.TrimSpace(t.Template) != "" || strings.TrimSpace(t.BcData) != "" ||
+strings.TrimSpace(t.SingleText) != "" || strings.TrimSpace(t.FontName) != "" || !t.HasDesigner {
+t.HasSingle = true
+}
+if t.System != nil {
+t.HasSystem = true
+}
+}
 }
 
 func templatesPath() string {
@@ -117,15 +159,18 @@ func templatesPath() string {
 }
 
 func loadTemplates() []Template {
-	data, err := os.ReadFile(templatesPath())
-	if err != nil {
-		return nil
-	}
-	var list []Template
-	if json.Unmarshal(data, &list) != nil {
-		return nil
-	}
-	return list
+data, err := os.ReadFile(templatesPath())
+if err != nil {
+return nil
+}
+var list []Template
+if json.Unmarshal(data, &list) != nil {
+return nil
+}
+for i := range list {
+normalizeTemplateFlags(&list[i])
+}
+return list
 }
 
 func saveTemplates(list []Template) error {
@@ -1030,19 +1075,51 @@ writeErr(w, http.StatusNotFound, fmt.Errorf("шаблон %q не найден",
 return
 }
 
+effDensity := found.Density
+effLabel := found.Label
+effCopies := found.Copies
+effFlip := found.Flip
+effThresh := found.Threshold
+effOffset := found.OffsetPx
+if found.HasSystem && found.System != nil {
+if found.System.Density >= 1 && found.System.Density <= 3 {
+effDensity = found.System.Density
+}
+if found.System.Label != "" {
+effLabel = found.System.Label
+}
+if found.System.Copies > 0 {
+effCopies = found.System.Copies
+}
+effFlip = found.System.Flip
+if found.System.Threshold >= 1 && found.System.Threshold <= 255 {
+effThresh = found.System.Threshold
+}
+if effOffset == nil {
+v := found.System.OffsetPx
+effOffset = &v
+}
+}
+
 req := printRequest{
-Mode:      "series",
-Items:     body.Items,
-Template:  found.Template,
-Elements:  found.Elements,
-Length:    found.Length,
-Font:      found.Font,
-Density:   found.Density,
-Label:     found.Label,
-Copies:    found.Copies,
-Flip:      found.Flip,
-Threshold: found.Threshold,
-Address:   body.Address,
+Mode:         "series",
+Items:        body.Items,
+Template:     found.Template,
+Elements:     found.Elements,
+Length:       found.Length,
+Font:         found.Font,
+Density:      effDensity,
+Label:        effLabel,
+Copies:       effCopies,
+Flip:         effFlip,
+Threshold:    effThresh,
+OffsetPx:     effOffset,
+FontName:     found.FontName,
+FontSize:     found.FontSize,
+Bold:         found.Bold,
+MarginPx:     found.MarginPx,
+SideMarginPx: found.SideMarginPx,
+Address:      body.Address,
 }
 if body.Copies > 0 {
 req.Copies = body.Copies
