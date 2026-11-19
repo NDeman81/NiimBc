@@ -1123,3 +1123,203 @@ if ($('tpl-csv-btn') && $('tpl-csv-file')) {
     e.target.value = '';
   });
 }
+
+let loadedIndexTemplate = null;
+
+function formatTemplateBadge(t) {
+  const parts = [];
+  if (t.hasDesigner || (t.elements && t.elements.length > 0)) parts.push('Дизайн');
+  if (t.hasSingle) parts.push('Одиночная');
+  if (t.hasSystem || t.system) parts.push('Системные');
+  return parts.length ? `${t.name} [${parts.join(' + ')}]` : t.name;
+}
+
+function collectSystemSection() {
+  return {
+    ...currentConfig,
+    address: $('address') ? $('address').value.trim() : '',
+    length: parseFloat($('length')?.value) || 50,
+    height: parseFloat($('cfg-height')?.value) || 14,
+    density: parseInt($('density')?.value, 10) || 2,
+    label: $('label') ? $('label').value : '',
+    copies: parseInt($('copies')?.value, 10) || 1,
+    flip: $('flip') ? $('flip').checked : false,
+    threshold: intVal('threshold', 200),
+    keepAlive: $('cfg-keepalive') ? ($('cfg-keepalive').value === 'true') : true,
+    printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
+    logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
+    saveDir: $('cfg-savedir') ? $('cfg-savedir').value.trim() : '',
+    saveFile: $('cfg-savefile') ? ($('cfg-savefile').value.trim() || 'niimbot_label_preview.png') : 'niimbot_label_preview.png',
+    autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
+    imgStretch: $('img-stretch') ? $('img-stretch').checked : false,
+    watchDir: $('cfg-watchdir') ? $('cfg-watchdir').value.trim() : ''
+  };
+}
+
+function applySystemSection(sys) {
+  if (!sys) return;
+  if (sys.address !== undefined && $('address')) $('address').value = sys.address;
+  if (sys.length > 0 && $('length')) $('length').value = sys.length;
+  if (sys.height > 0 && $('cfg-height')) $('cfg-height').value = sys.height;
+  if (sys.density >= 1 && sys.density <= 3 && $('density')) $('density').value = sys.density;
+  if (sys.label !== undefined && $('label')) $('label').value = sys.label;
+  if (sys.copies > 0 && $('copies')) $('copies').value = sys.copies;
+  if ($('flip')) $('flip').checked = !!sys.flip;
+  if (sys.threshold >= 1 && sys.threshold <= 255 && $('threshold')) $('threshold').value = sys.threshold;
+  if ($('cfg-keepalive') && sys.keepAlive !== undefined) {
+    $('cfg-keepalive').value = String(!!sys.keepAlive);
+    if (typeof updateModeButton === 'function') updateModeButton(!!sys.keepAlive);
+  }
+  if (sys.printMode && $('cfg-printmode')) $('cfg-printmode').value = sys.printMode;
+  if (sys.logLevel && $('cfg-loglevel')) $('cfg-loglevel').value = sys.logLevel;
+  if (sys.saveDir !== undefined && $('cfg-savedir')) $('cfg-savedir').value = sys.saveDir;
+  if (sys.saveFile && $('cfg-savefile')) $('cfg-savefile').value = sys.saveFile;
+  if ($('cfg-autoname') && sys.autoFileName !== undefined) $('cfg-autoname').checked = !!sys.autoFileName;
+  if ($('img-stretch') && sys.imgStretch !== undefined) $('img-stretch').checked = !!sys.imgStretch;
+  if (sys.watchDir !== undefined && $('cfg-watchdir')) $('cfg-watchdir').value = sys.watchDir;
+}
+
+function applyCombinedTemplate(t) {
+  loadedIndexTemplate = t;
+  if (t.hasSystem && t.system) {
+    applySystemSection(t.system);
+  } else {
+    if (t.length > 0 && $('length')) $('length').value = t.length;
+    if (t.density >= 1 && t.density <= 3 && $('density')) $('density').value = t.density;
+    if (t.label !== undefined && $('label')) $('label').value = t.label;
+    if (t.copies > 0 && $('copies')) $('copies').value = t.copies;
+    if (t.threshold >= 1 && t.threshold <= 255 && $('threshold')) $('threshold').value = t.threshold;
+    if ($('flip')) $('flip').checked = !!t.flip;
+  }
+  if (t.hasSingle) {
+    if (t.bcFormat && $('cfg-bcformat')) $('cfg-bcformat').value = t.bcFormat;
+    if (t.gapPx !== undefined && $('cfg-gap')) $('cfg-gap').value = t.gapPx;
+    if (t.textGapPx !== undefined && $('cfg-textgap')) $('cfg-textgap').value = t.textGapPx;
+    if (t.fontName !== undefined && $('cfg-fontname')) $('cfg-fontname').value = t.fontName;
+    if (t.fontSize !== undefined && $('cfg-fontsize')) $('cfg-fontsize').value = t.fontSize || '-1';
+    if ($('cfg-bold')) $('cfg-bold').checked = !!t.bold;
+    if (t.marginPx !== undefined && $('cfg-margin')) $('cfg-margin').value = t.marginPx;
+    if (t.sideMarginPx !== undefined && $('cfg-sidemargin')) $('cfg-sidemargin').value = t.sideMarginPx;
+    if (t.offsetPx !== undefined && $('cfg-offset')) $('cfg-offset').value = t.offsetPx;
+    if (t.bcData !== undefined && $('bc-data')) { $('bc-data').value = t.bcData; if (typeof updateBcLenHint === 'function') updateBcLenHint(); }
+    if (t.topText !== undefined && $('bc-top')) $('bc-top').value = t.topText;
+    if (t.bottomText !== undefined && $('bc-bot')) $('bc-bot').value = t.bottomText;
+    if (t.singleText !== undefined && $('single-text')) $('single-text').value = t.singleText;
+    if ($('csv-header')) $('csv-header').checked = !!t.csvHeader;
+    if (t.colorder !== undefined && $('colorder')) $('colorder').value = t.colorder;
+    if (t.template !== undefined && $('template')) $('template').value = t.template;
+  }
+  const hasDes = !!(t.hasDesigner || (t.elements && t.elements.length > 0));
+  if ($('tpl-inc-designer')) { $('tpl-inc-designer').disabled = !hasDes; $('tpl-inc-designer').checked = hasDes; }
+  if ($('tpl-inc-single')) $('tpl-inc-single').checked = !!t.hasSingle;
+  if ($('tpl-inc-system')) $('tpl-inc-system').checked = !!t.hasSystem;
+  if (hasDes) {
+    selectedDesignTpl = t;
+    if ($('tpl-print-select')) $('tpl-print-select').value = t.name;
+    if ($('tpl-print-info')) $('tpl-print-info').textContent = `Шаблон «${t.name}»: длина ${t.length || 50} мм, элементов: ${(t.elements || []).length}`;
+  }
+  if ($('tpl-idx-hint')) $('tpl-idx-hint').textContent = `Загружен: ${formatTemplateBadge(t)}`;
+}
+loadTemplates = async function() {
+  try {
+    const r = await fetch('/api/templates');
+    const list = (await r.json()) || [];
+    const sel = $('templates');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— выберите —</option>';
+    list.forEach((t) => {
+      const o = document.createElement('option');
+      o.value = t.name; o.textContent = formatTemplateBadge(t); o.dataset.tpl = JSON.stringify(t);
+      sel.appendChild(o);
+    });
+    if (prev) sel.value = prev;
+  } catch (e) {}
+};
+
+if ($('templates')) {
+  $('templates').onchange = (e) => {
+    const opt = e.target.selectedOptions;
+    if (!opt || !opt.dataset.tpl) {
+      loadedIndexTemplate = null;
+      if ($('tpl-inc-designer')) { $('tpl-inc-designer').checked = false; $('tpl-inc-designer').disabled = true; }
+      if ($('tpl-idx-hint')) $('tpl-idx-hint').textContent = '';
+      return;
+    }
+    applyCombinedTemplate(JSON.parse(opt.dataset.tpl));
+  };
+}
+
+if ($('tpl-save')) {
+  $('tpl-save').onclick = async () => {
+    const incSingle = $('tpl-inc-single')?.checked;
+    const incSystem = $('tpl-inc-system')?.checked;
+    const incDesigner = $('tpl-inc-designer')?.checked;
+    if (!incSingle && !incSystem && !incDesigner) { alert('Отметьте хотя бы одну секцию для сохранения'); return; }
+
+    const defName = $('templates')?.value || (loadedIndexTemplate ? loadedIndexTemplate.name : '');
+    const name = prompt('Название шаблона:', defName);
+    if (!name || !name.trim()) return;
+    const cleanName = name.trim();
+
+    const tplObj = {
+      name: cleanName, hasSingle: !!incSingle, hasSystem: !!incSystem, hasDesigner: !!incDesigner,
+      length: parseFloat($('length')?.value) || 50, density: parseInt($('density')?.value, 10) || 2,
+      label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1,
+      flip: !!$('flip')?.checked, threshold: intVal('threshold', 200)
+    };
+    if (incSingle) {
+      Object.assign(tplObj, {
+        bcFormat: $('cfg-bcformat')?.value || 'auto', gapPx: intVal('cfg-gap', 4), textGapPx: intVal('cfg-textgap', 4),
+        fontName: $('cfg-fontname')?.value || '', fontSize: $('cfg-fontsize')?.value.trim() || '-1',
+        bold: !!$('cfg-bold')?.checked, marginPx: intVal('cfg-margin', 4), sideMarginPx: intVal('cfg-sidemargin', 10),
+        offsetPx: intVal('cfg-offset', 0), bcData: $('bc-data')?.value || '', topText: $('bc-top')?.value || '',
+        bottomText: $('bc-bot')?.value || '', singleText: $('single-text')?.value || '',
+        csvHeader: !!$('csv-header')?.checked, colorder: $('colorder')?.value || '', template: $('template')?.value || ''
+      });
+    }
+    if (incSystem) tplObj.system = collectSystemSection();
+    if (incDesigner && loadedIndexTemplate?.elements) tplObj.elements = loadedIndexTemplate.elements;
+
+    const r = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tplObj) });
+    if (!r.ok) { alert('Не удалось сохранить шаблон'); return; }
+    await loadTemplates();
+    if (typeof loadTplTabList === 'function') await loadTplTabList();
+    if ($('templates')) $('templates').value = cleanName;
+    loadedIndexTemplate = tplObj;
+    if ($('tpl-idx-hint')) $('tpl-idx-hint').textContent = `Сохранено: ${formatTemplateBadge(tplObj)}`;
+  };
+}
+
+if ($('tpl-idx-export')) {
+  $('tpl-idx-export').onclick = () => {
+    const opt = $('templates')?.selectedOptions;
+    if (!opt || !opt.dataset.tpl) { alert('Выберите шаблон для экспорта'); return; }
+    const t = JSON.parse(opt.dataset.tpl);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(t, null, 2)], { type: 'application/json' }));
+    a.download = ((t.name || 'template').replace(/[\\/:*?"<>|\s]+/g, '_') || 'template') + '.niimbot.json';
+    a.click();
+  };
+}
+
+if ($('tpl-idx-import') && $('tpl-idx-file')) {
+  $('tpl-idx-import').onclick = () => $('tpl-idx-file').click();
+  $('tpl-idx-file').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files;
+    if (!f) return;
+    try {
+      const parsed = JSON.parse(await f.text());
+      const t = Array.isArray(parsed) ? parsed : parsed;
+      if (!t.name) t.name = f.name.replace(/\.niimbot\.json$|\.json$/i, '');
+      await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
+      await loadTemplates();
+      if (typeof loadTplTabList === 'function') await loadTplTabList();
+      if ($('templates')) $('templates').value = t.name;
+      applyCombinedTemplate(t);
+    } catch (err) { alert('Ошибка импорта: ' + err.message); }
+    e.target.value = '';
+  });
+}
+
+loadTemplates();

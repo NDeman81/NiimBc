@@ -234,12 +234,22 @@
         <p id="cfg-status" class="hint"></p>
       </details>
 
-      <h2>Шаблоны</h2>
+            <h2>Шаблоны</h2>
       <div class="row">
         <select id="templates"><option value="">— выберите —</option></select>
-        <button id="tpl-save" class="ghost">Сохранить</button>
-        <button id="tpl-del" class="ghost danger">Удалить</button>
+        <button id="tpl-save" type="button" class="primary">Сохранить</button>
+        <button id="tpl-del" type="button" class="ghost danger">Удалить</button>
+        <button id="tpl-idx-export" type="button" class="ghost" title="Экспортировать выбранный шаблон в JSON">Экспорт</button>
+        <button id="tpl-idx-import" type="button" class="ghost" title="Импортировать шаблон из JSON">Импорт</button>
+        <input type="file" id="tpl-idx-file" accept=".json,application/json" class="hidden">
       </div>
+      <div class="row" style="margin-top:8px;gap:14px">
+        <span class="hint" style="margin:0">Сохранять в шаблон:</span>
+        <label class="check" style="margin:0"><input type="checkbox" id="tpl-inc-single" checked> Настройки одиночной печати</label>
+        <label class="check" style="margin:0"><input type="checkbox" id="tpl-inc-system"> Системные настройки</label>
+        <label class="check" style="margin:0"><input type="checkbox" id="tpl-inc-designer" disabled> Шаблон дизайнера</label>
+      </div>
+      <small id="tpl-idx-hint" class="hint" style="display:block;margin-top:4px"></small>
       <p class="hint">Шаблон хранит настройки под типовую задачу: кабельные бирки, шильдики оборудования.</p>
     </section>
 
@@ -286,6 +296,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=17"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

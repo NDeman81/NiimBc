@@ -419,7 +419,7 @@ if ($('templates')) $('templates').addEventListener('change', (e) => {
 function tplMsg(txt, bad) { if ($('tpl-msg')) { $('tpl-msg').textContent = txt; $('tpl-msg').style.color = bad ? '#B3392F' : 'var(--green)'; } }
 if ($('tpl-save')) $('tpl-save').onclick = async () => {
   const name = $('tpl-name')?.value.trim(); if (!name || !elements.length) { tplMsg('Укажите имя и добавьте элементы', true); return; }
-  await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, length: labelLength(), density: parseInt($('density')?.value, 10) || 2, label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1, threshold: parseInt($('threshold')?.value, 10) || 200, flip: !!$('flip')?.checked, elements }) });
+  await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(JSON.parse($("templates")?.selectedOptions?.dataset.tpl || "{}")), name, hasDesigner: true, length: labelLength(), density: parseInt($('density')?.value, 10) || 2, label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1, threshold: parseInt($('threshold')?.value, 10) || 200, flip: !!$('flip')?.checked, elements }) });
   await loadTemplates(); if ($('templates')) $('templates').value = name; tplMsg(`шаблон «${name}» сохранён`);
 };
 if ($('tpl-del')) $('tpl-del').onclick = async () => { const n = $('templates')?.value; if (!n) return; await fetch('/api/templates?name=' + encodeURIComponent(n), { method: 'DELETE' }); await loadTemplates(); tplMsg(`шаблон «${n}» удалён`); };
