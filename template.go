@@ -647,9 +647,9 @@ if fmtErr != nil {
 return m
 }
 sub := reFmtField.FindStringSubmatch(m)
-colIdx, _ := strconv.Atoi(sub)
-dir := sub
-width, _ := strconv.Atoi(sub)
+colIdx, _ := strconv.Atoi(sub[1])
+dir := sub[2]
+width, _ := strconv.Atoi(sub[3])
 if colIdx < 1 || colIdx > len(row) {
 fmtErr = fmt.Errorf("элемент использует %s, а в данных только %d столбц(а/ов)", m, len(row))
 return m
