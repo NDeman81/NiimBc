@@ -1592,9 +1592,11 @@ function appendDummyRows(textareaId, countInputId, updateFn) {
   const cntInp = $(countInputId);
   if (!ta || !cntInp) return;
   const n = Math.max(1, Math.min(500, parseInt(cntInp.value, 10) || 10));
+  const lines = ta.value.split('\n').map((s) => s.trim()).filter(Boolean);
+  const sample = lines.length > 0 ? lines : ';';
+  const added = Array(n).fill(sample).join('\n');
   const cur = ta.value.trim();
-  const dummy = Array(n).fill(';').join('\n');
-  ta.value = cur ? (cur + '\n' + dummy) : dummy;
+  ta.value = cur ? (cur + '\n' + added) : added;
   currentPreviewRow = 1;
   if (typeof updateFn === 'function') updateFn();
   if (typeof syncListNavUI === 'function') syncListNavUI();
