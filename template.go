@@ -613,19 +613,61 @@ var (
 //
 // Ссылка на столбец, которого нет, — ошибка: иначе на этикетке напечаталось
 // бы литеральное «{3}», и брак был бы виден только на бумаге.
-func substituteFields(text string, row []string, now time.Time) (string, error) {
-	text = reDateTime.ReplaceAllString(text, now.Format("02.01.2006 15:04"))
-	text = reDate.ReplaceAllString(text, now.Format("02.01.2006"))
-	text = reTime.ReplaceAllString(text, now.Format("15:04"))
+var reFmtField = regexp.MustCompile(`\{([1-9][0-9]*)(?:([LlRr:])([1-9]|1[0-9]|20))\}`)
 
-	for i, v := range row {
-		text = strings.ReplaceAll(text, fmt.Sprintf("{%d}", i+1), v)
-	}
-	if bad := rePlaceholder.FindString(text); bad != "" {
-		return "", fmt.Errorf(
-			"элемент использует %s, а в данных только %d столбц(а/ов)", bad, len(row))
-	}
-	return text, nil
+func formatFieldVal(val, dir string, width int) string {
+r := []rune(strings.TrimSpace(val))
+if width < 1 {
+return string(r)
+}
+if width > 20 {
+width = 20
+}
+if strings.EqualFold(dir, "R") {
+if len(r) >= width {
+return string(r[:width])
+}
+return string(r) + strings.Repeat("0", width-len(r))
+}
+// По умолчанию ('L' или ':') — дополняем нулями слева или обрезаем слева
+if len(r) >= width {
+return string(r[len(r)-width:])
+}
+return strings.Repeat("0", width-len(r)) + string(r)
+}
+
+func substituteFields(text string, row []string, now time.Time) (string, error) {
+text = reDateTime.ReplaceAllString(text, now.Format("02.01.2006 15:04"))
+text = reDate.ReplaceAllString(text, now.Format("02.01.2006"))
+text = reTime.ReplaceAllString(text, now.Format("15:04"))
+
+var fmtErr error
+text = reFmtField.ReplaceAllStringFunc(text, func(m string) string {
+if fmtErr != nil {
+return m
+}
+sub := reFmtField.FindStringSubmatch(m)
+colIdx, _ := strconv.Atoi(sub)
+dir := sub
+width, _ := strconv.Atoi(sub)
+if colIdx < 1 || colIdx > len(row) {
+fmtErr = fmt.Errorf("элемент использует %s, а в данных только %d столбц(а/ов)", m, len(row))
+return m
+}
+return formatFieldVal(row[colIdx-1], dir, width)
+})
+if fmtErr != nil {
+return "", fmtErr
+}
+
+for i, v := range row {
+text = strings.ReplaceAll(text, fmt.Sprintf("{%d}", i+1), v)
+}
+if bad := rePlaceholder.FindString(text); bad != "" {
+return "", fmt.Errorf(
+"элемент использует %s, а в данных только %d столбц(а/ов)", bad, len(row))
+}
+return text, nil
 }
 
 // drawBarcodeElement рисует штрихкод или QR-код строго внутри рамки (X, Y, W, H).

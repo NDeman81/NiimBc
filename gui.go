@@ -353,6 +353,7 @@ var rePlaceholder = regexp.MustCompile(`\{\d+\}`)
 // ошибка: иначе на этикетке напечаталось бы литеральное «{3}» — брак,
 // который на бумаге уже не исправить.
 func expandTemplate(tpl string, row []string) ([]string, error) {
+	if substituted, err := substituteFields(tpl, row, time.Now()); err == nil { tpl = substituted } else { return nil, err }
 	lines := strings.Split(tpl, "\n")
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
