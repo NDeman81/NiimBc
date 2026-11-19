@@ -661,6 +661,13 @@ return nil, Template{}, fmt.Errorf("шаблон или файл %q не най�
 }
 }
 
+if !found.HasDesigner && len(found.Elements) == 0 {
+return nil, *found, fmt.Errorf("шаблон %q не содержит макета из Конструктора этикеток", rawName)
+}
+if len(found.Elements) == 0 {
+return nil, *found, fmt.Errorf("в макете шаблона %q нет ни одного элемента", rawName)
+}
+
 useLen := found.Length
 if useLen <= 0 {
 useLen = *length

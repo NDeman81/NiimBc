@@ -1335,3 +1335,192 @@ if ($('tpl-idx-import') && $('tpl-idx-file')) {
 }
 
 loadTemplates();
+
+// ==========================================================================
+// Единая логика списков, фильтрации шаблонов дизайнера и навигации по строкам
+// ==========================================================================
+function isDesignerTemplate(t) {
+  return !!(t && (t.hasDesigner || (Array.isArray(t.elements) && t.elements.length > 0)));
+}
+
+loadTplTabList = async function() {
+  const sel = $('tpl-print-select');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/templates');
+    const list = (await r.json()) || [];
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— выберите шаблон дизайнера —</option>';
+    list.filter(isDesignerTemplate).forEach((t) => {
+      const o = document.createElement('option');
+      o.value = t.name;
+      o.textContent = formatTemplateBadge(t);
+      o.dataset.tpl = JSON.stringify(t);
+      sel.appendChild(o);
+    });
+    if (prev && [...sel.options].some((o) => o.value === prev)) {
+      sel.value = prev;
+    } else if (!selectedDesignTpl || !selectedDesignTpl._fromFile) {
+      sel.value = '';
+      selectedDesignTpl = null;
+    }
+  } catch (e) {}
+};
+
+if ($('tpl-print-select')) {
+  $('tpl-print-select').onchange = (e) => {
+    const opt = e.target.selectedOptions && e.target.selectedOptions;
+    if (!opt || !opt.dataset.tpl) {
+      selectedDesignTpl = null;
+      if ($('tpl-print-info')) $('tpl-print-info').textContent = 'Шаблон дизайнера не выбран.';
+      return;
+    }
+    selectedDesignTpl = JSON.parse(opt.dataset.tpl);
+    if ($('tpl-print-info')) {
+      $('tpl-print-info').textContent = `Шаблон «${selectedDesignTpl.name}»: длина ${selectedDesignTpl.length || 50} мм, элементов: ${(selectedDesignTpl.elements || []).length}`;
+    }
+    syncListNavUI();
+  };
+}
+
+if ($('tpl-print-file')) {
+  $('tpl-print-file').onchange = async (e) => {
+    const f = e.target.files && e.target.files;
+    if (!f) return;
+    try {
+      const parsed = JSON.parse(await f.text());
+      const t = Array.isArray(parsed) ? parsed : parsed;
+      if (!isDesignerTemplate(t)) {
+        throw new Error('В выбранном файле нет макета из Конструктора этикеток');
+      }
+      t._fromFile = true;
+      selectedDesignTpl = t;
+      if ($('tpl-print-select')) $('tpl-print-select').value = '';
+      if ($('tpl-print-info')) {
+        $('tpl-print-info').textContent = `Из файла «${f.name}»: длина ${t.length || 50} мм, элементов: ${(t.elements || []).length}`;
+      }
+      syncListNavUI();
+    } catch (err) {
+      alert('Ошибка чтения шаблона: ' + err.message);
+    }
+    e.target.value = '';
+  };
+}
+
+// Синхронизация нижнего списка "Шаблоны" с верхним списком вкладки "По шаблону"
+const _prevApplyCombined = applyCombinedTemplate;
+applyCombinedTemplate = function(t) {
+  _prevApplyCombined(t);
+  if (isDesignerTemplate(t)) {
+    selectedDesignTpl = t;
+    if ($('tpl-print-select')) $('tpl-print-select').value = t.name;
+    if ($('tpl-print-info')) {
+      $('tpl-print-info').textContent = `Шаблон «${t.name}»: длина ${t.length || 50} мм, элементов: ${(t.elements || []).length}`;
+    }
+  } else {
+    selectedDesignTpl = null;
+    if ($('tpl-print-select')) $('tpl-print-select').value = '';
+    if ($('tpl-print-info')) {
+      $('tpl-print-info').textContent = 'В выбранном шаблоне нет макета дизайнера — выберите шаблон из списка выше.';
+    }
+  }
+};
+
+// Единая чистая функция сборки запроса для предпросмотра, печати и сохранения
+collectRequest = function(forPreview = false) {
+  const base = {
+    mode,
+    length: parseFloat($('length')?.value) || 50,
+    font: parseFloat($('font')?.value) || 0,
+    density: parseInt($('density')?.value, 10) || 2,
+    label: $('label') ? $('label').value : '',
+    copies: parseInt($('copies')?.value, 10) || 1,
+    flip: $('flip') ? $('flip').checked : false,
+    threshold: intVal('threshold', 200),
+    address: $('address') ? $('address').value.trim() : '',
+    fontName: $('cfg-fontname') ? $('cfg-fontname').value : '',
+    fontSize: $('cfg-fontsize') ? ($('cfg-fontsize').value.trim() || '-1') : '-1',
+    bold: $('cfg-bold') ? $('cfg-bold').checked : false,
+    marginPx: intVal('cfg-margin', 4),
+    sideMarginPx: intVal('cfg-sidemargin', 10),
+    offsetPx: intVal('cfg-offset', 0)
+  };
+
+  if (mode === 'barcode') {
+    const val = $('bc-data') ? $('bc-data').value.trim() : '';
+    return {
+      ...base,
+      items: val ? [val] : [],
+      bcFormat: $('cfg-bcformat') ? $('cfg-bcformat').value : 'auto',
+      topText: $('bc-top') ? $('bc-top').value : '',
+      bottomText: $('bc-bot') ? $('bc-bot').value : '',
+      gapPx: intVal('cfg-gap', 4),
+      textGapPx: intVal('cfg-textgap', 4)
+    };
+  }
+
+  if (mode === 'image') {
+    return {
+      ...base,
+      imageData: uploadedImageData,
+      stretch: $('img-stretch') ? $('img-stretch').checked : false,
+      items: uploadedImageData ? ['image'] : []
+    };
+  }
+
+  if (mode === 'single') {
+    return { ...base, items: [$('single-text') ? $('single-text').value : ''] };
+  }
+
+  // Списочные режимы: 'series' и 'tpl'
+  const allLines = activeListLines();
+  if (!allLines.length) return { ...base, items: [] };
+
+  let targetLines = [];
+  if (forPreview) {
+    const idx = Math.max(0, Math.min(allLines.length - 1, currentPreviewRow - 1));
+    targetLines = [allLines[idx]];
+  } else {
+    targetLines = getSelectedRangeItems(allLines);
+  }
+
+  if (mode === 'tpl') {
+    if (!isDesignerTemplate(selectedDesignTpl)) {
+      return { ...base, items: [] };
+    }
+    const orderVal = $('tpl-colorder') ? $('tpl-colorder').value : '';
+    if (orderVal.trim()) {
+      targetLines = targetLines.map((line) => reorderRowColumns(line, orderVal));
+    }
+    return {
+      ...base,
+      mode: 'series',
+      items: targetLines,
+      elements: selectedDesignTpl.elements || [],
+      length: selectedDesignTpl.length || base.length,
+      density: selectedDesignTpl.density || base.density,
+      label: selectedDesignTpl.label !== undefined ? selectedDesignTpl.label : base.label,
+      copies: parseInt($('copies')?.value, 10) || selectedDesignTpl.copies || 1,
+      threshold: selectedDesignTpl.threshold || base.threshold,
+      flip: !!selectedDesignTpl.flip
+    };
+  }
+
+  return {
+    ...base,
+    items: targetLines,
+    template: $('template') ? $('template').value : ''
+  };
+};
+
+// Понятное предупреждение, если на вкладке "По шаблону" не выбран макет дизайнера
+const _prevDoPreview = doPreview;
+doPreview = async function() {
+  if (mode === 'tpl' && !isDesignerTemplate(selectedDesignTpl)) {
+    alert('Сначала выберите шаблон с макетом из Конструктора в списке шаблонов.');
+    return;
+  }
+  await _prevDoPreview();
+};
+
+loadTplTabList();
