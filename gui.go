@@ -127,6 +127,8 @@ SingleText   string `json:"singleText,omitempty"`
 CsvHeader    bool   `json:"csvHeader,omitempty"`
 Template     string `json:"template,omitempty"`
 Colorder     string `json:"colorder,omitempty"`
+	CounterStart *int   `json:"counterStart,omitempty"`
+	CounterStep  *int   `json:"counterStep,omitempty"`
 
 // Секция 2: Визуальный макет из Конструктора
 Elements []Element `json:"elements,omitempty"`
@@ -290,7 +292,11 @@ GapPx        *int      `json:"gapPx"`        // зазор код-текст, px
 TextGapPx    *int      `json:"textGapPx"`
 	OffsetPx     *int      `json:"offsetPx"`     // сдвиг по X, px    // зазор доп. текста, px
 ImageData    string    `json:"imageData"`
-	Stretch      bool      `json:"stretch"`      // растянуть картинку без сохранения пропорций    // data:URL картинки для режима image
+	Stretch      bool      `json:"stretch"`      // растянуть картинку без сохранения пропорций
+CounterStart *int      `json:"counterStart,omitempty"`
+CounterStep  *int      `json:"counterStep,omitempty"`
+PreviewIndex int       `json:"previewIndex,omitempty"`
+PreviewTotal int       `json:"previewTotal,omitempty"`
 }
 
 // splitFields разбирает строку данных на столбцы: ; , или табуляция.
@@ -352,8 +358,9 @@ var rePlaceholder = regexp.MustCompile(`\{\d+\}`)
 // Если шаблон ссылается на столбец, которого в данных нет, возвращается
 // ошибка: иначе на этикетке напечаталось бы литеральное «{3}» — брак,
 // который на бумаге уже не исправить.
-func expandTemplate(tpl string, row []string) ([]string, error) {
-	if substituted, err := substituteFields(tpl, row, time.Now()); err == nil { tpl = substituted } else { return nil, err }
+func expandTemplate(tpl string, row []string) ([]string, error) { return expandTemplateCtx(tpl, row, 1, 1) }
+func expandTemplateCtx(tpl string, row []string, counter, total int) ([]string, error) {
+	if substituted, err := substituteFieldsCtx(tpl, row, time.Now(), counter, total); err == nil { tpl = substituted } else { return nil, err }
 	lines := strings.Split(tpl, "\n")
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
@@ -395,8 +402,8 @@ func renderPages(req printRequest) ([][]Row, error) {
 		length = 30
 	}
 	var pages [][]Row
-	for _, item := range req.Items {
-		img, err := renderOne(req, item, length)
+	for rowIdx, item := range req.Items {
+		cs, cst := resolveCounterParams(req); img, err := renderOneCtx(req, item, length, cs+rowIdx*cst, len(req.Items))
 		if err != nil {
 			return nil, err
 		}
@@ -585,7 +592,7 @@ func apiPreview(w http.ResponseWriter, req printRequest) {
 	if len(req.Items) > 0 {
 		item = req.Items[0]
 	}
-	img, err := renderOne(req, item, length)
+	cs, cst := resolveCounterParams(req); pt := req.PreviewTotal; if pt < 1 { pt = len(req.Items) }; img, err := renderOneCtx(req, item, length, cs+req.PreviewIndex*cst, pt)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -1115,6 +1122,8 @@ Copies:       effCopies,
 Flip:         effFlip,
 Threshold:    effThresh,
 OffsetPx:     effOffset,
+		CounterStart: found.CounterStart,
+		CounterStep:  found.CounterStep,
 FontName:     found.FontName,
 FontSize:     found.FontSize,
 Bold:         found.Bold,
@@ -1178,7 +1187,7 @@ var saved []string
 usedNames := map[string]int{}
 
 for i, item := range req.Items {
-img, err := renderOne(req, item, length)
+cs, cst := resolveCounterParams(req); img, err := renderOneCtx(req, item, length, cs+i*cst, len(req.Items))
 if err != nil {
 writeErr(w, http.StatusBadRequest, err)
 return
@@ -1231,4 +1240,31 @@ writeJSON(w, map[string]any{
 "count": len(saved),
 "files": saved,
 })
+}
+
+func resolveCounterParams(req printRequest) (int, int) {
+s, st := 1, 1
+if req.CounterStart != nil { s = *req.CounterStart }
+if req.CounterStep != nil { st = *req.CounterStep }
+return s, st
+}
+func renderOneCtx(req printRequest, item string, length float64, counter, total int) (*image.Gray, error) {
+if len(req.Elements) > 0 {
+img, err := RenderTemplateCtx(LabelTemplate{LengthMM: length, Elements: req.Elements}, splitFields(item), counter, total)
+if err == nil && req.OffsetPx != nil && *req.OffsetPx != 0 { shiftImageX(img, *req.OffsetPx) }
+return img, err
+}
+if req.Mode == "series" && strings.TrimSpace(req.Template) != "" {
+rows, err := expandTemplateCtx(req.Template, splitFields(item), counter, total)
+if err != nil || len(rows) == 0 { return nil, err }
+opts := buildTextOptionsFromConfig()
+if req.FontName != "" { opts.FontName = req.FontName }
+if req.FontSize != "" { opts.FontSize = req.FontSize }
+opts.Bold = req.Bold
+if req.MarginPx != nil { opts.MarginPx = *req.MarginPx }
+if req.SideMarginPx != nil { opts.SideMarginPx = *req.SideMarginPx }
+if req.OffsetPx != nil { opts.OffsetPx = *req.OffsetPx }
+return RenderTextWithOptions(rows, length, opts)
+}
+return renderOne(req, item, length)
 }

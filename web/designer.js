@@ -426,7 +426,7 @@ if ($('templates')) $('templates').addEventListener('change', (e) => {
 function tplMsg(txt, bad) { if ($('tpl-msg')) { $('tpl-msg').textContent = txt; $('tpl-msg').style.color = bad ? '#B3392F' : 'var(--green)'; } }
 if ($('tpl-save')) $('tpl-save').onclick = async () => {
   const name = $('tpl-name')?.value.trim(); if (!name || !elements.length) { tplMsg('Укажите имя и добавьте элементы', true); return; }
-  await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(JSON.parse($("templates")?.selectedOptions?.[0]?.dataset.tpl || "{}")), name, hasDesigner: true, length: labelLength(), density: parseInt($('density')?.value, 10) || 2, label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1, threshold: parseInt($('threshold')?.value, 10) || 200, flip: !!$('flip')?.checked, elements }) });
+  await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(JSON.parse($("templates")?.selectedOptions?.[0]?.dataset.tpl || "{}")), name, hasDesigner: true, length: labelLength(), counterStart: parseInt($("des-cnt-start")?.value, 10) || 1, counterStep: parseInt($("des-cnt-step")?.value, 10) || 1, density: parseInt($('density')?.value, 10) || 2, label: $('label')?.value || '', copies: parseInt($('copies')?.value, 10) || 1, threshold: parseInt($('threshold')?.value, 10) || 200, flip: !!$('flip')?.checked, elements }) });
   await loadTemplates(); if ($('templates')) $('templates').value = name; tplMsg(`шаблон «${name}» сохранён`);
 };
 if ($('tpl-del')) $('tpl-del').onclick = async () => { const n = $('templates')?.value; if (!n) return; await fetch('/api/templates?name=' + encodeURIComponent(n), { method: 'DELETE' }); await loadTemplates(); tplMsg(`шаблон «${n}» удалён`); };
@@ -589,4 +589,17 @@ if ($('btn-shutdown')) {
     await postHeaderAction('/api/shutdown', undefined, 'сервер остановлен');
     document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;text-align:center"><h2>Сервер NIIMBOT N1 остановлен</h2><p>Эту вкладку можно закрыть.</p></div>';
   };
+}
+
+// Поддержка счётчика {c} / {n} в Конструкторе этикеток
+if ($('templates')) {
+  $('templates').addEventListener('change', (e) => {
+    const opt = e.target.selectedOptions && e.target.selectedOptions[0];
+    if (!opt || !opt.dataset.tpl) return;
+    try {
+      const t = JSON.parse(opt.dataset.tpl);
+      if ($('des-cnt-start')) $('des-cnt-start').value = t.counterStart ?? 1;
+      if ($('des-cnt-step')) $('des-cnt-step').value = t.counterStep ?? 1;
+    } catch (err) {}
+  });
 }

@@ -72,20 +72,23 @@ const labelHeightMM = 12.0
 // RenderTemplate рисует этикетку по шаблону, подставляя поля из строки данных.
 //
 // row — столбцы строки данных: {1} — первый, {2} — второй и так далее.
-func RenderTemplate(tpl LabelTemplate, row []string) (*image.Gray, error) {
+func RenderTemplate(tpl LabelTemplate, row []string) (*image.Gray, error) { return RenderTemplateCtx(tpl, row, 1, 1) }
+func RenderTemplateCtx(tpl LabelTemplate, row []string, counter, total int) (*image.Gray, error) { return renderTemplateInternal(tpl, row, time.Now(), counter, total) }
+func RenderTemplateUnused(tpl LabelTemplate, row []string) (*image.Gray, error) {
 	return RenderTemplateAt(tpl, row, time.Now())
 }
 
 // RenderTemplateAt — то же, но с заданным моментом времени: нужно тестам,
 // чтобы дата и время на этикетке были предсказуемы.
-func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gray, error) {
+func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gray, error) { return renderTemplateInternal(tpl, row, now, 1, 1) }
+func renderTemplateInternal(tpl LabelTemplate, row []string, now time.Time, counter, total int) (*image.Gray, error) {
 	img := NewLabelImage(tpl.LengthMM)
 
 	for i, el := range tpl.Elements {
 		var err error
 		switch el.Kind {
 		case "text":
-			err = drawTextElement(img, el, row, now)
+			err = drawTextElementCtx(img, el, row, now, counter, total)
 		case "image":
 			err = drawImageElement(img, el)
 		case "line":
@@ -93,7 +96,7 @@ func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gr
 		case "frame":
 			err = drawFrameElement(img, el)
 		case "barcode":
-			err = drawBarcodeElement(img, el, row, now)
+			err = drawBarcodeElementCtx(img, el, row, now, counter, total)
 		case "":			err = fmt.Errorf("у элемента %d не указан вид (kind)", i+1)
 		default:
 			err = fmt.Errorf("элемент %d: неизвестный вид %q", i+1, el.Kind)
@@ -107,8 +110,8 @@ func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gr
 
 // drawTextElement рисует надпись: если заданы классические FontMM/LineMM — использует
 // совместимый рендер в мм, иначе заполняет прямоугольный контейнер (X, Y, W, H) по пиксельным границам.
-func drawTextElement(img *image.Gray, el Element, row []string, now time.Time) error {
-text, err := substituteFields(el.Text, row, now)
+func drawTextElementCtx(img *image.Gray, el Element, row []string, now time.Time, counter, total int) error {
+text, err := substituteFieldsCtx(el.Text, row, now, counter, total)
 if err != nil {
 return err
 }
@@ -614,6 +617,7 @@ var (
 // Ссылка на столбец, которого нет, — ошибка: иначе на этикетке напечаталось
 // бы литеральное «{3}», и брак был бы виден только на бумаге.
 var reFmtField = regexp.MustCompile(`\{([1-9][0-9]*)(?:([LlRr:])([1-9]|1[0-9]|20))\}`)
+var reCounterTag = regexp.MustCompile(`\{([CcNn])(?:([LlRr:])([1-9]|1[0-9]|20))?\}`)
 
 func formatFieldVal(val, dir string, width int) string {
 r := []rune(strings.TrimSpace(val))
@@ -637,6 +641,16 @@ return strings.Repeat("0", width-len(r)) + string(r)
 }
 
 func substituteFields(text string, row []string, now time.Time) (string, error) {
+return substituteFieldsCtx(text, row, now, 1, 1)
+}
+func substituteFieldsCtx(text string, row []string, now time.Time, counter, total int) (string, error) {
+text = reCounterTag.ReplaceAllStringFunc(text, func(m string) string {
+sub := reCounterTag.FindStringSubmatch(m)
+raw := strconv.Itoa(counter)
+if strings.EqualFold(sub[0+1], "N") { raw = strconv.Itoa(total) }
+if sub[0+2] != "" && sub[0+3] != "" { w, _ := strconv.Atoi(sub[0+3]); return formatFieldVal(raw, sub[0+2], w) }
+return raw
+})
 text = reDateTime.ReplaceAllString(text, now.Format("02.01.2006 15:04"))
 text = reDate.ReplaceAllString(text, now.Format("02.01.2006"))
 text = reTime.ReplaceAllString(text, now.Format("15:04"))
@@ -671,8 +685,8 @@ return text, nil
 }
 
 // drawBarcodeElement рисует штрихкод или QR-код строго внутри рамки (X, Y, W, H).
-func drawBarcodeElement(img *image.Gray, el Element, row []string, now time.Time) error {
-codeVal, err := substituteFields(el.Text, row, now)
+func drawBarcodeElementCtx(img *image.Gray, el Element, row []string, now time.Time, counter, total int) error {
+codeVal, err := substituteFieldsCtx(el.Text, row, now, counter, total)
 if err != nil {
 return err
 }

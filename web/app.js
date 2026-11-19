@@ -1275,7 +1275,7 @@ if ($('tpl-save')) {
         bold: !!$('cfg-bold')?.checked, marginPx: intVal('cfg-margin', 4), sideMarginPx: intVal('cfg-sidemargin', 10),
         offsetPx: intVal('cfg-offset', 0), bcData: $('bc-data')?.value || '', topText: $('bc-top')?.value || '',
         bottomText: $('bc-bot')?.value || '', singleText: $('single-text')?.value || '',
-        csvHeader: !!$('csv-header')?.checked, colorder: $('colorder')?.value || '', template: $('template')?.value || ''
+        csvHeader: !!$('csv-header')?.checked, colorder: $('colorder')?.value || '', template: $('template')?.value || '', counterStart: parseInt($('series-cnt-start')?.value, 10) || 1, counterStep: parseInt($('series-cnt-step')?.value, 10) || 1
       });
     }
     if (incSystem) tplObj.system = collectSystemSection();
@@ -1524,3 +1524,64 @@ doPreview = async function() {
 };
 
 loadTplTabList();
+
+// ==========================================================================
+// Настройки счётчика {c} / {n} на вкладках "Серия" и "По шаблону"
+// ==========================================================================
+function syncCounterInputs(srcId) {
+  const s1 = $('series-cnt-start'), st1 = $('series-cnt-step');
+  const s2 = $('tpl-cnt-start'), st2 = $('tpl-cnt-step');
+  if (srcId === 'series-cnt-start' && s1 && s2) s2.value = s1.value;
+  if (srcId === 'tpl-cnt-start' && s1 && s2) s1.value = s2.value;
+  if (srcId === 'series-cnt-step' && st1 && st2) st2.value = st1.value;
+  if (srcId === 'tpl-cnt-step' && st1 && st2) st1.value = st2.value;
+}
+
+['series-cnt-start', 'series-cnt-step', 'tpl-cnt-start', 'tpl-cnt-step'].forEach((id) => {
+  if ($(id)) {
+    $(id).addEventListener('input', () => syncCounterInputs(id));
+  }
+});
+
+function getCounterConfig() {
+  const sEl = mode === 'tpl' ? $('tpl-cnt-start') : $('series-cnt-start');
+  const stEl = mode === 'tpl' ? $('tpl-cnt-step') : $('series-cnt-step');
+  const start = parseInt(sEl?.value, 10);
+  const step = parseInt(stEl?.value, 10);
+  return {
+    counterStart: Number.isFinite(start) ? start : 1,
+    counterStep: Number.isFinite(step) ? step : 1
+  };
+}
+
+const _prevCollectBeforeCounter = collectRequest;
+collectRequest = function(forPreview = false) {
+  const req = _prevCollectBeforeCounter(forPreview);
+  if (mode === 'series' || mode === 'tpl') {
+    const all = activeListLines();
+    const cCfg = getCounterConfig();
+    req.counterStart = cCfg.counterStart;
+    req.counterStep = cCfg.counterStep;
+    req.previewTotal = all.length;
+    if (forPreview) {
+      req.previewIndex = Math.max(0, Math.min(all.length - 1, currentPreviewRow - 1));
+    } else if (($('range-mode')?.value || 'all') === 'current') {
+      req.previewIndex = Math.max(0, Math.min(all.length - 1, currentPreviewRow - 1));
+    } else if (($('range-mode')?.value || 'all') === 'custom') {
+      const from = Math.max(1, parseInt($('range-from')?.value, 10) || 1);
+      req.counterStart = cCfg.counterStart + (from - 1) * cCfg.counterStep;
+    }
+  }
+  return req;
+};
+
+const _prevApplyTplCounter = applyCombinedTemplate;
+applyCombinedTemplate = function(t) {
+  _prevApplyTplCounter(t);
+  const cStart = (t.counterStart !== undefined && t.counterStart !== null) ? t.counterStart : 1;
+  const cStep = (t.counterStep !== undefined && t.counterStep !== null) ? t.counterStep : 1;
+  if ($('series-cnt-start')) $('series-cnt-start').value = cStart;
+  if ($('tpl-cnt-start')) $('tpl-cnt-start').value = cStart;
+  if ($('series-cnt-step')) $('series-cnt-step').value = cStep;
+  if ($('tpl-cnt-step')) $('tpl-cnt-step').value = cStep;
+};

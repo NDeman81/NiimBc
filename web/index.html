@@ -96,6 +96,10 @@
           <span id="csv-cols" class="hint"></span>
         </div>
         <label class="check"><input type="checkbox" id="csv-header" checked> первая строка — заголовки</label>
+                <div class="grid2" style="margin-top:8px">
+          <label>Счётчик <code>{c}</code>: старт <input type="number" id="series-cnt-start" value="1"></label>
+          <label>Шаг счётчика <input type="number" id="series-cnt-step" value="1"></label>
+        </div>
         <label>Порядок столбцов на этикетке
           <input type="text" id="colorder" placeholder="Например: 4, 1, 2, 5">
         </label>
@@ -126,6 +130,10 @@
           <span id="tpl-csv-cols" class="hint" style="margin:0"></span>
         </div>
         <label class="check" style="margin-top:8px"><input type="checkbox" id="tpl-csv-header"> первая строка — заголовки</label>
+                <div class="grid2" style="margin-top:8px">
+          <label>Счётчик <code>{c}</code>: старт <input type="number" id="series-cnt-start" value="1"></label>
+          <label>Шаг счётчика <input type="number" id="series-cnt-step" value="1"></label>
+        </div>
         <label>Порядок столбцов на этикетке
           <input type="text" id="tpl-colorder" placeholder="Например: 2, 1, 3">
           <small>Номера столбцов из таблицы для тегов {1}, {2}, {3}… (пусто — исходный порядок).</small>
@@ -296,6 +304,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
