@@ -641,7 +641,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		if code := p.takeError(); code != 0 {
 			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
 		}
-		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 700*time.Millisecond)
+		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 300*time.Millisecond)
 		if pkt != nil && len(pkt.Data) >= 4 {
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if printed >= 100 && fed >= 100 {
