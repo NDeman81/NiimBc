@@ -1854,3 +1854,14 @@ document.addEventListener('click', (e) => {
     m.style.display = 'none';
   }
 });
+
+let _appPreviewTimer = null;
+function schedulePreview() {
+  clearTimeout(_appPreviewTimer);
+  _appPreviewTimer = setTimeout(() => {
+    const req = collectRequest(true);
+    if (req.items && req.items.length > 0 && String(req.items || '').trim()) {
+      doPreview();
+    }
+  }, 250);
+}
