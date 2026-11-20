@@ -861,3 +861,63 @@ showProps = function() {
     if ($('p-y2')) $('p-y2').value = el.y2 ?? 0;
   }
 };
+
+// ==========================================================================
+// Выпадающий список всех элементов макета (#el-selector) для быстрого выбора
+// ==========================================================================
+function describeElementForList(el, idx) {
+  const num = idx + 1;
+  const pos = `${el.x ?? 0}, ${el.y ?? 0} мм`;
+  if (el.kind === 'text') {
+    const t = String(el.text || '').replace(/\s+/g, ' ').trim();
+    const shortT = t.length > 22 ? t.slice(0, 22) + '…' : (t || '(пусто)');
+    return `${num}. Надпись: «${shortT}» (${pos})`;
+  }
+  if (el.kind === 'barcode') {
+    const t = String(el.text || '').trim() || '(пусто)';
+    return `${num}. Код [${(el.bcFormat || 'auto').toUpperCase()}]: «${t}» (${pos})`;
+  }
+  if (el.kind === 'image') return `${num}. Картинка / Значок (${pos})`;
+  if (el.kind === 'frame') return `${num}. Рамка (${pos})`;
+  if (el.kind === 'circle') return `${num}. Окружность (${pos})`;
+  if (el.kind === 'diag') return `${num}. Косая линия (${el.x ?? 0},${el.y ?? 0} → ${el.x2 ?? 0},${el.y2 ?? 0})`;
+  if (el.kind === 'line') {
+    const isVert = (el.h || 0) > (el.w || 0);
+    return `${num}. ${isVert ? 'Верт. линия' : 'Линия'} (${pos})`;
+  }
+  return `${num}. Элемент (${pos})`;
+}
+
+function syncElementSelector() {
+  const sel = $('el-selector');
+  if (!sel) return;
+  sel.innerHTML = '<option value="-1">— не выбран —</option>';
+  elements.forEach((el, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = describeElementForList(el, i);
+    sel.appendChild(o);
+  });
+  sel.value = (selected >= 0 && selected < elements.length) ? String(selected) : '-1';
+}
+
+if ($('el-selector')) {
+  $('el-selector').addEventListener('change', (e) => {
+    const idx = parseInt(e.target.value, 10);
+    select(Number.isFinite(idx) && idx >= 0 && idx < elements.length ? idx : -1);
+  });
+}
+
+const _prevRenderCanvasSel = renderCanvas;
+renderCanvas = function() {
+  _prevRenderCanvasSel();
+  syncElementSelector();
+};
+
+const _prevShowPropsSel = showProps;
+showProps = function() {
+  _prevShowPropsSel();
+  syncElementSelector();
+};
+
+syncElementSelector();
