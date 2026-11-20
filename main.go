@@ -428,6 +428,7 @@ return true
 }
 
 func resolveLabel(p *Printer, flagValue string) (string, error) {
+	if explicit == "" && cachedRfidLabel != "" { return cachedRfidLabel, nil }
 if flagValue != "" {
 if err := checkLabelType(flagValue); err != nil { return "", err }
 if detected, ok := detectLabel(p); ok {
@@ -443,7 +444,7 @@ if name == "" { return "", fmt.Errorf("в метке рулона неизвес
 if _, supported := labelTypesN1[detected]; !supported {
 return "", fmt.Errorf("в метке рулона тип %s, который N1 не поддерживает — задайте --label вручную", name)
 }
-cachedRfidLabel = name; LogInfoMsg("тип этикетки определён по метке рулона: %s", name)
+cachedRfidLabel = name; cachedRfidLabel = name; LogInfoMsg("тип этикетки определён по метке рулона: %s", name)
 return name, nil
 }
 fmt.Fprintln(os.Stderr, "метка рулона не прочитана — печатаю как withgaps (обычные этикетки)")
