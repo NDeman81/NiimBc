@@ -374,7 +374,7 @@ func (p *Printer) Send(cmd byte, data []byte, want []byte, timeout time.Duration
 		p.waiters = append(p.waiters, waiter{want: want, ch: ch})
 		p.mu.Unlock()
 	}
-	if cmd == cmdPrintBitmapRow || cmd == cmdPrintEmptyRow { LogDebugMsg("→ 0x%02x%s %x", cmd, cmdTitle(cmd), data) } else { LogInfoMsg("→ 0x%02x%s %x", cmd, cmdTitle(cmd), data) }
+	p.log("  → 0x%02x%s %x", cmd, cmdTitle(cmd), data)
 	if _, err := p.char.WriteWithoutResponse(buildPacket(cmd, data)); err != nil {
 		return nil, fmt.Errorf("отправка 0x%02x: %w", cmd, err)
 	}
