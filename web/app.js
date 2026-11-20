@@ -475,9 +475,12 @@ async function loadAppConfig() {
     if ($('label')) $('label').value = c.label || '';
     if ($('flip')) $('flip').checked = !!c.flip;
     if ($('cfg-autoname')) $('cfg-autoname').checked = !!c.autoFileName;
+    if ($('cfg-savehistory')) $('cfg-savehistory').checked = (c.saveHistory !== false);
     if ($('img-stretch')) $('img-stretch').checked = !!c.imgStretch;
 
     if ($('cfg-keepalive')) $('cfg-keepalive').value = String(c.keepAlive !== false);
+    if (typeof updateModeButton === 'function') updateModeButton(c.keepAlive !== false);
+    if (typeof updateModeButton === 'function') updateModeButton(c.keepAlive !== false);
     if ($('cfg-printmode')) $('cfg-printmode').value = c.printMode || 'fast';
     if ($('cfg-loglevel')) $('cfg-loglevel').value = c.logLevel || 'info';
     if ($('cfg-bcformat')) $('cfg-bcformat').value = c.bcFormat || 'auto';
@@ -513,6 +516,7 @@ if ($('btn-save-cfg')) {
       label: $('label').value,
       flip: $('flip').checked,
       autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
+      saveHistory: $('cfg-savehistory') ? $('cfg-savehistory').checked : true,
       imgStretch: $('img-stretch') ? $('img-stretch').checked : false,
       keepAlive: $('cfg-keepalive').value === 'true',
       printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
@@ -1151,6 +1155,7 @@ function collectSystemSection() {
     saveDir: $('cfg-savedir') ? $('cfg-savedir').value.trim() : '',
     saveFile: $('cfg-savefile') ? ($('cfg-savefile').value.trim() || 'niimbot_label_preview.png') : 'niimbot_label_preview.png',
     autoFileName: $('cfg-autoname') ? $('cfg-autoname').checked : false,
+      saveHistory: $('cfg-savehistory') ? $('cfg-savehistory').checked : true,
     imgStretch: $('img-stretch') ? $('img-stretch').checked : false,
     watchDir: $('cfg-watchdir') ? $('cfg-watchdir').value.trim() : ''
   };
@@ -1607,4 +1612,197 @@ if ($('series-gen-btn')) {
 }
 if ($('tpl-gen-btn')) {
   $('tpl-gen-btn').onclick = () => appendDummyRows('tpl-print-items', 'tpl-gen-cnt', updateTplSeriesCount);
+}
+
+// ==========================================================================
+// Вкладка "Информация" и контроль остатка по RFID
+// ==========================================================================
+function renderDetailedInfoText(d) {
+  const ta = $('info-full-text');
+  if (!ta) return;
+  const p = d.printer || {}, paper = d.rfid_paper || {}, ribbon = d.rfid_ribbon || {};
+  const lines = [
+    '=== ПРИНТЕР NIIMBOT ===',
+    `Модель (ID):        ${p.ModelID || 'неизвестно'}`,
+    `Серийный номер:     ${p.Serial || '—'}`,
+    `Версия прошивки:    ${p.Firmware || '—'}`,
+    `Заряд аккумулятора: ${p.Battery !== undefined ? p.Battery : '—'}`,
+    '',
+    '=== РУЛОН ЭТИКЕТОК (RFID) ===',
+    paper.tag ? `Статус метки:       обнаружена\nТип этикеток:       ${paper.labelType || '—'} (код ${paper.typeID ?? '—'})\nОстаток в рулоне:   ${paper.left} из ${paper.total} шт. (израсходовано: ${paper.used})\nСерийный номер:     ${paper.serial || '—'}\nШтрихкод рулона:    ${paper.barcode || '—'}` : 'Статус метки:       не прочитана (рулон отсутствует или не распознан)',
+    '',
+    '=== КРАСЯЩАЯ ЛЕНТА / РИББОН (RFID) ===',
+    ribbon.tag ? `Статус метки:       обнаружена\nОстаток ресурса:    ${ribbon.left} из ${ribbon.total} отпечатков (израсходовано: ${ribbon.used})\nСерийный номер:     ${ribbon.serial || '—'}` : 'Статус метки:       не прочитана (лента отсутствует или не распознана)'
+  ];
+  ta.value = lines.join('\n');
+}
+
+loadStatus = async function() {
+  const el = $('status'), ta = $('info-full-text');
+  if (el) el.textContent = 'читаю состояние…';
+  if (ta && mode === 'info') ta.value = 'Опрос принтера и чтение RFID-меток…';
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'нет связи');
+    const p = d.printer || {}, paper = d.rfid_paper || {}, ribbon = d.rfid_ribbon || {};
+    const parts = [];
+    if (p.ModelID) parts.push(`модель <b>${p.ModelID}</b>`);
+    if (p.Serial) parts.push(`№ <b>${p.Serial}</b>`);
+    if (p.Battery !== undefined) parts.push(`заряд <b>${p.Battery}</b>`);
+    if (paper.tag) parts.push(`этикетки <b>${paper.labelType}</b>, осталось <b>${paper.left}</b>`);
+    else parts.push('<span class="warn">метка рулона не прочитана</span>');
+    if (ribbon.tag) parts.push(`лента: осталось <b>${ribbon.left}</b>`);
+    if (p.ModelID && p.ModelID !== 3586) parts.push('<span class="warn">модель не N1</span>');
+    if (el) el.innerHTML = parts.join(' · ');
+    renderDetailedInfoText(d);
+  } catch (e) {
+    if (el) el.innerHTML = `<span class="warn">нет связи: ${e.message}</span>`;
+    if (ta) ta.value = `Ошибка связи с принтером:\n${e.message}`;
+  }
+};
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    if ($('pane-info')) $('pane-info').classList.toggle('hidden', tab.dataset.mode !== 'info');
+    if ($('text-params-block')) $('text-params-block').classList.toggle('hidden', ['image', 'tpl', 'info'].includes(tab.dataset.mode));
+    document.querySelectorAll('.non-tpl-field').forEach((el) => el.classList.toggle('hidden', ['tpl', 'info'].includes(tab.dataset.mode)));
+    if (tab.dataset.mode === 'info') loadStatus();
+  });
+});
+if ($('btn-info-refresh')) $('btn-info-refresh').onclick = () => loadStatus();
+
+doPrint = async function(forceFlag = false) {
+  if (mode === 'info') { alert('Переключитесь на вкладку печати'); return; }
+  if (mode === 'tpl' && !isDesignerTemplate(selectedDesignTpl)) { alert('Сначала выберите шаблон с макетом из Конструктора.'); return; }
+  const req = collectRequest(false);
+  req.force = !!forceFlag;
+  const n = req.items.filter((s) => String(s || '').trim()).length;
+  if (!n) { alert('Нечего печатать: список пуст'); return; }
+  const total = n * req.copies;
+  if (!forceFlag && !confirm(`Напечатать ${total} ${plural(total, 'этикетку', 'этикетки', 'этикеток')}?`)) return;
+
+  $('print-btn').disabled = true;
+  $('progress').classList.remove('hidden');
+  setProgress(0, total, 'проверяю RFID и отправляю…');
+  try {
+    const r = await fetch('/api/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 409 && d.needConfirm) {
+      $('progress').classList.add('hidden');
+      $('print-btn').disabled = false;
+      if (confirm(`Внимание!\n${d.error}\n\nВсё равно запустить печать?`)) return doPrint(true);
+      return;
+    }
+    if (!r.ok) throw new Error(d.error || 'не удалось начать печать');
+    await pollJob(d.job, d.total);
+  } catch (e) {
+    $('progress-text').textContent = 'ошибка: ' + e.message;
+  } finally {
+    $('print-btn').disabled = false;
+  }
+};
+if ($('print-btn')) $('print-btn').onclick = () => doPrint(false);
+
+// ==========================================================================
+// Журнал (история) печати
+// ==========================================================================
+function escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function applyHistoryEntryToForm(entry) {
+  const r = entry.request || {};
+  if (r.length && $('length')) $('length').value = r.length;
+  if (r.density && $('density')) $('density').value = r.density;
+  if (r.copies && $('copies')) $('copies').value = r.copies;
+  if ($('flip')) $('flip').checked = !!r.flip;
+
+  const targetMode = (r.elements && r.elements.length > 0) ? 'tpl' : (r.mode || 'series');
+  const tabBtn = document.querySelector(`.tab[data-mode="${targetMode}"]`);
+  if (tabBtn) tabBtn.click();
+
+  if (targetMode === 'barcode' && r.items && r.items.length > 0) {
+    if ($('bc-data')) { $('bc-data').value = r.items[0]; updateBcLenHint(); }
+    if ($('bc-top')) $('bc-top').value = r.topText || '';
+    if ($('bc-bot')) $('bc-bot').value = r.bottomText || '';
+  } else if (targetMode === 'single' && r.items && r.items.length > 0) {
+    if ($('single-text')) $('single-text').value = r.items[0];
+  } else if (targetMode === 'tpl') {
+    if (r.elements && r.elements.length > 0) {
+      selectedDesignTpl = { name: 'Из журнала', length: r.length || 50, elements: r.elements };
+      if ($('tpl-print-info')) $('tpl-print-info').textContent = `Загружен макет из журнала (${r.elements.length} эл.)`;
+    }
+    if ($('tpl-print-items')) $('tpl-print-items').value = (r.items || []).join('\n');
+    if (typeof updateTplSeriesCount === 'function') updateTplSeriesCount();
+  } else {
+    if ($('series-text')) $('series-text').value = (r.items || []).join('\n');
+    if (r.template !== undefined && $('template')) $('template').value = r.template;
+    updateSeriesCount();
+  }
+  if (typeof syncListNavUI === 'function') syncListNavUI();
+}
+async function openHistoryModal() {
+  const modal = $('history-modal'), listEl = $('history-list');
+  if (!modal || !listEl) return;
+  modal.classList.remove('hidden');
+  listEl.textContent = 'Загрузка журнала…';
+  try {
+    const r = await fetch('/api/history');
+    const list = (await r.json()) || [];
+    if (!list.length) { listEl.innerHTML = '<p class="hint">Журнал печати пуст.</p>'; return; }
+    listEl.innerHTML = '';
+    list.forEach((item) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap';
+      row.innerHTML = `<div><div><b>${escHtml(item.timestamp)}</b> · режим: <code>${escHtml(item.mode)}</code> · этикеток: <b>${item.count}</b></div><div style="color:#475569;margin-top:3px">${escHtml(item.summary || '(без текста)')}</div></div>`;
+      const btns = document.createElement('div');
+      btns.className = 'row'; btns.style.gap = '6px';
+
+      const bLoad = document.createElement('button');
+      bLoad.type = 'button'; bLoad.className = 'ghost'; bLoad.textContent = 'В форму';
+      bLoad.onclick = () => { applyHistoryEntryToForm(item); modal.classList.add('hidden'); };
+
+      const bRep = document.createElement('button');
+      bRep.type = 'button'; bRep.className = 'primary'; bRep.textContent = 'Повторить';
+      bRep.onclick = async () => {
+        modal.classList.add('hidden');
+        const repReq = { ...(item.request || {}), force: false };
+        $('print-btn').disabled = true; $('progress').classList.remove('hidden');
+        setProgress(0, item.count, 'повторная печать…');
+        try {
+          const pr = await fetch('/api/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(repReq) });
+          const pd = await pr.json().catch(() => ({}));
+          if (pr.status === 409 && pd.needConfirm) {
+            $('progress').classList.add('hidden');
+            if (confirm(`Внимание!\n${pd.error}\n\nВсё равно повторить печать?`)) {
+              repReq.force = true;
+              const pr2 = await fetch('/api/print', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(repReq) });
+              const pd2 = await pr2.json();
+              if (!pr2.ok) throw new Error(pd2.error || 'ошибка');
+              $('progress').classList.remove('hidden'); await pollJob(pd2.job, pd2.total);
+            }
+            return;
+          }
+          if (!pr.ok) throw new Error(pd.error || 'ошибка печати');
+          await pollJob(pd.job, pd.total);
+        } catch (err) { $('progress-text').textContent = 'ошибка: ' + err.message; }
+        finally { $('print-btn').disabled = false; }
+      };
+      btns.appendChild(bLoad); btns.appendChild(bRep); row.appendChild(btns); listEl.appendChild(row);
+    });
+  } catch (e) { listEl.innerHTML = `<span class="warn">Ошибка: ${escHtml(e.message)}</span>`; }
+}
+
+if ($('btn-history')) $('btn-history').onclick = openHistoryModal;
+if ($('btn-history-close') && $('history-modal')) {
+  $('btn-history-close').onclick = () => $('history-modal').classList.add('hidden');
+  $('history-modal').addEventListener('click', (e) => { if (e.target === $('history-modal')) $('history-modal').classList.add('hidden'); });
+}
+if ($('btn-history-clear')) {
+  $('btn-history-clear').onclick = async () => {
+    if (!confirm('Очистить весь журнал печати?')) return;
+    await fetch('/api/history', { method: 'DELETE' });
+    openHistoryModal();
+  };
 }

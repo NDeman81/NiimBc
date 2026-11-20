@@ -27,7 +27,8 @@ type AppConfig struct {
 	SaveFile  string `json:"saveFile"`
 	AutoFileName bool `json:"autoFileName"`
 	ImgStretch   bool `json:"imgStretch"`   // true = растягивать картинку до полей без сохранения пропорций // true = формировать имя PNG из данных штрихкода/текста  // имя PNG-файла превью (по умолчанию niimbot_label_preview.png)   // папка для PNG-превью (пусто = папка программы)
-	WatchDir  string `json:"watchDir"`  // папка мониторинга очереди (пусто = NiimbotQueue рядом с exe)
+	WatchDir    string `json:"watchDir"`    // папка мониторинга очереди (пусто = NiimbotQueue рядом с exe)
+SaveHistory bool   `json:"saveHistory"` // сохранять журнал печати в history.json (по умолчанию true)
 
 	// Параметры штрихкодов и QR-кодов
 	BcFormat       string `json:"bcFormat"`       // auto | code128 | qr | qrl | qrr
@@ -59,6 +60,7 @@ func DefaultConfig() AppConfig {
 		SaveDir:        "",
 		SaveFile:       "niimbot_label_preview.png",
 		WatchDir:       "",
+		SaveHistory:    true,
 		BcFormat:       "auto",
 		DefaultQrSide:  "left",
 		FontName:       "",

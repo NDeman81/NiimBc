@@ -297,6 +297,7 @@ CounterStart *int      `json:"counterStart,omitempty"`
 CounterStep  *int      `json:"counterStep,omitempty"`
 PreviewIndex int       `json:"previewIndex,omitempty"`
 PreviewTotal int       `json:"previewTotal,omitempty"`
+Force        bool      `json:"force,omitempty"`
 }
 
 // splitFields разбирает строку данных на столбцы: ; , или табуляция.
@@ -748,7 +749,8 @@ mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 
-	mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/history", apiHistoryHandler)
+mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			writeJSON(w, loadTemplates())
@@ -1267,4 +1269,65 @@ if req.OffsetPx != nil { opts.OffsetPx = *req.OffsetPx }
 return RenderTextWithOptions(rows, length, opts)
 }
 return renderOne(req, item, length)
+}
+
+type HistoryEntry struct {
+ID        string       `json:"id"`
+Timestamp string       `json:"timestamp"`
+Mode      string       `json:"mode"`
+Count     int          `json:"count"`
+Summary   string       `json:"summary"`
+Request   printRequest `json:"request"`
+}
+
+var historyMu sync.Mutex
+
+func historyPath() string { return filepath.Join(filepath.Dir(templatesPath()), "history.json") }
+
+func loadHistory() []HistoryEntry {
+data, err := os.ReadFile(historyPath())
+if err != nil { return []HistoryEntry{} }
+var list []HistoryEntry
+if json.Unmarshal(data, &list) != nil { return []HistoryEntry{} }
+return list
+}
+
+func saveHistory(list []HistoryEntry) error {
+path := historyPath()
+if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { return err }
+data, err := json.MarshalIndent(list, "", "  ")
+if err != nil { return err }
+return os.WriteFile(path, data, 0o644)
+}
+
+func recordPrintHistory(req printRequest, totalCount int) {
+if !LoadConfig().SaveHistory { return }
+historyMu.Lock()
+defer historyMu.Unlock()
+first := ""
+if len(req.Items) > 0 { first = strings.TrimSpace(req.Items[0+0]) }
+if len([]rune(first)) > 48 { first = string([]rune(first)[:48]) + "…" }
+modeLabel := req.Mode
+if len(req.Elements) > 0 { modeLabel = "template" }
+entry := HistoryEntry{
+ID: fmt.Sprintf("h-%d", time.Now().UnixNano()), Timestamp: time.Now().Format("02.01.2006 15:04:05"),
+Mode: modeLabel, Count: totalCount, Summary: first, Request: req,
+}
+entry.Request.ImageData = ""
+list := append([]HistoryEntry{entry}, loadHistory()...)
+if len(list) > 30 { list = list[:30] }
+_ = saveHistory(list)
+}
+
+func apiHistoryHandler(w http.ResponseWriter, r *http.Request) {
+switch r.Method {
+case http.MethodGet:
+historyMu.Lock(); list := loadHistory(); historyMu.Unlock()
+writeJSON(w, list)
+case http.MethodDelete:
+historyMu.Lock(); _ = saveHistory([]HistoryEntry{}); historyMu.Unlock()
+writeJSON(w, map[string]any{"ok": true})
+default:
+writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("метод не поддерживается"))
+}
 }
