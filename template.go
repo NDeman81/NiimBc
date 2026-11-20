@@ -815,7 +815,9 @@ targetH := mmToDotsMin(hMM)
 // Строим код на его реальную высоту targetH (без искусственного сжатия после рендера)
 origHead := printheadPixels
 _ = origHead
+safeBc := cfg.BcSafeMode; if el.BcSafeMode != nil { safeBc = *el.BcSafeMode }
 opts := BarcodeOptions{
+SafeMode:       safeBc,
 Data:           codeVal,
 Format:         el.BcFormat,
 LengthMM:       wMM,

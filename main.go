@@ -35,6 +35,7 @@ appMode   = flagSet.Bool("app", false, "открыть отдельным окн
 
 bcMode    = flagSet.Bool("bc", false, "режим штрихкода для команды preview")
 bcFormat  = flagSet.String("bc-format", "", "формат штрихкода: auto | code128 | qr | qrl | qrr")
+bcSafe    = flagSet.Bool("bc-safe", false, "безопасный режим штрихкода: тихая зона >= 12 px и кратный масштаб")
 topText   = flagSet.String("top-text", "", "верхний текст над штрихкодом / сбоку от QR")
 botText   = flagSet.String("bottom-text", "", "нижний текст под штрихкодом / сбоку от QR")
 fontName  = flagSet.String("font-name", "", "имя системного шрифта для штрихкода")
@@ -164,7 +165,7 @@ activeCfg.LogLevel = *logLevel
 activeCfg.LogLevel = "error"
 }
 SetLogLevel(activeCfg.LogLevel)
-if visited["bc-format"] { activeCfg.BcFormat = *bcFormat }
+if visited["bc-format"] { activeCfg.BcFormat = *bcFormat }; if visited["bc-safe"] { activeCfg.BcSafeMode = *bcSafe }
 if visited["font-name"] { activeCfg.FontName = *fontName }
 if visited["font-size"] { activeCfg.FontSize = *fontSize }
 if visited["bold"] { activeCfg.IsMainTextBold = *bcBold }

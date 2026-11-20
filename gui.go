@@ -452,7 +452,9 @@ textGapPx = *req.TextGapPx
 	}
 
 if req.Mode == "barcode" {
+safeBc := cfg.BcSafeMode; if req.BcSafeMode != nil { safeBc = *req.BcSafeMode }
 return RenderBarcodeLabel(BarcodeOptions{
+SafeMode: safeBc,
 Data:           item,
 Format:         req.BcFormat,
 LengthMM:       length,
