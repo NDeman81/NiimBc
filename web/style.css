@@ -464,3 +464,4 @@ header .status {
 }
 
 .hidden { display: none !important; }
+#history-modal:not(.hidden) { display: flex !important; }

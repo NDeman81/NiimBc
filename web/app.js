@@ -1806,3 +1806,31 @@ if ($('btn-history-clear')) {
     openHistoryModal();
   };
 }
+
+// Надёжное управление открытием/закрытием окна журнала и скрытие лишних полей на вкладке "Информация"
+function closeHistoryModal() {
+  const m = $('history-modal');
+  if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+}
+
+const _prevOpenHist = openHistoryModal;
+openHistoryModal = async function() {
+  const m = $('history-modal');
+  if (m) { m.classList.remove('hidden'); m.style.display = 'flex'; }
+  await _prevOpenHist();
+};
+
+if ($('btn-history-close')) $('btn-history-close').onclick = closeHistoryModal;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHistoryModal(); });
+
+function syncInfoTabVisibility(activeMode) {
+  const isInfo = activeMode === 'info';
+  ['copies', 'cfg-offset'].forEach((id) => {
+    const lbl = $(id)?.closest('label');
+    if (lbl) lbl.classList.toggle('hidden', isInfo);
+  });
+}
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => syncInfoTabVisibility(tab.dataset.mode));
+});
