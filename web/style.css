@@ -466,3 +466,22 @@ header .status {
 .hidden { display: none !important; }
 #history-modal:not(.hidden) { display: flex !important; }
 header .design-link { width: 205px; text-align: center; justify-content: center; }
+
+header {
+  gap: 8px !important;
+  padding: 12px 20px !important;
+}
+header button,
+header .design-link {
+  padding: 0 12px !important;
+  font-size: 13.5px !important;
+}
+#btn-mode-toggle {
+  min-width: 150px !important;
+}
+header .design-link {
+  width: 185px !important;
+  padding: 0 8px !important;
+  text-align: center;
+  justify-content: center;
+}
