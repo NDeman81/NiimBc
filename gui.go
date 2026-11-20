@@ -34,6 +34,7 @@ var webAssets embed.FS
 // Принтер держит ОДНО BLE-соединение, поэтому все обращения к нему
 // выстраиваем в очередь.
 var bleMu sync.Mutex
+var cachedRfidLabel string
 
 // guiVerbose включает вывод протокола в интерфейсе (флаг -v).
 var guiVerbose = true
@@ -239,6 +240,7 @@ return nil
 
 // apiStatus — состояние принтера и расходников.
 func apiStatus(address string) (map[string]any, error) {
+	cachedRfidLabel = ""
 	var out = map[string]any{}
 	err := withPrinter(address, func(p *Printer) error {
 		info, err := p.Handshake()

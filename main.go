@@ -443,7 +443,7 @@ if name == "" { return "", fmt.Errorf("в метке рулона неизвес
 if _, supported := labelTypesN1[detected]; !supported {
 return "", fmt.Errorf("в метке рулона тип %s, который N1 не поддерживает — задайте --label вручную", name)
 }
-LogInfoMsg("тип этикетки определён по метке рулона: %s", name)
+cachedRfidLabel = name; LogInfoMsg("тип этикетки определён по метке рулона: %s", name)
 return name, nil
 }
 fmt.Fprintln(os.Stderr, "метка рулона не прочитана — печатаю как withgaps (обычные этикетки)")
