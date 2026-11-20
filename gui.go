@@ -225,12 +225,13 @@ p, release, err := acquirePrinter(address, guiVerbose, foundByName)
 if err != nil {
 return err
 }
-defer release()
 if err := fn(p); err != nil {
-disconnectSharedPrinter()
-return err
-}
-return nil
+		release()
+		disconnectSharedPrinter()
+		return err
+	}
+	release()
+	return nil
 }
 
 // --------------------------------------------------------------------------
