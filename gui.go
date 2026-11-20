@@ -569,6 +569,7 @@ needTotal := len(pages) * copies
 action := LoadConfig().RfidLowAction
 var lowWarning string
 
+	if req.RememberSession {
 _ = withPrinter(req.Address, func(p *Printer) error {
 p.SetRfidLowIgnored(true)
 return nil
