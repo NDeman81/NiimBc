@@ -9,8 +9,7 @@ import (
 
 // AppConfig хранит настройки принтера, этикетки, штрихкодов и режимов работы по умолчанию.
 type AppConfig struct {
-BcSafeMode bool `json:"bcSafeMode"`
-	BcSafeMode bool json:"bcSafeMode""
+	BcSafeMode bool `json:"bcSafeMode"`
 	// Параметры принтера и печати
 	Address   string  `json:"address"`   // MAC-адрес или UUID принтера (пусто = автопоиск N1-)
 	Length    float64 `json:"length"`    // длина этикетки вдоль подачи, мм (по умолчанию 50)
