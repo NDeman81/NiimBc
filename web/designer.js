@@ -842,3 +842,22 @@ if ($('label')) {
     document.addEventListener('mouseup', upDiag);
   }, true);
 }
+
+// Подмена полей Ширина/Высота на Конец X2/Y2 при выборе косой линии
+const _prevShowPropsDiag = showProps;
+showProps = function() {
+  _prevShowPropsDiag();
+  if (selected < 0 || selected >= elements.length) return;
+  const el = elements[selected];
+  const isDiag = el.kind === 'diag';
+  const lblW = $('p-w') ? $('p-w').closest('label') : null;
+  const lblH = $('p-h') ? $('p-h').closest('label') : null;
+  if (lblW) lblW.classList.toggle('hidden', isDiag);
+  if (lblH) lblH.classList.toggle('hidden', isDiag);
+  if ($('lbl-x2')) $('lbl-x2').classList.toggle('hidden', !isDiag);
+  if ($('lbl-y2')) $('lbl-y2').classList.toggle('hidden', !isDiag);
+  if (isDiag) {
+    if ($('p-x2')) $('p-x2').value = el.x2 ?? 0;
+    if ($('p-y2')) $('p-y2').value = el.y2 ?? 0;
+  }
+};
