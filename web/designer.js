@@ -73,7 +73,7 @@ function renderCanvas() {
       if (el.kind === 'line') {
         node.style.background = '#111';
       } else {
-        node.style.background = 'none';
+        node.style.background = el.transparent ? 'none' : '#ffffff';
         node.style.border = `${Math.max(1, (el.thickness || 0.3) * scale)}px solid #111`;
         if (el.kind === 'circle') node.style.borderRadius = '50%';
       }
@@ -322,7 +322,7 @@ if ($('p-fs-btn') && $('p-fs-menu') && $('p-fontsize')) {
 if ($('add-text')) $('add-text').onclick = () => { elements.push({ kind: 'text', x: 1, y: 1, w: labelLength() - 2, h: 3.5, text: 'Надпись {1}', fontSize: '-1', align: 'left' }); select(elements.length - 1); refreshPreview(); };
 if ($('add-barcode')) $('add-barcode').onclick = () => { elements.push({ kind: 'barcode', x: 1, y: 0.5, w: Math.max(10, labelLength() - 2), h: 11, text: '{1}', bcFormat: 'auto', fontSize: '-1', bold: false }); select(elements.length - 1); refreshPreview(); };
 if ($('add-line')) $('add-line').onclick = () => { elements.push({ kind: 'line', x: 1, y: 5.7, w: labelLength() - 2, h: 0.4 }); select(elements.length - 1); refreshPreview(); };
-if ($('add-frame')) $('add-frame').onclick = () => { elements.push({ kind: 'frame', x: 0.4, y: 0.4, w: labelLength() - 0.8, h: 11.2, thickness: 0.4 }); select(elements.length - 1); refreshPreview(); };
+if ($('add-frame')) $('add-frame').onclick = () => { elements.push({ kind: 'frame', x: 0.4, y: 0.4, w: labelLength() - 0.8, h: 11.2, thickness: 0.4, transparent: true }); select(elements.length - 1); refreshPreview(); };
 if ($('add-stamp')) $('add-stamp').onclick = () => { elements.push({ kind: 'text', x: 1, y: 9.5, w: labelLength() - 2, h: 2, text: '{дата} {время}', fontSize: '-1', align: 'right' }); select(elements.length - 1); refreshPreview(); };
 if ($('add-image') && $('image-file')) $('add-image').onclick = () => $('image-file').click();
 if ($('del-el')) $('del-el').onclick = () => { if (selected >= 0) { elements.splice(selected, 1); select(-1); refreshPreview(); } };
@@ -634,7 +634,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Привязка свойств прозрачного фона и условной видимости
-bindProp('p-transparent', (el, inp) => { el.transparent = inp.checked; }, 'change');
+bindProp('p-transparent', (el, inp) => { el.transparent = inp.checked; el.opaque = !inp.checked; }, 'change');
 bindProp('p-hide-if', (el, inp) => { el.hideIfEmpty = inp.value.trim(); });
 
 // Генератор чётких чёрно-белых пиктограмм (96x96 PNG data:URL)
@@ -718,7 +718,7 @@ if ($('add-vline')) {
 
 if ($('add-circle')) {
   $('add-circle').onclick = () => {
-    elements.push({ kind: 'circle', x: 2, y: 2, w: 8, h: 8, thickness: 0.4 });
+    elements.push({ kind: 'circle', x: 2, y: 2, w: 8, h: 8, thickness: 0.4, transparent: true });
     select(elements.length - 1);
     refreshPreview();
   };

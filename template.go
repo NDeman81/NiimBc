@@ -60,6 +60,7 @@ type Element struct {
 	Stretch bool `json:"stretch,omitempty"` // true = растянуть без сохранения пропорций
 	Transparent bool `json:"transparent,omitempty"`
 	HideIfEmpty string `json:"hideIfEmpty,omitempty"`
+	Opaque      bool   `json:"opaque,omitempty"`
 }
 
 // LabelTemplate — шаблон этикетки для конструктора.
@@ -545,6 +546,9 @@ continue
 if rxInner > 0 && ryInner > 0 {
 dIn := (dx*dx)/(rxInner*rxInner) + (dy*dy)/(ryInner*ryInner)
 if dIn < 1.0 {
+if !el.Transparent {
+img.SetGray(px, py, color.Gray{Y: 255})
+}
 continue
 }
 }
