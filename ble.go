@@ -22,6 +22,31 @@ import (
 
 const niimbotCharUUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
 
+var cmdNames = map[byte]string{
+0xc1: "Рукопожатие (Connect)",
+0x40: "Запрос параметра принтера",
+0x21: "Установка плотности",
+0x23: "Установка типа этикетки",
+0x01: "Старт задания печати",
+0x03: "Начало страницы",
+0x13: "Размер страницы",
+0x85: "Строка изображения",
+0x84: "Пустая строка",
+0xe3: "Конец страницы",
+0xf3: "Завершение задания",
+0xa3: "Запрос статуса печати",
+0x1a: "Чтение RFID этикеток",
+0x1c: "Чтение RFID риббона",
+0x59: "Калибровка датчика",
+}
+
+func cmdTitle(cmd byte) string {
+if name, ok := cmdNames[cmd]; ok {
+return " (" + name + ")"
+}
+return ""
+}
+
 type waiter struct {
 	want []byte
 	ch   chan Packet
@@ -349,7 +374,7 @@ func (p *Printer) Send(cmd byte, data []byte, want []byte, timeout time.Duration
 		p.waiters = append(p.waiters, waiter{want: want, ch: ch})
 		p.mu.Unlock()
 	}
-	p.log("  → 0x%02x %x", cmd, data)
+	if cmd == cmdPrintBitmapRow || cmd == cmdPrintEmptyRow { LogDebugMsg("→ 0x%02x%s %x", cmd, cmdTitle(cmd), data) } else { LogInfoMsg("→ 0x%02x%s %x", cmd, cmdTitle(cmd), data) }
 	if _, err := p.char.WriteWithoutResponse(buildPacket(cmd, data)); err != nil {
 		return nil, fmt.Errorf("отправка 0x%02x: %w", cmd, err)
 	}
@@ -533,14 +558,14 @@ return fmt.Errorf("принтер сообщил об ошибке: %s", errorTe
 var pkt []byte
 if row == nil {
 pkt = buildPacket(cmdPrintEmptyRow, append(u16(i), 1))
-LogDebugMsg("→ 0x%02x row=%d (empty)", cmdPrintEmptyRow, i)
+LogDebugMsg("→ 0x%02x%s row=%d (empty)", cmdPrintEmptyRow, cmdTitle(cmdPrintEmptyRow), i)
 } else {
 _, parts := countPixels(row, printheadPixels)
 payload := append(u16(i), parts[:]...)
 payload = append(payload, 1)
 payload = append(payload, row...)
 pkt = buildPacket(cmdPrintBitmapRow, payload)
-LogDebugMsg("→ 0x%02x row=%d", cmdPrintBitmapRow, i)
+LogDebugMsg("→ 0x%02x%s row=%d", cmdPrintBitmapRow, cmdTitle(cmdPrintBitmapRow), i)
 }
 batchBuf = append(batchBuf, pkt...)
 inBatch++
