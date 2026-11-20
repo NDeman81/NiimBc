@@ -12,7 +12,8 @@ type AppConfig struct {
 	FastBatchSize        int `json:"fastBatchSize"`
 	FastBatchDelayMs     int `json:"fastBatchDelayMs"`
 	StatusPollTimeoutMs  int `json:"statusPollTimeoutMs"`
-	KeepAliveSec         int `json:"keepAliveSec"`
+	KeepAliveSec         int    `json:"keepAliveSec"`
+	RfidLowAction        string `json:"rfidLowAction"`
 	BcSafeMode bool `json:"bcSafeMode"`
 	// Параметры принтера и печати
 	Address   string  `json:"address"`   // MAC-адрес или UUID принтера (пусто = автопоиск N1-)
@@ -64,6 +65,7 @@ func DefaultConfig() AppConfig {
 		FastBatchDelayMs:    6,
 		StatusPollTimeoutMs: 250,
 		KeepAliveSec:        8,
+		RfidLowAction:       "ask",
 		LogLevel:       "info",
 		PrintMode:      "fast",
 		SaveDir:        "",
@@ -155,6 +157,7 @@ func normalizeConfig(cfg *AppConfig) {
 	if cfg.FastBatchDelayMs <= 0 { cfg.FastBatchDelayMs = 6 }
 	if cfg.StatusPollTimeoutMs <= 0 { cfg.StatusPollTimeoutMs = 250 }
 	if cfg.KeepAliveSec < 0 { cfg.KeepAliveSec = 8 }
+	if cfg.RfidLowAction != "block" && cfg.RfidLowAction != "warn" { cfg.RfidLowAction = "ask" }
 	if cfg.PrintMode != "safe" {
 		cfg.PrintMode = "fast"
 	}

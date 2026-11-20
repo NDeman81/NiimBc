@@ -35,7 +35,8 @@ appMode   = flagSet.Bool("app", false, "открыть отдельным окн
 
 bcMode    = flagSet.Bool("bc", false, "режим штрихкода для команды preview")
 bcFormat  = flagSet.String("bc-format", "", "формат штрихкода: auto | code128 | qr | qrl | qrr")
-bcSafe    = flagSet.Bool("bc-safe", false, "безопасный режим штрихкода: тихая зона >= 12 px и кратный масштаб")
+rfidAct   = flagSet.String("rfid-action", "", "реакция на нехватку расходников по RFID: ask | block | warn")
+	bcSafe    = flagSet.Bool("bc-safe", false, "безопасный режим штрихкода: тихая зона >= 12 px и кратный масштаб")
 topText   = flagSet.String("top-text", "", "верхний текст над штрихкодом / сбоку от QR")
 botText   = flagSet.String("bottom-text", "", "нижний текст под штрихкодом / сбоку от QR")
 fontName  = flagSet.String("font-name", "", "имя системного шрифта для штрихкода")
@@ -165,7 +166,7 @@ activeCfg.LogLevel = *logLevel
 activeCfg.LogLevel = "error"
 }
 SetLogLevel(activeCfg.LogLevel)
-if visited["bc-format"] { activeCfg.BcFormat = *bcFormat }; if visited["bc-safe"] { activeCfg.BcSafeMode = *bcSafe }
+if visited["bc-format"] { activeCfg.BcFormat = *bcFormat }; if visited["bc-safe"] { activeCfg.BcSafeMode = *bcSafe }; if visited["rfid-action"] { activeCfg.RfidLowAction = strings.ToLower(strings.TrimSpace(*rfidAct)) }
 if visited["font-name"] { activeCfg.FontName = *fontName }
 if visited["font-size"] { activeCfg.FontSize = *fontSize }
 if visited["bold"] { activeCfg.IsMainTextBold = *bcBold }
@@ -309,7 +310,7 @@ lastLabelContent = strings.Join(posArgs, "_")
 			img, err := RenderTextWithOptions(posArgs, *length, buildTextOptionsFromConfig())
 if err != nil { fatal(err) }
 savePreview(img)
-if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
+if err := checkCliRfidStock(p, *copies, false); err != nil { fatal(err) }; if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
 case "template":
 if strings.TrimSpace(*tplArg) == "" {
 fatal(fmt.Errorf("укажите шаблон через --template \"Имя или файл.json\""))
@@ -387,14 +388,14 @@ lastLabelContent = strings.Join(posArgs, " ")
 			img, err := buildBarcodeFromConfig(strings.Join(posArgs, " "))
 if err != nil { fatal(err) }
 savePreview(img)
-if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
+if err := checkCliRfidStock(p, *copies, false); err != nil { fatal(err) }; if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
 case "image":
 if len(posArgs) < 1 { fatal(fmt.Errorf("не задан файл картинки")) }
 labelName, err := resolveLabel(p, *label)
 if err != nil { fatal(err) }
 img, err := loadImageWithConfig(posArgs[0], *length)
 if err != nil { fatal(err) }
-if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
+if err := checkCliRfidStock(p, *copies, false); err != nil { fatal(err) }; if err := printRows(p, ImageToRows(img, *flip), *density, labelName, *copies); err != nil { fatal(err) }
 }
 }
 func splitArgs(args []string) (flags []string, positional []string) {
@@ -703,4 +704,43 @@ out = append(out, im)
 }
 }
 return out, *found, nil
+}
+
+func checkCliRfidStock(p *Printer, needTotal int, force bool) error {
+if force || p == nil || p.IsRfidLowIgnored() {
+return nil
+}
+var lowMsg string
+if rfP, err := p.ReadRfid(false); err == nil && rfP.TagPresent && rfP.Leftover() < needTotal {
+lowMsg = fmt.Sprintf("в рулоне этикеток осталось %d шт. (требуется %d)", rfP.Leftover(), needTotal)
+}
+if rfR, err := p.ReadRfid(true); err == nil && rfR.TagPresent && rfR.Leftover() < needTotal {
+msgR := fmt.Sprintf("в картридже риббона осталось %d ед. (требуется %d)", rfR.Leftover(), needTotal)
+if lowMsg != "" {
+lowMsg += "; " + msgR
+} else {
+lowMsg = msgR
+}
+}
+if lowMsg == "" {
+return nil
+}
+act := activeCfg.RfidLowAction
+if act == "block" {
+return fmt.Errorf("печать заблокирована: %s", lowMsg)
+}
+if act == "warn" {
+LogWarn("%s — продолжаю печать", lowMsg)
+return nil
+}
+LogWarn("%s", lowMsg)
+fmt.Print("Продолжить печать? [y/N]: ")
+var ans string
+_, _ = fmt.Scanln(&ans)
+ans = strings.ToLower(strings.TrimSpace(ans))
+if ans == "y" || ans == "yes" || ans == "д" || ans == "да" {
+p.SetRfidLowIgnored(true)
+return nil
+}
+return fmt.Errorf("печать отменена пользователем")
 }

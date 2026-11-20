@@ -230,6 +230,13 @@
               <option value="safe">safe (построчный)</option>
             </select>
           </label>
+          <label>Если по RFID кончилась лента/риббон
+            <select id="cfg-rfid-action">
+              <option value="ask">Предупредить и спросить (раз за сессию)</option>
+              <option value="block">Блокировать печать</option>
+              <option value="warn">Только предупредить (печатать сразу)</option>
+            </select>
+          </label>
           <label>Уровень логов
             <select id="cfg-loglevel">
               <option value="info">info (основные шаги)</option>
@@ -325,7 +332,7 @@
     </section>
   </main>
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=35"></script>
 <div id="history-modal" class="hidden" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:999;align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:12px;max-width:680px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.25)">
     <div class="row" style="padding:14px 18px;border-bottom:1px solid #e2e8f0;justify-content:space-between;align-items:center">

@@ -66,6 +66,7 @@ type Printer struct {
 	printMode     string
 	keepAliveStop chan struct{}
 	printingNow   bool
+	ignoreRfidLow bool
 }
 
 // printErrors — расшифровка кодов ошибки печати (ответ 0xdb).
@@ -791,4 +792,22 @@ _, _ = p.Send(cmdConnect, []byte{0x01}, nil, 0)
 }
 }
 }()
+}
+
+func (p *Printer) IsRfidLowIgnored() bool {
+if p == nil {
+return false
+}
+p.mu.Lock()
+defer p.mu.Unlock()
+return p.ignoreRfidLow
+}
+
+func (p *Printer) SetRfidLowIgnored(v bool) {
+if p == nil {
+return
+}
+p.mu.Lock()
+p.ignoreRfidLow = v
+p.mu.Unlock()
 }

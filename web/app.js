@@ -483,6 +483,7 @@ async function loadAppConfig() {
     if (typeof updateModeButton === 'function') updateModeButton(c.keepAlive !== false);
     if (typeof updateModeButton === 'function') updateModeButton(c.keepAlive !== false);
     if ($('cfg-printmode')) $('cfg-printmode').value = c.printMode || 'fast';
+    if ($('cfg-rfid-action')) $('cfg-rfid-action').value = c.rfidLowAction || 'ask';
     if ($('cfg-loglevel')) $('cfg-loglevel').value = c.logLevel || 'info';
     if ($('cfg-bcformat')) $('cfg-bcformat').value = c.bcFormat || 'auto';
     if ($('cfg-bcsafe')) $('cfg-bcsafe').checked = !!c.bcSafeMode;
@@ -522,6 +523,7 @@ if ($('btn-save-cfg')) {
       imgStretch: $('img-stretch') ? $('img-stretch').checked : false,
       keepAlive: $('cfg-keepalive').value === 'true',
       printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
+      rfidLowAction: $('cfg-rfid-action') ? $('cfg-rfid-action').value : 'ask',
       logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
       bcFormat: $('cfg-bcformat').value,
       bcSafeMode: $('cfg-bcsafe') ? $('cfg-bcsafe').checked : false,
@@ -1154,6 +1156,7 @@ function collectSystemSection() {
     threshold: intVal('threshold', 200),
     keepAlive: $('cfg-keepalive') ? ($('cfg-keepalive').value === 'true') : true,
     printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
+      rfidLowAction: $('cfg-rfid-action') ? $('cfg-rfid-action').value : 'ask',
     logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
     saveDir: $('cfg-savedir') ? $('cfg-savedir').value.trim() : '',
     saveFile: $('cfg-savefile') ? ($('cfg-savefile').value.trim() || 'niimbot_label_preview.png') : 'niimbot_label_preview.png',
@@ -1865,3 +1868,68 @@ function schedulePreview() {
     }
   }, 250);
 }
+
+// ==========================================================================
+// Диалог подтверждения при окончании ленты/риббона по RFID (3 кнопки)
+// ==========================================================================
+function askRfidLowConfirm(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:12px;max-width:440px;width:100%;padding:20px;box-shadow:0 20px 40px rgba(0,0,0,.22);font-family:inherit;color:#0f172a';
+    box.innerHTML = `
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:#b45309">⚠️ Внимание: расходники по RFID</div>
+      <div style="font-size:14px;line-height:1.45;margin-bottom:16px;color:#334155">${String(message || '').replace(/</g, '&lt;')}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button type="button" data-act="once" style="padding:9px 12px;border-radius:8px;border:none;background:#0f172a;color:#fff;font-weight:600;cursor:pointer">Продолжить (только это задание)</button>
+        <button type="button" data-act="session" style="padding:9px 12px;border-radius:8px;border:none;background:#118d6a;color:#fff;font-weight:600;cursor:pointer">Продолжить и больше не спрашивать в сессии</button>
+        <button type="button" data-act="cancel" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-weight:600;cursor:pointer">Отмена</button>
+      </div>
+    `;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    box.querySelectorAll('button').forEach((btn) => {
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        overlay.remove();
+        resolve(act);
+      };
+    });
+  });
+}
+
+// Перехватываем fetch('/api/print') для обработки needConfirm (3 кнопки) и warning
+const _origFetchRfid = window.fetch;
+window.fetch = async function(input, init) {
+  const url = typeof input === 'string' ? input : (input && input.url) || '';
+  const res = await _origFetchRfid(input, init);
+  if (url.includes('/api/print') && !url.includes('/api/print-template') && init && init.method === 'POST') {
+    const clone = res.clone();
+    try {
+      const data = await clone.json();
+      if (data && data.warning) {
+        setTimeout(() => {
+          const st = document.getElementById('status-text') || document.getElementById('job-status');
+          if (st) st.textContent = '⚠️ ' + data.warning;
+        }, 50);
+      }
+      if (data && data.needConfirm) {
+        const choice = await askRfidLowConfirm(data.message);
+        if (choice === 'cancel') {
+          return new Response(JSON.stringify({ error: 'Печать отменена пользователем' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        const origBody = JSON.parse(init.body || '{}');
+        origBody.force = true;
+        if (choice === 'session') {
+          origBody.rememberSession = true;
+        }
+        return _origFetchRfid(input, { ...init, body: JSON.stringify(origBody) });
+      }
+    } catch (_) {}
+  }
+  return res;
+};
