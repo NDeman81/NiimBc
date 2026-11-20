@@ -58,6 +58,7 @@ var printErrors = map[byte]string{
 	0x0c: "головка не закреплена",
 	0x0d: "нет ленты (риббона)",
 	0x0e: "неподходящая лента",
+	0x11: "закончился риббон (красящая лента)",
 }
 
 func (p *Printer) log(format string, args ...any) {
@@ -547,7 +548,7 @@ func (p *Printer) beginJob(total int, density, labelType byte) {
 
 // beginPage открывает страницу и задаёт её размер. copies — копий на странице.
 func (p *Printer) beginPage(height, copies int) {
-	p.Send(cmdPageStart, nil, []byte{respPageStart}, 2*time.Second)
+	if code := p.takeError(); code != 0 { p.lastError = code; return }; p.Send(cmdPageStart, nil, []byte{respPageStart}, 2*time.Second); if code := p.takeError(); code != 0 { p.lastError = code; return }
 	pageSize := append(u16(height), u16(printheadPixels)...)
 	pageSize = append(pageSize, u16(copies)...)
 	p.Send(cmdSetPageSize, pageSize, nil, 0)
@@ -598,7 +599,7 @@ func (p *Printer) PrintPages(pages [][]Row, density, labelType byte, copies int,
 	p.beginJob(total, density, labelType)
 	t0 := time.Now()
 	for i, rows := range flat {
-		p.beginPage(len(rows), 1)
+		if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; p.beginPage(len(rows), 1); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
 		if err := p.sendRows(rows); err != nil {
 			return fmt.Errorf("этикетка %d из %d: %w", i+1, total, err)
 		}
