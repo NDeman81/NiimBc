@@ -564,7 +564,7 @@ func (p *Printer) beginJob(total int, density, labelType byte) {
 
 // beginPage открывает страницу и задаёт её размер. copies — копий на странице.
 func (p *Printer) beginPage(height, copies int) {
-	if code := p.takeError(); code != 0 { p.lastError = code; return }; p.Send(cmdPageStart, nil, []byte{respPageStart}, 2*time.Second); if code := p.takeError(); code != 0 { p.lastError = code; return }
+	p.Send(cmdPageStart, nil, []byte{respPageStart}, 2*time.Second)
 	pageSize := append(u16(height), u16(printheadPixels)...)
 	pageSize = append(pageSize, u16(copies)...)
 	p.Send(cmdSetPageSize, pageSize, nil, 0)
