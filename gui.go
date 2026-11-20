@@ -563,7 +563,55 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 		copies = 1
 	}
 
-	id, j := newJob(len(pages) * copies)
+	// Проверяем остаток этикеток и риббона по RFID согласно режиму rfidLowAction ("ask" | "block" | "warn")
+needTotal := len(pages) * copies
+action := LoadConfig().RfidLowAction
+var lowWarning string
+
+if req.RememberSession {
+_ = withPrinter(req.Address, func(p *Printer) error {
+p.SetRfidLowIgnored(true)
+return nil
+})
+}
+
+if !req.Force {
+var lowMsg string
+var sessionIgnored bool
+_ = withPrinter(req.Address, func(p *Printer) error {
+if p.IsRfidLowIgnored() {
+sessionIgnored = true
+return nil
+}
+if rfP, err := p.ReadRfid(false); err == nil && rfP.TagPresent && rfP.Leftover() < needTotal {
+lowMsg = fmt.Sprintf("В рулоне этикеток осталось %d шт. (требуется %d шт.)", rfP.Leftover(), needTotal)
+}
+if rfR, err := p.ReadRfid(true); err == nil && rfR.TagPresent && rfR.Leftover() < needTotal {
+msgR := fmt.Sprintf("В картридже риббона осталось %d ед. (требуется %d)", rfR.Leftover(), needTotal)
+if lowMsg != "" {
+lowMsg += "; " + msgR
+} else {
+lowMsg = msgR
+}
+}
+return nil
+})
+if !sessionIgnored && lowMsg != "" {
+if action == "block" {
+writeErr(w, http.StatusConflict, fmt.Errorf("Печать заблокирована: %s", lowMsg))
+return
+}
+if action == "warn" {
+LogWarn("%s — печать продолжена по настройке rfidLowAction=warn", lowMsg)
+lowWarning = lowMsg
+} else {
+writeJSON(w, map[string]any{"needConfirm": true, "message": lowMsg + ". Продолжить печать?"})
+return
+}
+}
+}
+
+id, j := newJob(needTotal)
 	go func() {
 		err := withPrinter(req.Address, func(p *Printer) error {
 			labelName, err := resolveLabel(p, req.Label)
@@ -585,7 +633,7 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 		j.finish(err)
 	}()
 
-	writeJSON(w, map[string]any{"job": id, "total": j.Total})
+	respObj := map[string]any{"job": id, "total": j.Total}; if lowWarning != "" { respObj["warning"] = lowWarning }; writeJSON(w, respObj)
 }
 
 // apiPreview отдаёт PNG-макет этикетки.
