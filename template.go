@@ -35,7 +35,9 @@ type Element struct {
 	X    float64 `json:"x"`           // мм вдоль этикетки
 	Y    float64 `json:"y"`           // мм поперёк этикетки
 	W    float64 `json:"w,omitempty"` // мм: ширина элемента
-	H    float64 `json:"h,omitempty"` // мм: высота элемента
+	H    float64 `json:"h,omitempty"`  // мм: высота элемента
+	X2   float64 `json:"x2,omitempty"` // мм: конец X для косой линии
+	Y2   float64 `json:"y2,omitempty"` // мм: конец Y для косой линии
 
 	// Надпись
 	Text   string  `json:"text,omitempty"`
@@ -145,6 +147,8 @@ continue
 			err = drawFrameElement(img, el)
 		case "circle":
 			err = drawCircleElement(img, el)
+		case "diag":
+			err = drawDiagElement(img, el)
 		case "barcode":
 			err = drawBarcodeElementCtx(img, el, row, now, counter, total)
 		case "":			err = fmt.Errorf("у элемента %d не указан вид (kind)", i+1)
@@ -835,5 +839,56 @@ drawScaled(scaled, bcImg)
 bcImg = scaled
 }
 blitElement(img, image.Rect(x0, y0, x0+bcImg.Bounds().Dx(), y0+bcImg.Bounds().Dy()), bcImg, el.Transparent)
+return nil
+}
+
+func drawDiagElement(img *image.Gray, el Element) error {
+t := el.Thickness
+if t <= 0 {
+t = 0.4
+}
+x1, y1 := el.X*dotsPerMM, el.Y*dotsPerMM
+x2, y2 := el.X2*dotsPerMM, el.Y2*dotsPerMM
+halfW := math.Max(0.5, (t*dotsPerMM)/2.0)
+
+minX := int(math.Floor(math.Min(x1, x2) - halfW - 1))
+maxX := int(math.Ceil(math.Max(x1, x2) + halfW + 1))
+minY := int(math.Floor(math.Min(y1, y2) - halfW - 1))
+maxY := int(math.Ceil(math.Max(y1, y2) + halfW + 1))
+
+dx, dy := x2-x1, y2-y1
+segLenSq := dx*dx + dy*dy
+halfWSq := halfW * halfW
+bounds := img.Bounds()
+
+for py := minY; py <= maxY; py++ {
+if py < bounds.Min.Y || py >= bounds.Max.Y {
+continue
+}
+cy := float64(py) + 0.5
+for px := minX; px <= maxX; px++ {
+if px < bounds.Min.X || px >= bounds.Max.X {
+continue
+}
+cx := float64(px) + 0.5
+var distSq float64
+if segLenSq == 0 {
+distSq = (cx-x1)*(cx-x1) + (cy-y1)*(cy-y1)
+} else {
+u := ((cx-x1)*dx + (cy-y1)*dy) / segLenSq
+if u < 0 {
+u = 0
+} else if u > 1 {
+u = 1
+}
+projX := x1 + u*dx
+projY := y1 + u*dy
+distSq = (cx-projX)*(cx-projX) + (cy-projY)*(cy-projY)
+}
+if distSq <= halfWSq {
+img.SetGray(px, py, color.Gray{Y: 0})
+}
+}
+}
 return nil
 }

@@ -57,6 +57,35 @@ function renderCanvas() {
     node.style.left = el.x * scale + 'px';
     node.style.top = el.y * scale + 'px';
 
+        if (el.kind === 'diag') {
+      const x1 = el.x || 0, y1 = el.y || 0, x2 = el.x2 ?? (x1 + 10), y2 = el.y2 ?? (y1 + 6);
+      const minX = Math.min(x1, x2), minY = Math.min(y1, y2);
+      const bw = Math.max(0.5, Math.abs(x2 - x1)), bh = Math.max(0.5, Math.abs(y2 - y1));
+      node.style.left = minX * scale + 'px';
+      node.style.top = minY * scale + 'px';
+      node.style.width = bw * scale + 'px';
+      node.style.height = bh * scale + 'px';
+      node.style.background = 'transparent';
+      node.style.overflow = 'visible';
+      if (i !== selected) node.style.borderColor = 'transparent';
+      const sw = Math.max(1, (el.thickness || 0.4) * scale);
+      node.innerHTML = `<svg width="${bw * scale}" height="${bh * scale}" style="overflow:visible;display:block;pointer-events:none"><line x1="${(x1 - minX) * scale}" y1="${(y1 - minY) * scale}" x2="${(x2 - minX) * scale}" y2="${(y2 - minY) * scale}" stroke="#111" stroke-width="${sw}" stroke-linecap="round"/></svg>`;
+      if (i === selected) {
+        const h1 = document.createElement('div');
+        h1.dataset.end = '1';
+        h1.title = 'Тяните начало линии (X1, Y1)';
+        h1.style.cssText = `position:absolute;left:${(x1 - minX) * scale - 5}px;top:${(y1 - minY) * scale - 5}px;width:10px;height:10px;border-radius:50%;background:#118D6A;border:1.5px solid #fff;cursor:crosshair;z-index:15`;
+        const h2 = document.createElement('div');
+        h2.dataset.end = '2';
+        h2.title = 'Тяните конец линии (X2, Y2)';
+        h2.style.cssText = `position:absolute;left:${(x2 - minX) * scale - 5}px;top:${(y2 - minY) * scale - 5}px;width:10px;height:10px;border-radius:50%;background:#0F172A;border:1.5px solid #fff;cursor:crosshair;z-index:15`;
+        node.appendChild(h1);
+        node.appendChild(h2);
+      }
+      label.appendChild(node);
+      return;
+    }
+
     if (el.kind === 'barcode') {
       node.style.width = (el.w || labelLength()) * scale + 'px';
       node.style.height = (el.h || 12) * scale + 'px';
@@ -259,7 +288,7 @@ function showProps() {
   if ($('common-text-style')) $('common-text-style').classList.toggle('hidden', !(isText || isBc));
   if ($('image-props')) $('image-props').classList.toggle('hidden', el.kind !== 'image');
   if ($('p-img-stretch')) $('p-img-stretch').checked = !!el.stretch;
-  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'frame' || el.kind === 'circle'));
+  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'frame' || el.kind === 'circle' || el.kind === 'diag'));
 
   if (isText) {
     if ($('p-text')) $('p-text').value = el.text || '';
@@ -277,6 +306,8 @@ function showProps() {
     if ($('p-bold')) $('p-bold').checked = !!el.bold;
   }
   if ($('p-thickness')) $('p-thickness').value = el.thickness || 0.3;
+  if ($('diag-props')) $('diag-props').classList.toggle('hidden', el.kind !== 'diag');
+  if (el.kind === 'diag') { if ($('p-x2')) $('p-x2').value = el.x2 ?? 0; if ($('p-y2')) $('p-y2').value = el.y2 ?? 0; }
   if ($('p-transparent')) $('p-transparent').checked = !!el.transparent;
   if ($('p-hide-if')) $('p-hide-if').value = el.hideIfEmpty || '';
 }
@@ -722,4 +753,51 @@ if ($('add-circle')) {
     select(elements.length - 1);
     refreshPreview();
   };
+}
+
+// ==========================================================================
+// Кнопка "+ Косая линия", поля X2/Y2 и перетаскивание концов отрезка мышью
+// ==========================================================================
+bindProp('p-x2', (el, inp) => { el.x2 = Math.max(0, parseFloat(inp.value) || 0); });
+bindProp('p-y2', (el, inp) => { el.y2 = Math.max(0, Math.min(LABEL_H_MM, parseFloat(inp.value) || 0)); });
+
+if ($('add-diag')) {
+  $('add-diag').onclick = () => {
+    const x2 = snap(Math.min(labelLength() - 1, 14));
+    elements.push({ kind: 'diag', x: 2, y: 2, x2, y2: 10, thickness: 0.4 });
+    select(elements.length - 1);
+    refreshPreview();
+  };
+}
+
+if ($('label')) {
+  $('label').addEventListener('mousedown', (e) => {
+    const endIdx = e.target && e.target.dataset && e.target.dataset.end;
+    if (!endIdx || selected < 0 || !elements[selected] || elements[selected].kind !== 'diag') return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const el = elements[selected];
+    const startX = e.clientX, startY = e.clientY;
+    const ox = endIdx === '1' ? (el.x || 0) : (el.x2 ?? 0);
+    const oy = endIdx === '1' ? (el.y || 0) : (el.y2 ?? 0);
+
+    const moveEnd = (ev) => {
+      const dx = (ev.clientX - startX) / scale;
+      const dy = (ev.clientY - startY) / scale;
+      const nx = Math.max(0, Math.min(labelLength(), snap(ox + dx)));
+      const ny = Math.max(0, Math.min(LABEL_H_MM, snap(oy + dy)));
+      if (endIdx === '1') { el.x = nx; el.y = ny; }
+      else { el.x2 = nx; el.y2 = ny; }
+      renderCanvas();
+      showProps();
+    };
+    const upEnd = () => {
+      document.removeEventListener('mousemove', moveEnd);
+      document.removeEventListener('mouseup', upEnd);
+      renderCanvas();
+      refreshPreview();
+    };
+    document.addEventListener('mousemove', moveEnd);
+    document.addEventListener('mouseup', upEnd);
+  }, true);
 }
