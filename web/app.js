@@ -1834,3 +1834,16 @@ function syncInfoTabVisibility(activeMode) {
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => syncInfoTabVisibility(tab.dataset.mode));
 });
+
+// Гарантированное открытие и закрытие модального окна журнала печати
+document.addEventListener('click', (e) => {
+  const m = $('history-modal');
+  if (!m) return;
+  if (e.target.closest('#btn-history')) {
+    m.classList.remove('hidden');
+    m.style.display = 'flex';
+  } else if (e.target.closest('#btn-history-close') || e.target === m) {
+    m.classList.add('hidden');
+    m.style.display = 'none';
+  }
+});
