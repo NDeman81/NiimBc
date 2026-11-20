@@ -1748,7 +1748,7 @@ async function openHistoryModal() {
   modal.classList.remove('hidden');
   listEl.textContent = 'Загрузка журнала…';
   try {
-    const r = await fetch('/api/history');
+    const r = await fetch('/api/history', { cache: 'no-store' });
     const list = (await r.json()) || [];
     if (!list.length) { listEl.innerHTML = '<p class="hint">Журнал печати пуст.</p>'; return; }
     listEl.innerHTML = '';
