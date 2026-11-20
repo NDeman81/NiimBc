@@ -301,6 +301,7 @@ CounterStep  *int      `json:"counterStep,omitempty"`
 PreviewIndex int       `json:"previewIndex,omitempty"`
 PreviewTotal int       `json:"previewTotal,omitempty"`
 Force        bool      `json:"force,omitempty"`
+	RememberSession bool      `json:"rememberSession,omitempty"`
 }
 
 // splitFields разбирает строку данных на столбцы: ; , или табуляция.
@@ -568,7 +569,6 @@ needTotal := len(pages) * copies
 action := LoadConfig().RfidLowAction
 var lowWarning string
 
-if req.RememberSession {
 _ = withPrinter(req.Address, func(p *Printer) error {
 p.SetRfidLowIgnored(true)
 return nil
