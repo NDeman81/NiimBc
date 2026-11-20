@@ -625,7 +625,7 @@ sharedMAC     string
 func acquirePrinter(mac string, verbose bool, foundByName bool) (*Printer, func(), error) {
 cfg := LoadConfig()
 if !cfg.KeepAlive {
-p, err := ConnectMAC(mac, verbose, foundByName)
+p, err := cachedRfidLabel = ""; ConnectMAC(mac, verbose, foundByName)
 if err != nil {
 return nil, nil, err
 }
@@ -643,7 +643,7 @@ _ = sharedPrinter.Close()
 sharedPrinter = nil
 }
 
-p, err := ConnectMAC(mac, verbose, foundByName)
+p, err := cachedRfidLabel = ""; ConnectMAC(mac, verbose, foundByName)
 if err != nil {
 sharedMu.Unlock()
 return nil, nil, err
