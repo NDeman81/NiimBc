@@ -1842,7 +1842,7 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('#btn-history')) {
     m.classList.remove('hidden');
     m.style.display = 'flex';
-    if (typeof openHistoryModal === 'function') openHistoryModal();
+    openHistoryModal();
   } else if (e.target.closest('#btn-history-close') || e.target === m) {
     m.classList.add('hidden');
     m.style.display = 'none';

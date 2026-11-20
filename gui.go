@@ -1235,6 +1235,9 @@ return
 }
 saved = append(saved, fullPath)
 }
+recordPrintHistory(req, len(saved))
+if false {
+}
 
 writeJSON(w, map[string]any{
 "ok":    true,
