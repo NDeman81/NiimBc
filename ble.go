@@ -391,7 +391,7 @@ return nil, nil
 }
 rem := time.Until(deadline)
 if rem <= 0 {
-p.log("  ! нет ответа на 0x%02x за %s", cmd, timeout)
+if cmd == cmdPrintStatus { LogDebugMsg("! нет ответа на 0x%02x за %s", cmd, timeout) } else { p.log("  ! нет ответа на 0x%02x за %s", cmd, timeout) }
 return nil, nil
 }
 step := 30 * time.Millisecond
@@ -682,7 +682,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		if code := p.takeError(); code != 0 {
 			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
 		}
-		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 2*time.Second)
+		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 350*time.Millisecond)
 		if pkt != nil && len(pkt.Data) >= 4 {
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if printed >= 100 && fed >= 100 {
@@ -696,7 +696,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		} else {
 			good = 0 // принтер занят и не отвечает — значит, ещё печатает
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	return fmt.Errorf("страница не завершилась за %s", timeout)
 }
