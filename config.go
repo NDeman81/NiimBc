@@ -59,7 +59,11 @@ func DefaultConfig() AppConfig {
 		Flip:           false,
 		Threshold:      200,
 		Copies:         1,
-		KeepAlive:      true,
+		KeepAlive:           true,
+		FastBatchSize:       6,
+		FastBatchDelayMs:    6,
+		StatusPollTimeoutMs: 250,
+		KeepAliveSec:        8,
 		LogLevel:       "info",
 		PrintMode:      "fast",
 		SaveDir:        "",
@@ -147,6 +151,10 @@ func normalizeConfig(cfg *AppConfig) {
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = def.LogLevel
 	}
+	if cfg.FastBatchSize <= 0 { cfg.FastBatchSize = 6 }
+	if cfg.FastBatchDelayMs <= 0 { cfg.FastBatchDelayMs = 6 }
+	if cfg.StatusPollTimeoutMs <= 0 { cfg.StatusPollTimeoutMs = 250 }
+	if cfg.KeepAliveSec < 0 { cfg.KeepAliveSec = 8 }
 	if cfg.PrintMode != "safe" {
 		cfg.PrintMode = "fast"
 	}
