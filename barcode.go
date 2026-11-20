@@ -203,7 +203,7 @@ func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.
 	if renderBarcode && barcodeH > 0 {
 		bcSide := sideMargin
 		targetW := maxInt(10, W-2*bcSide)
-		drawSharpBarcode(canvas, bc, offX+bcSide, barcodeY, targetW, barcodeH)
+		if opts.SafeMode { bcSide = maxInt(bcSide, 12); targetW = maxInt(10, W-2*bcSide) }; drawSharpBarcodeEx(canvas, bc, offX+bcSide, barcodeY, targetW, barcodeH, opts.SafeMode)
 	}
 
 	if renderMain && mainH > 0 {
