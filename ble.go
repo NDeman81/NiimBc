@@ -65,6 +65,7 @@ type Printer struct {
 	verbose       bool
 	printMode     string
 	keepAliveStop chan struct{}
+	printingNow   bool
 }
 
 // printErrors — расшифровка кодов ошибки печати (ответ 0xdb).
@@ -529,8 +530,7 @@ return nil
 }
 
 func (p *Printer) sendRowsFast(rows []Row) error {
-const batchSize = 6
-const batchDelay = 12 * time.Millisecond
+batchSize := activeCfg.FastBatchSize; if batchSize < 1 { batchSize = 6 }; delayMs := activeCfg.FastBatchDelayMs; if delayMs < 0 { delayMs = 12 }; batchDelay := time.Duration(delayMs) * time.Millisecond
 
 var batchBuf []byte
 inBatch := 0
@@ -637,7 +637,7 @@ func (p *Printer) PrintPages(pages [][]Row, density, labelType byte, copies int,
 	p.log("  серия: %d этикеток (%d шаблонов × %d копий), плотность %d, тип %d",
 		total, len(pages), copies, density, labelType)
 
-	p.beginJob(total, density, labelType); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
+	p.mu.Lock(); p.printingNow = true; p.mu.Unlock(); defer func() { p.mu.Lock(); p.printingNow = false; p.mu.Unlock() }(); p.beginJob(total, density, labelType); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
 	t0 := time.Now()
 	for i, rows := range flat {
 		if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; p.beginPage(len(rows), 1); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
@@ -682,7 +682,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		if code := p.takeError(); code != 0 {
 			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
 		}
-		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 350*time.Millisecond)
+		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, func() time.Duration { if activeCfg.StatusPollTimeoutMs > 0 { return time.Duration(activeCfg.StatusPollTimeoutMs) * time.Millisecond }; return 350 * time.Millisecond }())
 		if pkt != nil && len(pkt.Data) >= 4 {
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if printed >= 100 && fed >= 100 {
