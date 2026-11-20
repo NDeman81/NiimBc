@@ -67,7 +67,7 @@ function renderCanvas() {
       return;
     }
 
-    if (el.kind === 'line' || el.kind === 'frame') {
+    if (el.kind === 'line' || el.kind === 'frame' || el.kind === 'circle') {
       node.style.width = (el.w || 1) * scale + 'px';
       node.style.height = (el.h || 0.4) * scale + 'px';
       if (el.kind === 'line') {
@@ -75,6 +75,7 @@ function renderCanvas() {
       } else {
         node.style.background = 'none';
         node.style.border = `${Math.max(1, (el.thickness || 0.3) * scale)}px solid #111`;
+        if (el.kind === 'circle') node.style.borderRadius = '50%';
       }
       label.appendChild(node);
       return;
@@ -258,7 +259,7 @@ function showProps() {
   if ($('common-text-style')) $('common-text-style').classList.toggle('hidden', !(isText || isBc));
   if ($('image-props')) $('image-props').classList.toggle('hidden', el.kind !== 'image');
   if ($('p-img-stretch')) $('p-img-stretch').checked = !!el.stretch;
-  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame'));
+  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame' || el.kind === 'circle'));
 
   if (isText) {
     if ($('p-text')) $('p-text').value = el.text || '';
@@ -703,4 +704,22 @@ if ($('add-icon') && $('icon-picker-menu')) {
       $('icon-picker-menu').classList.add('hidden');
     }
   });
+}
+
+// Добавление вертикальной линии и окружности в Конструктор этикеток
+if ($('add-vline')) {
+  $('add-vline').onclick = () => {
+    const cx = snap(Math.max(0, labelLength() / 2 - 0.2));
+    elements.push({ kind: 'line', x: cx, y: 1, w: 0.4, h: 10 });
+    select(elements.length - 1);
+    refreshPreview();
+  };
+}
+
+if ($('add-circle')) {
+  $('add-circle').onclick = () => {
+    elements.push({ kind: 'circle', x: 2, y: 2, w: 8, h: 8, thickness: 0.4 });
+    select(elements.length - 1);
+    refreshPreview();
+  };
 }

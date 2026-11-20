@@ -142,6 +142,8 @@ continue
 			err = drawLineElement(img, el)
 		case "frame":
 			err = drawFrameElement(img, el)
+		case "circle":
+			err = drawCircleElement(img, el)
 		case "barcode":
 			err = drawBarcodeElementCtx(img, el, row, now, counter, total)
 		case "":			err = fmt.Errorf("у элемента %d не указан вид (kind)", i+1)
@@ -500,6 +502,56 @@ func drawFrameElement(img *image.Gray, el Element) error {
 	fillRect(img, x, y, tw, h)      // левая
 	fillRect(img, x+w-tw, y, tw, h) // правая
 	return nil
+}
+
+func drawCircleElement(img *image.Gray, el Element) error {
+if el.W <= 0 || el.H <= 0 {
+return fmt.Errorf("у окружности не заданы размеры (w и h в мм)")
+}
+t := el.Thickness
+if t <= 0 {
+t = 0.3
+}
+x0, y0 := mmToDots(el.X), mmToDots(el.Y)
+w, h := mmToDots(el.W), mmToDots(el.H)
+tw := float64(mmToDotsMin(t))
+
+rxOuter := float64(w) / 2.0
+ryOuter := float64(h) / 2.0
+if rxOuter < 1 || ryOuter < 1 {
+return nil
+}
+rxInner := math.Max(0, rxOuter-tw)
+ryInner := math.Max(0, ryOuter-tw)
+
+cx := float64(x0) + rxOuter
+cy := float64(y0) + ryOuter
+bounds := img.Bounds()
+
+for py := y0; py <= y0+h; py++ {
+if py < bounds.Min.Y || py >= bounds.Max.Y {
+continue
+}
+dy := (float64(py) + 0.5) - cy
+for px := x0; px <= x0+w; px++ {
+if px < bounds.Min.X || px >= bounds.Max.X {
+continue
+}
+dx := (float64(px) + 0.5) - cx
+dOut := (dx*dx)/(rxOuter*rxOuter) + (dy*dy)/(ryOuter*ryOuter)
+if dOut > 1.0 {
+continue
+}
+if rxInner > 0 && ryInner > 0 {
+dIn := (dx*dx)/(rxInner*rxInner) + (dy*dy)/(ryInner*ryInner)
+if dIn < 1.0 {
+continue
+}
+}
+img.SetGray(px, py, color.Gray{Y: 0})
+}
+}
+return nil
 }
 
 // rotateGray поворачивает изображение на 90, 180 или 270 градусов.
