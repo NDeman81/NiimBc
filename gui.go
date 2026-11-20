@@ -34,7 +34,6 @@ var webAssets embed.FS
 // Принтер держит ОДНО BLE-соединение, поэтому все обращения к нему
 // выстраиваем в очередь.
 var bleMu sync.Mutex
-var cachedRfidLabel string
 
 // guiVerbose включает вывод протокола в интерфейсе (флаг -v).
 var guiVerbose = true
@@ -252,7 +251,7 @@ func apiStatus(address string) (map[string]any, error) {
 			if err != nil {
 				continue
 			}
-			if !ribbon && rf.TagPresent && rf.LabelTypeName() != "" { cachedRfidLabel = rf.LabelTypeName() }; out["rfid_"+key] = map[string]any{
+			out["rfid_"+key] = map[string]any{
 				"tag":       rf.TagPresent,
 				"serial":    rf.Serial,
 				"barcode":   rf.Barcode,
@@ -563,14 +562,8 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 		copies = 1
 	}
 
-	tJobStart := time.Now()
-	totalJob := len(pages) * copies
-	isBatch := req.Mode == "series" || len(req.Elements) > 0
-	isSafe := strings.EqualFold(strings.TrimSpace(LoadConfig().PrintMode), "safe")
-	forceRfid := isSafe || (isBatch && totalJob > 5)
-	id, j := newJob(totalJob)
+	id, j := newJob(len(pages) * copies)
 	go func() {
-		if forceRfid { cachedRfidLabel = "" }
 		err := withPrinter(req.Address, func(p *Printer) error {
 			labelName, err := resolveLabel(p, req.Label)
 			if err != nil {
@@ -586,7 +579,7 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 		if err != nil {
 			fmt.Printf("серия не напечатана: %v\n", err)
 		} else {
-			LogKey("Задание завершено: %d этикеток за %.2f с", j.Total, time.Since(tJobStart).Seconds())
+			fmt.Printf("серия напечатана: %d этикеток\n", j.Total)
 		}
 		j.finish(err)
 	}()
@@ -632,7 +625,7 @@ sharedMAC     string
 func acquirePrinter(mac string, verbose bool, foundByName bool) (*Printer, func(), error) {
 cfg := LoadConfig()
 if !cfg.KeepAlive {
-cachedRfidLabel = ""; p, err := ConnectMAC(mac, verbose, foundByName)
+p, err := ConnectMAC(mac, verbose, foundByName)
 if err != nil {
 return nil, nil, err
 }
@@ -642,17 +635,21 @@ return p, func() { _ = p.Close() }, nil
 
 sharedMu.Lock()
 if sharedPrinter != nil && strings.EqualFold(sharedMAC, mac) {
-		sharedPrinter.printMode = cfg.PrintMode
-		return sharedPrinter, func() { sharedMu.Unlock() }, nil
-	}
+if _, err := sharedPrinter.Handshake(); err == nil {
+sharedPrinter.printMode = cfg.PrintMode
+return sharedPrinter, func() { sharedMu.Unlock() }, nil
+}
+_ = sharedPrinter.Close()
+sharedPrinter = nil
+}
 
-cachedRfidLabel = ""; p, err := ConnectMAC(mac, verbose, foundByName)
+p, err := ConnectMAC(mac, verbose, foundByName)
 if err != nil {
 sharedMu.Unlock()
 return nil, nil, err
 }
 p.printMode = cfg.PrintMode
-_, _ = resolveLabel(p, ""); p.StartKeepAlive()
+p.StartKeepAlive()
 sharedPrinter = p
 sharedMAC = mac
 return sharedPrinter, func() { sharedMu.Unlock() }, nil

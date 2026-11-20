@@ -390,7 +390,7 @@ func (p *Printer) Handshake() (Info, error) {
 	}
 	if pkt != nil && len(pkt.Data) > 0 {
 		info.ConnectResult = pkt.Data[0]
-		LogDebugMsg("рукопожатие: %d (2 = ConnectedNew)", info.ConnectResult)
+		p.log("  рукопожатие: %d (2 = ConnectedNew)", info.ConnectResult)
 	}
 
 	get := func(t byte) *Packet {
@@ -598,17 +598,16 @@ func (p *Printer) PrintPages(pages [][]Row, density, labelType byte, copies int,
 	p.beginJob(total, density, labelType)
 	t0 := time.Now()
 	for i, rows := range flat {
-		tPage := time.Now(); p.beginPage(len(rows), 1); tSend := time.Now()
+		p.beginPage(len(rows), 1)
 		if err := p.sendRows(rows); err != nil {
 			return fmt.Errorf("этикетка %d из %d: %w", i+1, total, err)
 		}
 		p.Send(cmdPageEnd, nil, nil, 0); time.Sleep(50 * time.Millisecond)
 		// Ждём, пока принтер допечатает эту этикетку: иначе следующая
 		// уйдёт в занятый принтер и он ответит ошибкой данных.
-		tWait := time.Now(); if err := p.waitPageDone(20 * time.Second); err != nil {
+		if err := p.waitPageDone(20 * time.Second); err != nil {
 			return fmt.Errorf("этикетка %d из %d: %w", i+1, total, err)
 		}
-		p.log("  [тайминг %d/%d] старт: %d мс | строки: %d мс | протяжка: %d мс", i+1, total, tSend.Sub(tPage).Milliseconds(), tWait.Sub(tSend).Milliseconds(), time.Since(tWait).Milliseconds())
 		if progress != nil {
 			progress(i+1, total)
 		}
@@ -641,7 +640,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		if code := p.takeError(); code != 0 {
 			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
 		}
-		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 300*time.Millisecond)
+		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 2*time.Second)
 		if pkt != nil && len(pkt.Data) >= 4 {
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if printed >= 100 && fed >= 100 {
@@ -655,7 +654,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		} else {
 			good = 0 // принтер занят и не отвечает — значит, ещё печатает
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 	return fmt.Errorf("страница не завершилась за %s", timeout)
 }
@@ -684,7 +683,7 @@ func (p *Printer) waitFinished(pages int) error {
 			pg := int(pkt.Data[0])<<8 | int(pkt.Data[1])
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if pg != lastPg || printed != lastPct {
-				LogDebugMsg("статус: страница %d, печать %d%%, подача %d%%", pg, printed, fed)
+				p.log("    статус: страница %d, печать %d%%, подача %d%%", pg, printed, fed)
 				lastPg, lastPct = pg, printed
 			}
 			if pg >= 1 && printed >= 100 && fed >= 100 {
