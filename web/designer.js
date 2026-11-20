@@ -160,7 +160,7 @@ function renderCanvas() {
     label.appendChild(node);
   });
 
-  if (selected >= 0) {
+  if (selected >= 0 && elements[selected]?.kind !== 'diag') {
     const selNode = label.querySelector('.el.selected');
     if (selNode) {
       const hdl = document.createElement('div');
@@ -340,7 +340,7 @@ if ($('p-fs-btn') && $('p-fs-menu') && $('p-fontsize')) {
   $('p-fs-btn').onclick = (e) => { e.stopPropagation(); $('p-fs-menu').classList.toggle('hidden'); };
   $('p-fs-menu').querySelectorAll('div[data-val]').forEach((item) => {
     item.onclick = () => {
-      if (selected >= 0) {
+      if (selected >= 0 && elements[selected]?.kind !== 'diag') {
         elements[selected].fontSize = item.dataset.val; elements[selected].font = 0; elements[selected].line = 0;
         $('p-fontsize').value = item.dataset.val; renderCanvas(); schedulePreview();
       }
@@ -356,7 +356,7 @@ if ($('add-line')) $('add-line').onclick = () => { elements.push({ kind: 'line',
 if ($('add-frame')) $('add-frame').onclick = () => { elements.push({ kind: 'frame', x: 0.4, y: 0.4, w: labelLength() - 0.8, h: 11.2, thickness: 0.4, transparent: true }); select(elements.length - 1); refreshPreview(); };
 if ($('add-stamp')) $('add-stamp').onclick = () => { elements.push({ kind: 'text', x: 1, y: 9.5, w: labelLength() - 2, h: 2, text: '{дата} {время}', fontSize: '-1', align: 'right' }); select(elements.length - 1); refreshPreview(); };
 if ($('add-image') && $('image-file')) $('add-image').onclick = () => $('image-file').click();
-if ($('del-el')) $('del-el').onclick = () => { if (selected >= 0) { elements.splice(selected, 1); select(-1); refreshPreview(); } };
+if ($('del-el')) $('del-el').onclick = () => { if (selected >= 0 && elements[selected]?.kind !== 'diag') { elements.splice(selected, 1); select(-1); refreshPreview(); } };
 
 function readAsDataURL(file, cb) { const r = new FileReader(); r.onload = () => cb(r.result); r.readAsDataURL(file); }
 if ($('image-file')) $('image-file').addEventListener('change', (e) => { const f = e.target.files[0]; if (!f) return; readAsDataURL(f, (u) => { elements.push({ kind: 'image', x: 1, y: 1, w: 8, h: 8, image: u }); select(elements.length - 1); refreshPreview(); }); e.target.value = ''; });
@@ -799,5 +799,46 @@ if ($('label')) {
     };
     document.addEventListener('mousemove', moveEnd);
     document.addEventListener('mouseup', upEnd);
+  }, true);
+}
+
+// Синхронное перемещение обоих концов косой линии при перетаскивании за тело отрезка
+if ($('label')) {
+  $('label').addEventListener('mousedown', (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.end) return;
+    const node = e.target.closest('.el');
+    if (!node) return;
+    const i = Number(node.dataset.i);
+    const el = elements[i];
+    if (!el || el.kind !== 'diag') return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    select(i);
+    const startX = e.clientX, startY = e.clientY;
+    const ox1 = el.x || 0, oy1 = el.y || 0, ox2 = el.x2 ?? 0, oy2 = el.y2 ?? 0;
+    const L = labelLength(), H = LABEL_H_MM;
+
+    const moveDiag = (ev) => {
+      let dx = snap((ev.clientX - startX) / scale);
+      let dy = snap((ev.clientY - startY) / scale);
+      const minX = Math.min(ox1, ox2), maxX = Math.max(ox1, ox2);
+      const minY = Math.min(oy1, oy2), maxY = Math.max(oy1, oy2);
+      dx = Math.max(-minX, Math.min(L - maxX, dx));
+      dy = Math.max(-minY, Math.min(H - maxY, dy));
+      el.x = snap(ox1 + dx);
+      el.y = snap(oy1 + dy);
+      el.x2 = snap(ox2 + dx);
+      el.y2 = snap(oy2 + dy);
+      renderCanvas();
+      showProps();
+    };
+    const upDiag = () => {
+      document.removeEventListener('mousemove', moveDiag);
+      document.removeEventListener('mouseup', upDiag);
+      renderCanvas();
+      refreshPreview();
+    };
+    document.addEventListener('mousemove', moveDiag);
+    document.addEventListener('mouseup', upDiag);
   }, true);
 }
