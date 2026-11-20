@@ -197,3 +197,17 @@ header .design-link {
 }
 .el.is-transparent { background: transparent !important; border-style: dotted; }
 #icon-picker-menu.hidden { display: none !important; }
+
+.el.selected {
+  overflow: visible !important;
+}
+.el .resize-handle {
+  right: -5px !important;
+  bottom: -5px !important;
+  width: 11px !important;
+  height: 11px !important;
+  border: 1.5px solid #ffffff;
+  border-radius: 3px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  z-index: 12 !important;
+}

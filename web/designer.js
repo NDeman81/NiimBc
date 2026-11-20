@@ -259,7 +259,7 @@ function showProps() {
   if ($('common-text-style')) $('common-text-style').classList.toggle('hidden', !(isText || isBc));
   if ($('image-props')) $('image-props').classList.toggle('hidden', el.kind !== 'image');
   if ($('p-img-stretch')) $('p-img-stretch').checked = !!el.stretch;
-  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'line' || el.kind === 'frame' || el.kind === 'circle'));
+  if ($('shape-props')) $('shape-props').classList.toggle('hidden', !(el.kind === 'frame' || el.kind === 'circle'));
 
   if (isText) {
     if ($('p-text')) $('p-text').value = el.text || '';
@@ -293,8 +293,8 @@ function bindProp(id, apply, evName = 'input') {
 
 bindProp('p-x', (el, inp) => { el.x = Math.max(0, parseFloat(inp.value) || 0); });
 bindProp('p-y', (el, inp) => { el.y = Math.max(0, parseFloat(inp.value) || 0); });
-bindProp('p-w', (el, inp) => { el.w = Math.max(0.5, parseFloat(inp.value) || 0.5); });
-bindProp('p-h', (el, inp) => { el.h = Math.max(0.2, parseFloat(inp.value) || 0.2); });
+bindProp('p-w', (el, inp) => { const v = parseFloat(inp.value); if (v >= 0.1) el.w = v; });
+bindProp('p-h', (el, inp) => { const v = parseFloat(inp.value); if (v >= 0.1) el.h = v; });
 bindProp('p-text', (el, inp) => { el.text = inp.value; });
 bindProp('p-align', (el, inp) => { el.align = inp.value; }, 'change');
 bindProp('p-rotate', (el, inp) => { el.rotate = parseInt(inp.value, 10) || 0; }, 'change');
