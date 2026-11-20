@@ -637,13 +637,9 @@ return p, func() { _ = p.Close() }, nil
 
 sharedMu.Lock()
 if sharedPrinter != nil && strings.EqualFold(sharedMAC, mac) {
-if _, err := sharedPrinter.Handshake(); err == nil {
-sharedPrinter.printMode = cfg.PrintMode
-return sharedPrinter, func() { sharedMu.Unlock() }, nil
-}
-_ = sharedPrinter.Close()
-sharedPrinter = nil
-}
+		sharedPrinter.printMode = cfg.PrintMode
+		return sharedPrinter, func() { sharedMu.Unlock() }, nil
+	}
 
 cachedRfidLabel = ""; p, err := ConnectMAC(mac, verbose, foundByName)
 if err != nil {
@@ -651,7 +647,7 @@ sharedMu.Unlock()
 return nil, nil, err
 }
 p.printMode = cfg.PrintMode
-p.StartKeepAlive()
+_, _ = resolveLabel(p, ""); p.StartKeepAlive()
 sharedPrinter = p
 sharedMAC = mac
 return sharedPrinter, func() { sharedMu.Unlock() }, nil
