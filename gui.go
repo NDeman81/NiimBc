@@ -240,7 +240,6 @@ return nil
 
 // apiStatus — состояние принтера и расходников.
 func apiStatus(address string) (map[string]any, error) {
-	cachedRfidLabel = ""
 	var out = map[string]any{}
 	err := withPrinter(address, func(p *Printer) error {
 		info, err := p.Handshake()
@@ -253,7 +252,7 @@ func apiStatus(address string) (map[string]any, error) {
 			if err != nil {
 				continue
 			}
-			out["rfid_"+key] = map[string]any{
+			if !ribbon && rf.TagPresent && rf.LabelTypeName() != "" { cachedRfidLabel = rf.LabelTypeName() }; out["rfid_"+key] = map[string]any{
 				"tag":       rf.TagPresent,
 				"serial":    rf.Serial,
 				"barcode":   rf.Barcode,
@@ -581,7 +580,7 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 		if err != nil {
 			fmt.Printf("серия не напечатана: %v\n", err)
 		} else {
-			fmt.Printf("серия напечатана: %d этикеток\n", j.Total)
+			LogKey("Задание завершено: %d этикеток за %.2f с", j.Total, time.Since(tJobStart).Seconds())
 		}
 		j.finish(err)
 	}()

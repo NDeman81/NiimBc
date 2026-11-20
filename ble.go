@@ -390,7 +390,7 @@ func (p *Printer) Handshake() (Info, error) {
 	}
 	if pkt != nil && len(pkt.Data) > 0 {
 		info.ConnectResult = pkt.Data[0]
-		p.log("  рукопожатие: %d (2 = ConnectedNew)", info.ConnectResult)
+		LogDebugMsg("рукопожатие: %d (2 = ConnectedNew)", info.ConnectResult)
 	}
 
 	get := func(t byte) *Packet {
@@ -641,7 +641,7 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		if code := p.takeError(); code != 0 {
 			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
 		}
-		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 300*time.Millisecond)
+		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, 700*time.Millisecond)
 		if pkt != nil && len(pkt.Data) >= 4 {
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if printed >= 100 && fed >= 100 {
@@ -684,7 +684,7 @@ func (p *Printer) waitFinished(pages int) error {
 			pg := int(pkt.Data[0])<<8 | int(pkt.Data[1])
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if pg != lastPg || printed != lastPct {
-				p.log("    статус: страница %d, печать %d%%, подача %d%%", pg, printed, fed)
+				LogDebugMsg("статус: страница %d, печать %d%%, подача %d%%", pg, printed, fed)
 				lastPg, lastPct = pg, printed
 			}
 			if pg >= 1 && printed >= 100 && fed >= 100 {
