@@ -462,3 +462,5 @@ header .status {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.hidden { display: none !important; }
