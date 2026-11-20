@@ -356,13 +356,29 @@ func (p *Printer) Send(cmd byte, data []byte, want []byte, timeout time.Duration
 	if want == nil {
 		return nil, nil
 	}
-	select {
-	case pkt := <-ch:
-		return &pkt, nil
-	case <-time.After(timeout):
-		p.log("  ! нет ответа на 0x%02x за %s", cmd, timeout)
-		return nil, nil
-	}
+	deadline := time.Now().Add(timeout)
+for {
+p.mu.Lock()
+hasErr := p.lastError != 0
+p.mu.Unlock()
+if hasErr {
+return nil, nil
+}
+rem := time.Until(deadline)
+if rem <= 0 {
+p.log("  ! нет ответа на 0x%02x за %s", cmd, timeout)
+return nil, nil
+}
+step := 30 * time.Millisecond
+if rem < step {
+step = rem
+}
+select {
+case pkt := <-ch:
+return &pkt, nil
+case <-time.After(step):
+}
+}
 }
 
 func (p *Printer) Close() error {
@@ -599,7 +615,7 @@ func (p *Printer) PrintPages(pages [][]Row, density, labelType byte, copies int,
 	p.beginJob(total, density, labelType); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
 	t0 := time.Now()
 	for i, rows := range flat {
-		if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; p.beginPage(len(rows), 1); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
+		if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; p.beginPage(len(rows), 1); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
 		if err := p.sendRows(rows); err != nil {
 			return fmt.Errorf("этикетка %d из %d: %w", i+1, total, err)
 		}
