@@ -563,8 +563,14 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 		copies = 1
 	}
 
-	id, j := newJob(len(pages) * copies)
+	tJobStart := time.Now()
+	totalJob := len(pages) * copies
+	isBatch := req.Mode == "series" || len(req.Elements) > 0
+	isSafe := strings.EqualFold(strings.TrimSpace(LoadConfig().PrintMode), "safe")
+	forceRfid := isSafe || (isBatch && totalJob > 5)
+	id, j := newJob(totalJob)
 	go func() {
+		if forceRfid { cachedRfidLabel = "" }
 		err := withPrinter(req.Address, func(p *Printer) error {
 			labelName, err := resolveLabel(p, req.Label)
 			if err != nil {
