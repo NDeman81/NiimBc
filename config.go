@@ -9,7 +9,10 @@ import (
 
 // AppConfig хранит настройки принтера, этикетки, штрихкодов и режимов работы по умолчанию.
 type AppConfig struct {
-	FastBatchSize        int `json:"fastBatchSize"` 	FastBatchDelayMs     int `json:"fastBatchDelayMs"` 	StatusPollTimeoutMs  int `json:"statusPollTimeoutMs"` 	KeepAliveSec         int `json:"keepAliveSec"`
+	FastBatchSize        int `json:"fastBatchSize"`
+	FastBatchDelayMs     int `json:"fastBatchDelayMs"`
+	StatusPollTimeoutMs  int `json:"statusPollTimeoutMs"`
+	KeepAliveSec         int `json:"keepAliveSec"`
 	BcSafeMode bool `json:"bcSafeMode"`
 	// Параметры принтера и печати
 	Address   string  `json:"address"`   // MAC-адрес или UUID принтера (пусто = автопоиск N1-)
