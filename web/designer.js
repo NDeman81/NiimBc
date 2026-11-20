@@ -356,7 +356,7 @@ if ($('add-line')) $('add-line').onclick = () => { elements.push({ kind: 'line',
 if ($('add-frame')) $('add-frame').onclick = () => { elements.push({ kind: 'frame', x: 0.4, y: 0.4, w: labelLength() - 0.8, h: 11.2, thickness: 0.4, transparent: true }); select(elements.length - 1); refreshPreview(); };
 if ($('add-stamp')) $('add-stamp').onclick = () => { elements.push({ kind: 'text', x: 1, y: 9.5, w: labelLength() - 2, h: 2, text: '{дата} {время}', fontSize: '-1', align: 'right' }); select(elements.length - 1); refreshPreview(); };
 if ($('add-image') && $('image-file')) $('add-image').onclick = () => $('image-file').click();
-if ($('del-el')) $('del-el').onclick = () => { if (selected >= 0 && elements[selected]?.kind !== 'diag') { elements.splice(selected, 1); select(-1); refreshPreview(); } };
+if ($('del-el')) $('del-el').onclick = () => { if (selected >= 0) { elements.splice(selected, 1); select(-1); refreshPreview(); } };
 
 function readAsDataURL(file, cb) { const r = new FileReader(); r.onload = () => cb(r.result); r.readAsDataURL(file); }
 if ($('image-file')) $('image-file').addEventListener('change', (e) => { const f = e.target.files[0]; if (!f) return; readAsDataURL(f, (u) => { elements.push({ kind: 'image', x: 1, y: 1, w: 8, h: 8, image: u }); select(elements.length - 1); refreshPreview(); }); e.target.value = ''; });
