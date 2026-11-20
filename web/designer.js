@@ -52,7 +52,7 @@ function renderCanvas() {
 
   elements.forEach((el, i) => {
     const node = document.createElement('div');
-    node.className = 'el' + (i === selected ? ' selected' : '');
+    node.className = 'el' + (i === selected ? ' selected' : '') + (el.transparent ? ' is-transparent' : '');
     node.dataset.i = i;
     node.style.left = el.x * scale + 'px';
     node.style.top = el.y * scale + 'px';
@@ -276,6 +276,8 @@ function showProps() {
     if ($('p-bold')) $('p-bold').checked = !!el.bold;
   }
   if ($('p-thickness')) $('p-thickness').value = el.thickness || 0.3;
+  if ($('p-transparent')) $('p-transparent').checked = !!el.transparent;
+  if ($('p-hide-if')) $('p-hide-if').value = el.hideIfEmpty || '';
 }
 
 function bindProp(id, apply, evName = 'input') {
@@ -601,5 +603,104 @@ if ($('templates')) {
       if ($('des-cnt-start')) $('des-cnt-start').value = t.counterStart ?? 1;
       if ($('des-cnt-step')) $('des-cnt-step').value = t.counterStep ?? 1;
     } catch (err) {}
+  });
+}
+
+// ==========================================================================
+// Дублирование элементов (Ctrl+D), встроенные пиктограммы и прозрачность
+// ==========================================================================
+function duplicateSelectedElement() {
+  if (selected < 0 || selected >= elements.length) return;
+  const copy = JSON.parse(JSON.stringify(elements[selected]));
+  const maxW = labelLength(), maxH = LABEL_H_MM;
+  const w = copy.w || 4, h = copy.h || 3;
+  copy.x = snap(Math.min(Math.max(0, maxW - w), (copy.x || 0) + 1.5));
+  copy.y = snap(Math.min(Math.max(0, maxH - h), (copy.y || 0) + 1.5));
+  elements.push(copy);
+  select(elements.length - 1);
+  refreshPreview();
+}
+
+if ($('dup-el')) $('dup-el').onclick = duplicateSelectedElement;
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+    if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      duplicateSelectedElement();
+    }
+  }
+});
+
+// Привязка свойств прозрачного фона и условной видимости
+bindProp('p-transparent', (el, inp) => { el.transparent = inp.checked; }, 'change');
+bindProp('p-hide-if', (el, inp) => { el.hideIfEmpty = inp.value.trim(); });
+
+// Генератор чётких чёрно-белых пиктограмм (96x96 PNG data:URL)
+function buildBuiltInIconDataURL(kind) {
+  const c = document.createElement('canvas');
+  c.width = 96; c.height = 96;
+  const g = c.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, 96, 96);
+  g.strokeStyle = '#000000';
+  g.fillStyle = '#000000';
+  g.lineWidth = 7;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+
+  if (kind === 'warn') {
+    g.beginPath(); g.moveTo(48, 12); g.lineTo(86, 82); g.lineTo(10, 82); g.closePath(); g.stroke();
+    g.fillRect(44, 34, 8, 26); g.fillRect(44, 67, 8, 8);
+  } else if (kind === 'volt') {
+    g.beginPath(); g.moveTo(56, 8); g.lineTo(24, 52); g.lineTo(48, 52); g.lineTo(38, 88); g.lineTo(72, 42); g.lineTo(48, 42); g.closePath(); g.fill();
+  } else if (kind === 'fragile') {
+    g.beginPath(); g.moveTo(26, 12); g.lineTo(70, 12); g.lineTo(66, 40); g.arc(48, 40, 18, 0, Math.PI, false); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(48, 58); g.lineTo(48, 84); g.moveTo(30, 84); g.lineTo(66, 84); g.stroke();
+  } else if (kind === 'rain') {
+    g.beginPath(); g.arc(48, 46, 34, Math.PI, 0, false); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(48, 12); g.lineTo(48, 78); g.arc(40, 78, 8, 0, Math.PI, false); g.stroke();
+  } else if (kind === 'up') {
+    g.beginPath(); g.moveTo(48, 14); g.lineTo(48, 84); g.moveTo(22, 40); g.lineTo(48, 14); g.lineTo(74, 40); g.stroke();
+  } else if (kind === 'right') {
+    g.beginPath(); g.moveTo(12, 48); g.lineTo(82, 48); g.moveTo(56, 22); g.lineTo(82, 48); g.lineTo(56, 74); g.stroke();
+  } else if (kind === 'check') {
+    g.beginPath(); g.moveTo(16, 52); g.lineTo(38, 76); g.lineTo(82, 22); g.lineWidth = 10; g.stroke();
+  } else if (kind === 'cross') {
+    g.beginPath(); g.moveTo(20, 20); g.lineTo(76, 76); g.moveTo(76, 20); g.lineTo(20, 76); g.lineWidth = 10; g.stroke();
+  } else if (kind === 'gear') {
+    g.beginPath(); g.arc(48, 48, 22, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(48, 48, 8, 0, Math.PI * 2); g.fill();
+    for (let a = 0; a < 8; a++) {
+      const ang = a * Math.PI / 4;
+      g.beginPath(); g.moveTo(48 + Math.cos(ang) * 24, 48 + Math.sin(ang) * 24);
+      g.lineTo(48 + Math.cos(ang) * 36, 48 + Math.sin(ang) * 36); g.stroke();
+    }
+  } else if (kind === 'lock') {
+    g.strokeRect(22, 42, 52, 42);
+    g.beginPath(); g.arc(48, 42, 16, Math.PI, 0, false); g.stroke();
+    g.beginPath(); g.arc(48, 61, 5, 0, Math.PI * 2); g.fill();
+  }
+  return c.toDataURL('image/png');
+}
+
+if ($('add-icon') && $('icon-picker-menu')) {
+  $('add-icon').onclick = (e) => {
+    e.stopPropagation();
+    $('icon-picker-menu').classList.toggle('hidden');
+  };
+  $('icon-picker-menu').querySelectorAll('.icon-opt').forEach((btn) => {
+    btn.onclick = () => {
+      const dataUrl = buildBuiltInIconDataURL(btn.dataset.icon);
+      elements.push({ kind: 'image', x: 1, y: 3, w: 6, h: 6, image: dataUrl, transparent: true });
+      $('icon-picker-menu').classList.add('hidden');
+      select(elements.length - 1);
+      refreshPreview();
+    };
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#icon-picker-menu') && e.target.id !== 'add-icon') {
+      $('icon-picker-menu').classList.add('hidden');
+    }
   });
 }

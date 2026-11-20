@@ -58,6 +58,8 @@ type Element struct {
 	// Картинка: путь к файлу или data:URL с base64
 	Image string `json:"image,omitempty"`
 	Stretch bool `json:"stretch,omitempty"` // true = растянуть без сохранения пропорций
+	Transparent bool `json:"transparent,omitempty"`
+	HideIfEmpty string `json:"hideIfEmpty,omitempty"`
 }
 
 // LabelTemplate — шаблон этикетки для конструктора.
@@ -81,10 +83,55 @@ func RenderTemplateUnused(tpl LabelTemplate, row []string) (*image.Gray, error) 
 // RenderTemplateAt — то же, но с заданным моментом времени: нужно тестам,
 // чтобы дата и время на этикетке были предсказуемы.
 func RenderTemplateAt(tpl LabelTemplate, row []string, now time.Time) (*image.Gray, error) { return renderTemplateInternal(tpl, row, now, 1, 1) }
-func renderTemplateInternal(tpl LabelTemplate, row []string, now time.Time, counter, total int) (*image.Gray, error) {
-	img := NewLabelImage(tpl.LengthMM)
+func shouldHideElement(el Element, row []string) bool {
+spec := strings.TrimSpace(el.HideIfEmpty)
+spec = strings.TrimPrefix(spec, "{")
+spec = strings.TrimSuffix(spec, "}")
+spec = strings.TrimSpace(spec)
+if spec == "" {
+return false
+}
+col, err := strconv.Atoi(spec)
+if err != nil || col < 1 {
+return false
+}
+if col > len(row) {
+return true
+}
+return strings.TrimSpace(row[col-1]) == ""
+}
 
-	for i, el := range tpl.Elements {
+func blitElement(dst *image.Gray, dstRect image.Rectangle, src *image.Gray, transparent bool) {
+if !transparent {
+draw.Draw(dst, dstRect, src, image.Point{}, draw.Src)
+return
+}
+inter := dstRect.Intersect(dst.Bounds())
+for dy := inter.Min.Y; dy < inter.Max.Y; dy++ {
+sy := dy - dstRect.Min.Y
+if sy < 0 || sy >= src.Bounds().Dy() {
+continue
+}
+for dx := inter.Min.X; dx < inter.Max.X; dx++ {
+sx := dx - dstRect.Min.X
+if sx < 0 || sx >= src.Bounds().Dx() {
+continue
+}
+v := src.GrayAt(sx, sy).Y
+if v < 245 && v < dst.GrayAt(dx, dy).Y {
+dst.SetGray(dx, dy, color.Gray{Y: v})
+}
+}
+}
+}
+
+func renderTemplateInternal(tpl LabelTemplate, row []string, now time.Time, counter, total int) (*image.Gray, error) {
+img := NewLabelImage(tpl.LengthMM)
+
+for i, el := range tpl.Elements {
+if shouldHideElement(el, row) {
+continue
+}
 		var err error
 		switch el.Kind {
 		case "text":
@@ -232,7 +279,7 @@ if angle != 0 {
 boxCanvas = rotateGray(boxCanvas, angle)
 }
 
-draw.Draw(img, image.Rect(x0, y0, x0+boxCanvas.Bounds().Dx(), y0+boxCanvas.Bounds().Dy()), boxCanvas, image.Point{}, draw.Src)
+blitElement(img, image.Rect(x0, y0, x0+boxCanvas.Bounds().Dx(), y0+boxCanvas.Bounds().Dy()), boxCanvas, el.Transparent)
 return nil
 }
 
@@ -559,8 +606,7 @@ box = rotateGray(box, angle)
 
 x0 := int(math.Round(el.X * dotsPerMM))
 y0 := int(math.Round(el.Y * dotsPerMM))
-draw.Draw(img, image.Rect(x0, y0, x0+box.Bounds().Dx(), y0+box.Bounds().Dy()),
-box, image.Point{}, draw.Src)
+blitElement(img, image.Rect(x0, y0, x0+box.Bounds().Dx(), y0+box.Bounds().Dy()), box, el.Transparent)
 return nil
 }
 
@@ -732,6 +778,6 @@ scaled := image.NewGray(image.Rect(0, 0, bcImg.Bounds().Dx(), targetH))
 drawScaled(scaled, bcImg)
 bcImg = scaled
 }
-draw.Draw(img, image.Rect(x0, y0, x0+bcImg.Bounds().Dx(), y0+bcImg.Bounds().Dy()), bcImg, image.Point{}, draw.Src)
+blitElement(img, image.Rect(x0, y0, x0+bcImg.Bounds().Dx(), y0+bcImg.Bounds().Dy()), bcImg, el.Transparent)
 return nil
 }

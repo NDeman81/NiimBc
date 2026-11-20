@@ -30,12 +30,27 @@
     <div class="row toolbar">
       <button id="add-text" class="ghost">+ Надпись</button>
       <button id="add-image" class="ghost">+ Картинка</button>
+<div style="position:relative;display:inline-block">
+  <button type="button" id="add-icon" class="ghost">+ Пиктограмма</button>
+  <div id="icon-picker-menu" class="hidden" style="position:absolute;top:100%;left:0;z-index:80;margin-top:4px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:8px;box-shadow:0 10px 25px rgba(0,0,0,.16);width:260px;display:grid;grid-template-columns:repeat(2,1fr);gap:6px">
+    <button type="button" class="ghost icon-opt" data-icon="warn" style="padding:6px 8px;font-size:12px;text-align:left">! Осторожно</button>
+    <button type="button" class="ghost icon-opt" data-icon="volt" style="padding:6px 8px;font-size:12px;text-align:left">⚡ Напряжение</button>
+    <button type="button" class="ghost icon-opt" data-icon="fragile" style="padding:6px 8px;font-size:12px;text-align:left">🍷 Хрупкое</button>
+    <button type="button" class="ghost icon-opt" data-icon="rain" style="padding:6px 8px;font-size:12px;text-align:left">☂ От влаги</button>
+    <button type="button" class="ghost icon-opt" data-icon="up" style="padding:6px 8px;font-size:12px;text-align:left">↑ Вверх</button>
+    <button type="button" class="ghost icon-opt" data-icon="right" style="padding:6px 8px;font-size:12px;text-align:left">→ Вправо</button>
+    <button type="button" class="ghost icon-opt" data-icon="check" style="padding:6px 8px;font-size:12px;text-align:left">✓ Проверено</button>
+    <button type="button" class="ghost icon-opt" data-icon="cross" style="padding:6px 8px;font-size:12px;text-align:left">✕ Запрещено</button>
+    <button type="button" class="ghost icon-opt" data-icon="gear" style="padding:6px 8px;font-size:12px;text-align:left">⚙ Сервис</button>
+    <button type="button" class="ghost icon-opt" data-icon="lock" style="padding:6px 8px;font-size:12px;text-align:left">🔒 Замок</button>
+  </div>
+</div>
       <button id="add-line" class="ghost">+ Линия</button>
       <button id="add-frame" class="ghost">+ Рамка</button>
       <button id="add-barcode" class="ghost">+ Штрихкод</button>
       <button id="add-stamp" class="ghost">+ Дата и время</button>
       <input type="file" id="image-file" accept="image/*" hidden>
-      <button id="del-el" class="ghost danger">Удалить</button>
+      <button type="button" id="dup-el" class="ghost" title="Дублировать выделенный элемент (Ctrl+D)">Дублировать</button><button id="del-el" class="ghost danger">Удалить</button>
       <label class="check"><input type="checkbox" id="grid" checked> сетка 1 мм</label>
       <span class="spacer"></span>
       <label class="inline">Длина, мм
@@ -83,6 +98,10 @@
           </label>
           <button id="layer-down" type="button" class="ghost" title="В самый низ (слой 1)">На задний план</button>
           <button id="layer-up" type="button" class="ghost" title="На самый верх">На передний план</button>
+        </div>
+        <div class="grid" style="margin-top:8px;align-items:center">
+          <label class="check" style="margin:0"><input type="checkbox" id="p-transparent"> Прозрачный фон</label>
+          <label style="margin:0">Скрывать, если пусто поле № <input type="text" id="p-hide-if" placeholder="напр. 3" style="margin-top:3px"></label>
         </div>
 
         <div id="text-props">
@@ -215,6 +234,6 @@
 
 </main>
 
-<script src="designer.js?v=21"></script>
+<script src="designer.js?v=22"></script>
 </body>
 </html>

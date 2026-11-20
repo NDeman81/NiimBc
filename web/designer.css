@@ -195,3 +195,5 @@ header .design-link {
   text-align: center;
   justify-content: center;
 }
+.el.is-transparent { background: transparent !important; border-style: dotted; }
+#icon-picker-menu.hidden { display: none !important; }
