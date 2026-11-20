@@ -32,6 +32,7 @@ type BarcodeOptions struct {
 	MarginPx       int
 	GapPx          int
 	TextGapPx      int
+	SafeMode       bool
 }
 
 var (
@@ -295,6 +296,10 @@ func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
 // drawSharpBarcode вписывает штрихкод/QR без сглаживания (строго чёрные и белые модули),
 // обрезая встроенную тихую зону, чтобы отступы задавались исключительно параметром sideMargin.
 func drawSharpBarcode(dst *image.Gray, bc barcode.Barcode, x, y, boxW, boxH int) {
+drawSharpBarcodeEx(dst, bc, x, y, boxW, boxH, false)
+}
+
+func drawSharpBarcodeEx(dst *image.Gray, bc barcode.Barcode, x, y, boxW, boxH int, safeMode bool) {
 b := bc.Bounds()
 if b.Dx() <= 0 || b.Dy() <= 0 || boxW <= 0 || boxH <= 0 {
 return
@@ -328,6 +333,12 @@ s = 1
 }
 drawW = srcW * s
 drawH = srcH * s
+} else if safeMode {
+// Подбираем масштаб модулей кратно 0.5 (1.0x, 1.5x, 2.0x, 2.5x...), чтобы штрихи и пробелы не слипались
+halfSteps := int(math.Floor(float64(boxW) / (float64(srcW) * 0.5)))
+if halfSteps >= 2 {
+drawW = int(math.Round(float64(srcW) * (float64(halfSteps) * 0.5)))
+}
 }
 
 offX := x + (boxW-drawW)/2

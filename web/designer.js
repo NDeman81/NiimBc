@@ -299,6 +299,7 @@ function showProps() {
     if ($('p-bc-data')) $('p-bc-data').value = el.text || '';
     if ($('p-bc-format')) $('p-bc-format').value = el.bcFormat || 'auto';
     if ($('p-bc-gap')) $('p-bc-gap').value = el.gapPx ?? 2;
+    if ($('p-bc-safe')) $('p-bc-safe').checked = !!el.bcSafeMode;
   }
   if (isText || isBc) {
     if ($('p-family')) $('p-family').value = el.family || '';
@@ -335,6 +336,7 @@ bindProp('p-bold', (el, inp) => { el.bold = inp.checked; }, 'change');
 bindProp('p-bc-data', (el, inp) => { el.text = inp.value; });
 bindProp('p-bc-format', (el, inp) => { el.bcFormat = inp.value; }, 'change');
 bindProp('p-bc-gap', (el, inp) => { el.gapPx = Math.max(0, parseInt(inp.value, 10) || 0); });
+bindProp('p-bc-safe', (el, inp) => { el.bcSafeMode = inp.checked; }, 'change');
 bindProp('p-thickness', (el, inp) => { el.thickness = Math.max(0.05, parseFloat(inp.value) || 0.3); });
 if ($('p-fs-btn') && $('p-fs-menu') && $('p-fontsize')) {
   $('p-fs-btn').onclick = (e) => { e.stopPropagation(); $('p-fs-menu').classList.toggle('hidden'); };

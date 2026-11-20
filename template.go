@@ -53,6 +53,7 @@ type Element struct {
 
 		// Штрихкод / QR
 	BcFormat   string `json:"bcFormat,omitempty"`   // auto | code128 | qr | qrl | qrr
+BcSafeMode *bool  `json:"bcSafeMode,omitempty"` // безопасный режим масштабирования штрихкода
 	TopText    string `json:"topText,omitempty"`    // верхний текст
 	BottomText string `json:"bottomText,omitempty"` // нижний текст
 	FontSize   string `json:"fontSize,omitempty"`   // -1 (авто), 0 (скрыть), N, Np

@@ -113,6 +113,7 @@ function collectRequest() {
       ...base,
       items: val ? [val] : [],
       bcFormat: $('cfg-bcformat') ? $('cfg-bcformat').value : 'auto',
+      bcSafeMode: $('cfg-bcsafe') ? $('cfg-bcsafe').checked : false,
       topText: $('bc-top') ? $('bc-top').value : '',
       bottomText: $('bc-bot') ? $('bc-bot').value : '',
       gapPx: intVal('cfg-gap', 4),
@@ -484,6 +485,7 @@ async function loadAppConfig() {
     if ($('cfg-printmode')) $('cfg-printmode').value = c.printMode || 'fast';
     if ($('cfg-loglevel')) $('cfg-loglevel').value = c.logLevel || 'info';
     if ($('cfg-bcformat')) $('cfg-bcformat').value = c.bcFormat || 'auto';
+    if ($('cfg-bcsafe')) $('cfg-bcsafe').checked = !!c.bcSafeMode;
     if ($('cfg-qrside')) $('cfg-qrside').value = c.defaultQrSide || 'left';
     if ($('cfg-fontname')) $('cfg-fontname').value = c.fontName || '';
     await loadSystemFonts();
@@ -522,6 +524,7 @@ if ($('btn-save-cfg')) {
       printMode: $('cfg-printmode') ? $('cfg-printmode').value : 'fast',
       logLevel: $('cfg-loglevel') ? $('cfg-loglevel').value : 'info',
       bcFormat: $('cfg-bcformat').value,
+      bcSafeMode: $('cfg-bcsafe') ? $('cfg-bcsafe').checked : false,
       defaultQrSide: $('cfg-qrside').value,
       fontName: $('cfg-fontname').value.trim(),
       fontSize: $('cfg-fontsize').value.trim() || '-1',
@@ -562,7 +565,7 @@ loadAppConfig();
 ['bc-data', 'bc-top', 'bc-bot', 'cfg-fontname', 'cfg-fontsize', 'cfg-margin', 'cfg-sidemargin', 'cfg-gap'].forEach(id => {
   if ($(id)) $(id).addEventListener('input', () => { if (typeof schedulePreview === 'function') schedulePreview(); });
 });
-['cfg-bcformat', 'cfg-bold'].forEach(id => {
+['cfg-bcformat', 'cfg-bold', 'cfg-bcsafe'].forEach(id => {
   if ($(id)) $(id).addEventListener('change', () => { if (typeof schedulePreview === 'function') schedulePreview(); });
 });
 
@@ -1198,6 +1201,7 @@ function applyCombinedTemplate(t) {
   }
   if (t.hasSingle) {
     if (t.bcFormat && $('cfg-bcformat')) $('cfg-bcformat').value = t.bcFormat;
+    if ($('cfg-bcsafe') && t.bcSafeMode !== undefined) $('cfg-bcsafe').checked = !!t.bcSafeMode;
     if (t.gapPx !== undefined && $('cfg-gap')) $('cfg-gap').value = t.gapPx;
     if (t.textGapPx !== undefined && $('cfg-textgap')) $('cfg-textgap').value = t.textGapPx;
     if (t.fontName !== undefined && $('cfg-fontname')) $('cfg-fontname').value = t.fontName;
@@ -1275,7 +1279,8 @@ if ($('tpl-save')) {
     };
     if (incSingle) {
       Object.assign(tplObj, {
-        bcFormat: $('cfg-bcformat')?.value || 'auto', gapPx: intVal('cfg-gap', 4), textGapPx: intVal('cfg-textgap', 4),
+        bcFormat: $('cfg-bcformat')?.value || 'auto',
+        bcSafeMode: !!$('cfg-bcsafe')?.checked, gapPx: intVal('cfg-gap', 4), textGapPx: intVal('cfg-textgap', 4),
         fontName: $('cfg-fontname')?.value || '', fontSize: $('cfg-fontsize')?.value.trim() || '-1',
         bold: !!$('cfg-bold')?.checked, marginPx: intVal('cfg-margin', 4), sideMarginPx: intVal('cfg-sidemargin', 10),
         offsetPx: intVal('cfg-offset', 0), bcData: $('bc-data')?.value || '', topText: $('bc-top')?.value || '',
@@ -1457,6 +1462,7 @@ collectRequest = function(forPreview = false) {
       ...base,
       items: val ? [val] : [],
       bcFormat: $('cfg-bcformat') ? $('cfg-bcformat').value : 'auto',
+      bcSafeMode: $('cfg-bcsafe') ? $('cfg-bcsafe').checked : false,
       topText: $('bc-top') ? $('bc-top').value : '',
       bottomText: $('bc-bot') ? $('bc-bot').value : '',
       gapPx: intVal('cfg-gap', 4),

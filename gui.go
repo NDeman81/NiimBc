@@ -112,6 +112,7 @@ Threshold int     `json:"threshold,omitempty"`
 
 // Секция 1: Настройки одиночной и серийной печати
 BcFormat     string `json:"bcFormat,omitempty"`
+BcSafeMode   *bool  `json:"bcSafeMode,omitempty"`
 GapPx        *int   `json:"gapPx,omitempty"`
 TextGapPx    *int   `json:"textGapPx,omitempty"`
 FontName     string `json:"fontName,omitempty"`
@@ -281,6 +282,7 @@ Flip         bool      `json:"flip"`
 Threshold    int       `json:"threshold"`    // порог чёрно-белого, 0..255; 0 — по умолчанию
 Address      string    `json:"address"`
 BcFormat     string    `json:"bcFormat"`     // auto | code128 | qr | qrl | qrr
+BcSafeMode   *bool     `json:"bcSafeMode,omitempty"`
 TopText      string    `json:"topText"`      // верхний текст штрихкода
 BottomText   string    `json:"bottomText"`   // нижний текст штрихкода
 FontName     string    `json:"fontName"`     // шрифт текста/подписи
