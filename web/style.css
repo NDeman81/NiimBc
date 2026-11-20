@@ -465,3 +465,4 @@ header .status {
 
 .hidden { display: none !important; }
 #history-modal:not(.hidden) { display: flex !important; }
+header .design-link { width: 205px; text-align: center; justify-content: center; }

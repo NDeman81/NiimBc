@@ -156,3 +156,4 @@ label.inline input { width: 84px; margin-top: 0; }
 .combo-menu { position: absolute; top: 100%; left: 0; right: 0; z-index: 60; margin-top: 2px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.14); max-height: 200px; overflow-y: auto; }
 .combo-menu div { padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .combo-menu div:hover { background: #ecfdf5; color: var(--green-dark); }
+header .design-link { width: 205px; text-align: center; justify-content: center; }
