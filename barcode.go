@@ -60,12 +60,20 @@ func RenderBarcodeLabel(opts BarcodeOptions, cfg AppConfig) (*image.Gray, error)
 	}
 
 	switch fmtMode {
-	case "auto", "code128":
+	case "auto", "code128", "code39", "ean13", "ean8", "pdf417":
 		if !reAsciiPrint.MatchString(raw) {
 			return nil, fmt.Errorf("линейный штрихкод поддерживает только латиницу, цифры и спецсимволы ASCII")
 		}
 		return renderLinearBarcodeLabel(raw, fmtMode, opts)
-	case "qr", "qrl", "qrr", "datamatrix", "dm", "dml", "dmr":
+	case "qr", "qrl", "qrr":
+		side := cfg.DefaultQrSide
+		if fmtMode == "qrl" {
+			side = "left"
+		} else if fmtMode == "qrr" {
+			side = "right"
+		}
+		return render2dLabel(raw, side, opts, false)
+	case "datamatrix", "dm", "dml", "dmr":
 		side := cfg.DefaultQrSide
 		if fmtMode == "qrl" {
 			side = "left"
@@ -79,17 +87,42 @@ func RenderBarcodeLabel(opts BarcodeOptions, cfg AppConfig) (*image.Gray, error)
 }
 
 // encodeLinear кодирует строку в ITF (при auto и чётных цифрах) или Code 128.
-func encodeLinear(raw, fmtMode string) (barcode.Barcode, error) {
-	useItf := fmtMode == "auto" && reOnlyDigits.MatchString(raw) && len(raw)%2 == 0
-	if useItf {
-		return twooffive.Encode(raw, true)
+func encodeLinear(raw, fmtMode string) (barcode.Barcode, string, error) {
+	switch fmtMode {
+	case "code39":
+		norm := strings.ToUpper(raw)
+		bc, err := code39.Encode(norm, false, true)
+		return bc, norm, err
+	case "ean13":
+		norm, err := normalizeEan13(raw)
+		if err != nil {
+			return nil, raw, err
+		}
+		bc, err := ean.Encode(norm)
+		return bc, norm, err
+	case "ean8":
+		norm, err := normalizeEan8(raw)
+		if err != nil {
+			return nil, raw, err
+		}
+		bc, err := ean.Encode(norm)
+		return bc, norm, err
+	case "pdf417":
+		bc, err := pdf417.Encode(raw, 2)
+		return bc, raw, err
+	default:
+		if fmtMode == "auto" && reOnlyDigits.MatchString(raw) && len(raw)%2 == 0 {
+			bc, err := twooffive.Encode(raw, true)
+			return bc, raw, err
+		}
+		bc, err := code128.Encode(raw)
+		return bc, raw, err
 	}
-	return code128.Encode(raw)
 }
 
 // renderLinearBarcodeLabel рисует горизонтальный штрихкод с верхним, основным и нижним текстом.
 func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.Gray, error) {
-	bc, err := encodeLinear(raw, fmtMode)
+	bc, disp, err := encodeLinear(raw, fmtMode)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка кодирования штрихкода: %w", err)
 	}
@@ -227,8 +260,14 @@ func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.
 }
 
 // renderQrLabel рисует QR-код слева или справа, а текстовые блоки — с противоположной стороны.
-func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
-	qrCode, err := qr.Encode(raw, qr.M, qr.Auto)
+func render2dLabel(raw, side string, opts BarcodeOptions, isDM bool) (*image.Gray, error) {
+	var qrCode barcode.Barcode
+	var err error
+	if isDM {
+		qrCode, err = datamatrix.Encode(raw)
+	} else {
+		qrCode, err = qr.Encode(raw, qr.M, qr.Auto)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("ошибка кодирования QR: %w", err)
 	}
