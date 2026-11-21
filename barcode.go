@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/boombuler/barcode"
-	"github.com/boombuler/barcode/code128"
+	"github.com/boombuler/barcode/code39" "github.com/boombuler/barcode/code128" "github.com/boombuler/barcode/datamatrix" "github.com/boombuler/barcode/ean" "github.com/boombuler/barcode/pdf417"
 	"github.com/boombuler/barcode/qr"
 	"github.com/boombuler/barcode/twooffive"
 	"golang.org/x/image/font"
@@ -61,7 +61,7 @@ func RenderBarcodeLabel(opts BarcodeOptions, cfg AppConfig) (*image.Gray, error)
 			return nil, fmt.Errorf("линейный штрихкод поддерживает только латиницу, цифры и спецсимволы ASCII")
 		}
 		return renderLinearBarcodeLabel(raw, fmtMode, opts)
-	case "qr", "qrl", "qrr":
+	case "qr", "qrl", "qrr", "datamatrix", "dm", "dml", "dmr":
 		side := cfg.DefaultQrSide
 		if fmtMode == "qrl" {
 			side = "left"
@@ -495,4 +495,58 @@ if a < b {
 return a
 }
 return b
+}
+
+func ean13CheckDigit(d12 string) byte {
+sum := 0
+for i := 0; i < 12; i++ {
+v := int(d12[i] - '0')
+if i%2 == 1 {
+v *= 3
+}
+sum += v
+}
+return byte('0' + ((10 - (sum % 10)) % 10))
+}
+
+func ean8CheckDigit(d7 string) byte {
+sum := 0
+for i := 0; i < 7; i++ {
+v := int(d7[i] - '0')
+if i%2 == 0 {
+v *= 3
+}
+sum += v
+}
+return byte('0' + ((10 - (sum % 10)) % 10))
+}
+
+func normalizeEan13(raw string) (string, error) {
+s := strings.TrimSpace(raw)
+if !isAllDigits(s) || (len(s) != 12 && len(s) != 13) {
+return "", fmt.Errorf("EAN-13 требует 12 или 13 цифр (получено %d)", len(s))
+}
+cd := ean13CheckDigit(s[:12])
+if len(s) == 12 {
+return s + string(cd), nil
+}
+if s[12] != cd {
+return "", fmt.Errorf("неверная контрольная цифра EAN-13: ожидается %c, в коде %c", cd, s[12])
+}
+return s, nil
+}
+
+func normalizeEan8(raw string) (string, error) {
+s := strings.TrimSpace(raw)
+if !isAllDigits(s) || (len(s) != 7 && len(s) != 8) {
+return "", fmt.Errorf("EAN-8 требует 7 или 8 цифр (получено %d)", len(s))
+}
+cd := ean8CheckDigit(s[:7])
+if len(s) == 7 {
+return s + string(cd), nil
+}
+if s[7] != cd {
+return "", fmt.Errorf("неверная контрольная цифра EAN-8: ожидается %c, в коде %c", cd, s[7])
+}
+return s, nil
 }

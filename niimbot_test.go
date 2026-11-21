@@ -1213,3 +1213,34 @@ func TestBarcodeFormatsAndQr(t *testing.T) {
 		}
 	}
 }
+
+func TestNewBarcodeFormats(t *testing.T) {
+cfg := DefaultConfig()
+cases := []struct {
+fmt  string
+data string
+}{
+{"ean13", "460700465001"},  // 12 цифр -> авто-контрольная цифра
+{"ean8", "4601234"},        // 7 цифр -> авто-контрольная цифра
+{"code39", "INV-2026"},
+{"pdf417", "NIIMBOT-N1-TEST"},
+{"datamatrix", "DM-12345"},
+{"dml", "DM-LEFT"},
+{"dmr", "DM-RIGHT"},
+}
+for _, tc := range cases {
+img, err := RenderBarcodeLabel(BarcodeOptions{
+Data:     tc.data,
+Format:   tc.fmt,
+LengthMM: 50,
+TopText:  "Тест",
+SafeMode: true,
+}, cfg)
+if err != nil {
+t.Fatalf("формат %s (%s): неожиданная ошибка: %v", tc.fmt, tc.data, err)
+}
+if img.Bounds().Dx() != 400 || img.Bounds().Dy() != 96 {
+t.Fatalf("формат %s: неверный размер холста %v", tc.fmt, img.Bounds())
+}
+}
+}

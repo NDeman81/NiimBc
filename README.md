@@ -93,7 +93,7 @@ niimbc --config "sklad.json" --log-level error barcode "999-09"
 
 | Флаг / Поле в `config.json` | Описание | По умолчанию |
 | :--- | :--- | :--- |
-| `--bc-format` / `bcFormat` | `auto` (ITF / Code 128), `code128`, `qr`, `qrl` (QR слева), `qrr` (QR справа) | `auto` |
+| `--bc-format` / `bcFormat` | `auto` (ITF / Code 128), `code128`, `code39`, `ean13`, `ean8`, `pdf417`, `qr`, `qrl`, `qrr`, `datamatrix`, `dml`, `dmr` | `auto` |
 | `--top-text` / `--bottom-text` | Верхняя и нижняя строки текста (или сбоку от QR-кода) | пусто |
 | `--font-size` / `fontSize` | Размер шрифта/подписи: `-1` (авто), `0` (скрыть код), `N` (px), `Np` (% высоты кода или слота строки) | `-1` |
 | `--margin` / `--side-margin` | Верхнее/нижнее и боковые поля этикетки в точках (`0` — от края до края) | `4` / `10` |
