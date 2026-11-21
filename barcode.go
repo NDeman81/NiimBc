@@ -557,7 +557,7 @@ func ean8CheckDigit(d7 string) byte {
 
 func normalizeEan13(raw string) (string, error) {
 	s := strings.TrimSpace(raw)
-	if !isAllDigits(s) || (len(s) != 12 && len(s) != 13) {
+	if !reOnlyDigits.MatchString(s) || (len(s) != 12 && len(s) != 13) {
 		return "", fmt.Errorf("EAN-13 требует 12 или 13 цифр (получено %d)", len(s))
 	}
 	cd := ean13CheckDigit(s[:12])
@@ -572,7 +572,7 @@ func normalizeEan13(raw string) (string, error) {
 
 func normalizeEan8(raw string) (string, error) {
 	s := strings.TrimSpace(raw)
-	if !isAllDigits(s) || (len(s) != 7 && len(s) != 8) {
+	if !reOnlyDigits.MatchString(s) || (len(s) != 7 && len(s) != 8) {
 		return "", fmt.Errorf("EAN-8 требует 7 или 8 цифр (получено %d)", len(s))
 	}
 	cd := ean8CheckDigit(s[:7])
