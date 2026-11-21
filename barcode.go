@@ -10,7 +10,11 @@ import (
 	"strings"
 
 	"github.com/boombuler/barcode"
-	"github.com/boombuler/barcode/code39" "github.com/boombuler/barcode/code128" "github.com/boombuler/barcode/datamatrix" "github.com/boombuler/barcode/ean" "github.com/boombuler/barcode/pdf417"
+	"github.com/boombuler/barcode/code128"
+	"github.com/boombuler/barcode/code39"
+	"github.com/boombuler/barcode/datamatrix"
+	"github.com/boombuler/barcode/ean"
+	"github.com/boombuler/barcode/pdf417"
 	"github.com/boombuler/barcode/qr"
 	"github.com/boombuler/barcode/twooffive"
 	"golang.org/x/image/font"
@@ -82,6 +86,7 @@ func encodeLinear(raw, fmtMode string) (barcode.Barcode, error) {
 	}
 	return code128.Encode(raw)
 }
+
 // renderLinearBarcodeLabel рисует горизонтальный штрихкод с верхним, основным и нижним текстом.
 func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.Gray, error) {
 	bc, err := encodeLinear(raw, fmtMode)
@@ -203,7 +208,11 @@ func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.
 	if renderBarcode && barcodeH > 0 {
 		bcSide := sideMargin
 		targetW := maxInt(10, W-2*bcSide)
-		if opts.SafeMode { bcSide = maxInt(bcSide, 12); targetW = maxInt(10, W-2*bcSide) }; drawSharpBarcodeEx(canvas, bc, offX+bcSide, barcodeY, targetW, barcodeH, opts.SafeMode)
+		if opts.SafeMode {
+			bcSide = maxInt(bcSide, 12)
+			targetW = maxInt(10, W-2*bcSide)
+		}
+		drawSharpBarcodeEx(canvas, bc, offX+bcSide, barcodeY, targetW, barcodeH, opts.SafeMode)
 	}
 
 	if renderMain && mainH > 0 {
@@ -216,6 +225,7 @@ func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.
 
 	return canvas, nil
 }
+
 // renderQrLabel рисует QR-код слева или справа, а текстовые блоки — с противоположной стороны.
 func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
 	qrCode, err := qr.Encode(raw, qr.M, qr.Auto)
@@ -296,257 +306,281 @@ func renderQrLabel(raw, side string, opts BarcodeOptions) (*image.Gray, error) {
 // drawSharpBarcode вписывает штрихкод/QR без сглаживания (строго чёрные и белые модули),
 // обрезая встроенную тихую зону, чтобы отступы задавались исключительно параметром sideMargin.
 func drawSharpBarcode(dst *image.Gray, bc barcode.Barcode, x, y, boxW, boxH int) {
-drawSharpBarcodeEx(dst, bc, x, y, boxW, boxH, false)
+	drawSharpBarcodeEx(dst, bc, x, y, boxW, boxH, false)
 }
 
 func drawSharpBarcodeEx(dst *image.Gray, bc barcode.Barcode, x, y, boxW, boxH int, safeMode bool) {
-b := bc.Bounds()
-if b.Dx() <= 0 || b.Dy() <= 0 || boxW <= 0 || boxH <= 0 {
-return
-}
+	b := bc.Bounds()
+	if b.Dx() <= 0 || b.Dy() <= 0 || boxW <= 0 || boxH <= 0 {
+		return
+	}
 
-minX, maxX := b.Max.X, b.Min.X
-minY, maxY := b.Max.Y, b.Min.Y
-for sy := b.Min.Y; sy < b.Max.Y; sy++ {
-for sx := b.Min.X; sx < b.Max.X; sx++ {
-r, g, bl, _ := bc.At(sx, sy).RGBA()
-if (r+g+bl)/3 < 0x8000 {
-if sx < minX { minX = sx }
-if sx > maxX { maxX = sx }
-if sy < minY { minY = sy }
-if sy > maxY { maxY = sy }
-}
-}
-}
-if minX > maxX || minY > maxY {
-return
-}
-srcRect := image.Rect(minX, minY, maxX+1, maxY+1)
-srcW, srcH := srcRect.Dx(), srcRect.Dy()
+	minX, maxX := b.Max.X, b.Min.X
+	minY, maxY := b.Max.Y, b.Min.Y
+	for sy := b.Min.Y; sy < b.Max.Y; sy++ {
+		for sx := b.Min.X; sx < b.Max.X; sx++ {
+			r, g, bl, _ := bc.At(sx, sy).RGBA()
+			if (r+g+bl)/3 < 0x8000 {
+				if sx < minX {
+					minX = sx
+				}
+				if sx > maxX {
+					maxX = sx
+				}
+				if sy < minY {
+					minY = sy
+				}
+				if sy > maxY {
+					maxY = sy
+				}
+			}
+		}
+	}
+	if minX > maxX || minY > maxY {
+		return
+	}
+	srcRect := image.Rect(minX, minY, maxX+1, maxY+1)
+	srcW, srcH := srcRect.Dx(), srcRect.Dy()
 
-drawW := boxW
-drawH := boxH
-if bc.Metadata().Dimensions == 2 {
-s := minInt(boxW/srcW, boxH/srcH)
-if s < 1 {
-s = 1
-}
-drawW = srcW * s
-drawH = srcH * s
-} else if safeMode {
-// Подбираем масштаб модулей кратно 0.5 (1.0x, 1.5x, 2.0x, 2.5x...), чтобы штрихи и пробелы не слипались
-halfSteps := int(math.Floor(float64(boxW) / (float64(srcW) * 0.5)))
-if halfSteps >= 2 {
-drawW = int(math.Round(float64(srcW) * (float64(halfSteps) * 0.5)))
-}
-}
+	drawW := boxW
+	drawH := boxH
+	if bc.Metadata().Dimensions == 2 {
+		s := minInt(boxW/srcW, boxH/srcH)
+		if s < 1 {
+			s = 1
+		}
+		drawW = srcW * s
+		drawH = srcH * s
+	} else if safeMode {
+		// Подбираем масштаб модулей кратно 0.5 (1.0x, 1.5x, 2.0x, 2.5x...), чтобы штрихи и пробелы не слипались
+		halfSteps := int(math.Floor(float64(boxW) / (float64(srcW) * 0.5)))
+		if halfSteps >= 2 {
+			drawW = int(math.Round(float64(srcW) * (float64(halfSteps) * 0.5)))
+		}
+	}
 
-offX := x + (boxW-drawW)/2
-offY := y + (boxH-drawH)/2
+	offX := x + (boxW-drawW)/2
+	offY := y + (boxH-drawH)/2
 
-for py := 0; py < drawH; py++ {
-sy := srcRect.Min.Y + (py*srcH)/drawH
-for px := 0; px < drawW; px++ {
-sx := srcRect.Min.X + (px*srcW)/drawW
-r, g, bl, _ := bc.At(sx, sy).RGBA()
-if (r+g+bl)/3 < 0x8000 {
-if image.Pt(offX+px, offY+py).In(dst.Bounds()) {
-dst.SetGray(offX+px, offY+py, color.Gray{Y: 0})
-}
-}
-}
-}
+	for py := 0; py < drawH; py++ {
+		sy := srcRect.Min.Y + (py*srcH)/drawH
+		for px := 0; px < drawW; px++ {
+			sx := srcRect.Min.X + (px*srcW)/drawW
+			r, g, bl, _ := bc.At(sx, sy).RGBA()
+			if (r+g+bl)/3 < 0x8000 {
+				if image.Pt(offX+px, offY+py).In(dst.Bounds()) {
+					dst.SetGray(offX+px, offY+py, color.Gray{Y: 0})
+				}
+			}
+		}
+	}
 }
 
 // drawFittedLine подбирает максимальный кегль по реальным границам чёрных пикселей глифов
 // (аналогично path.GetBounds() в C#), чтобы текст заполнял максимум высоты и ширины boxW × boxH.
 func drawFittedLine(dst *image.Gray, text, fontName string, bold bool, x, y, boxW, boxH int) error {
-text = strings.TrimSpace(text)
-if text == "" || boxW < 4 || boxH < 4 {
-return nil
-}
-fontPath, err := pickFont(fontName, bold)
-if err != nil {
-return err
-}
+	text = strings.TrimSpace(text)
+	if text == "" || boxW < 4 || boxH < 4 {
+		return nil
+	}
+	fontPath, err := pickFont(fontName, bold)
+	if err != nil {
+		return err
+	}
 
-// Рендерим эталонный контур крупным кеглем (64 pt) и находим точный прямоугольник чёрных пикселей
-const refSize = 64.0
-face, err := loadFace(fontPath, refSize)
-if err != nil {
-return err
-}
-defer face.Close()
+	// Рендерим эталонный контур крупным кеглем (64 pt) и находим точный прямоугольник чёрных пикселей
+	const refSize = 64.0
+	face, err := loadFace(fontPath, refSize)
+	if err != nil {
+		return err
+	}
+	defer face.Close()
 
-advW := font.MeasureString(face, text).Ceil()
-m := face.Metrics()
-tmpW := advW + 20
-tmpH := (m.Ascent + m.Descent).Ceil() + 20
-tmp := image.NewGray(image.Rect(0, 0, tmpW, tmpH))
-for i := range tmp.Pix {
-tmp.Pix[i] = 255
-}
+	advW := font.MeasureString(face, text).Ceil()
+	m := face.Metrics()
+	tmpW := advW + 20
+	tmpH := (m.Ascent + m.Descent).Ceil() + 20
+	tmp := image.NewGray(image.Rect(0, 0, tmpW, tmpH))
+	for i := range tmp.Pix {
+		tmp.Pix[i] = 255
+	}
 
-d := &font.Drawer{
-Dst:  tmp,
-Src:  image.NewUniform(color.Black),
-Face: face,
-Dot:  fixed.P(10, 10+m.Ascent.Ceil()),
-}
-d.DrawString(text)
+	d := &font.Drawer{
+		Dst:  tmp,
+		Src:  image.NewUniform(color.Black),
+		Face: face,
+		Dot:  fixed.P(10, 10+m.Ascent.Ceil()),
+	}
+	d.DrawString(text)
 
-minX, maxX := tmpW, 0
-minY, maxY := tmpH, 0
-for py := 0; py < tmpH; py++ {
-for px := 0; px < tmpW; px++ {
-if tmp.GrayAt(px, py).Y < 200 {
-if px < minX { minX = px }
-if px > maxX { maxX = px }
-if py < minY { minY = py }
-if py > maxY { maxY = py }
-}
-}
-}
-if minX > maxX || minY > maxY {
-return nil
-}
+	minX, maxX := tmpW, 0
+	minY, maxY := tmpH, 0
+	for py := 0; py < tmpH; py++ {
+		for px := 0; px < tmpW; px++ {
+			if tmp.GrayAt(px, py).Y < 200 {
+				if px < minX {
+					minX = px
+				}
+				if px > maxX {
+					maxX = px
+				}
+				if py < minY {
+					minY = py
+				}
+				if py > maxY {
+					maxY = py
+				}
+			}
+		}
+	}
+	if minX > maxX || minY > maxY {
+		return nil
+	}
 
-glyphW := float64(maxX - minX + 1)
-glyphH := float64(maxY - minY + 1)
+	glyphW := float64(maxX - minX + 1)
+	glyphH := float64(maxY - minY + 1)
 
-scaleX := float64(boxW) / glyphW
-scaleY := float64(boxH) / glyphH
-scale := scaleX
-if scaleY < scale {
-scale = scaleY
-}
+	scaleX := float64(boxW) / glyphW
+	scaleY := float64(boxH) / glyphH
+	scale := scaleX
+	if scaleY < scale {
+		scale = scaleY
+	}
 
-targetSize := refSize * scale
-if targetSize < 4.0 {
-targetSize = 4.0
-}
+	targetSize := refSize * scale
+	if targetSize < 4.0 {
+		targetSize = 4.0
+	}
 
-finalFace, err := loadFace(fontPath, targetSize)
-if err != nil {
-return err
-}
-defer finalFace.Close()
+	finalFace, err := loadFace(fontPath, targetSize)
+	if err != nil {
+		return err
+	}
+	defer finalFace.Close()
 
-// Повторно измеряем точные пиксельные границы уже на финальном кегле для идеального центрирования
-fAdvW := font.MeasureString(finalFace, text).Ceil()
-fm := finalFace.Metrics()
-fTmpW := fAdvW + 16
-fTmpH := (fm.Ascent + fm.Descent).Ceil() + 16
-fTmp := image.NewGray(image.Rect(0, 0, fTmpW, fTmpH))
-for i := range fTmp.Pix {
-fTmp.Pix[i] = 255
-}
-fd := &font.Drawer{
-Dst:  fTmp,
-Src:  image.NewUniform(color.Black),
-Face: finalFace,
-Dot:  fixed.P(8, 8+fm.Ascent.Ceil()),
-}
-fd.DrawString(text)
+	// Повторно измеряем точные пиксельные границы уже на финальном кегле для идеального центрирования
+	fAdvW := font.MeasureString(finalFace, text).Ceil()
+	fm := finalFace.Metrics()
+	fTmpW := fAdvW + 16
+	fTmpH := (fm.Ascent + fm.Descent).Ceil() + 16
+	fTmp := image.NewGray(image.Rect(0, 0, fTmpW, fTmpH))
+	for i := range fTmp.Pix {
+		fTmp.Pix[i] = 255
+	}
+	fd := &font.Drawer{
+		Dst:  fTmp,
+		Src:  image.NewUniform(color.Black),
+		Face: finalFace,
+		Dot:  fixed.P(8, 8+fm.Ascent.Ceil()),
+	}
+	fd.DrawString(text)
 
-fMinX, fMaxX := fTmpW, 0
-fMinY, fMaxY := fTmpH, 0
-for py := 0; py < fTmpH; py++ {
-for px := 0; px < fTmpW; px++ {
-if fTmp.GrayAt(px, py).Y < 220 {
-if px < fMinX { fMinX = px }
-if px > fMaxX { fMaxX = px }
-if py < fMinY { fMinY = py }
-if py > fMaxY { fMaxY = py }
-}
-}
-}
-if fMinX > fMaxX || fMinY > fMaxY {
-return nil
-}
+	fMinX, fMaxX := fTmpW, 0
+	fMinY, fMaxY := fTmpH, 0
+	for py := 0; py < fTmpH; py++ {
+		for px := 0; px < fTmpW; px++ {
+			if fTmp.GrayAt(px, py).Y < 220 {
+				if px < fMinX {
+					fMinX = px
+				}
+				if px > fMaxX {
+					fMaxX = px
+				}
+				if py < fMinY {
+					fMinY = py
+				}
+				if py > fMaxY {
+					fMaxY = py
+				}
+			}
+		}
+	}
+	if fMinX > fMaxX || fMinY > fMaxY {
+		return nil
+	}
 
-realW := fMaxX - fMinX + 1
-realH := fMaxY - fMinY + 1
-dstX := x + (boxW-realW)/2
-dstY := y + (boxH-realH)/2
+	realW := fMaxX - fMinX + 1
+	realH := fMaxY - fMinY + 1
+	dstX := x + (boxW-realW)/2
+	dstY := y + (boxH-realH)/2
 
-for py := 0; py < realH; py++ {
-for px := 0; px < realW; px++ {
-v := fTmp.GrayAt(fMinX+px, fMinY+py).Y
-if v < 255 && image.Pt(dstX+px, dstY+py).In(dst.Bounds()) {
-if v < dst.GrayAt(dstX+px, dstY+py).Y {
-dst.SetGray(dstX+px, dstY+py, color.Gray{Y: v})
-}
-}
-}
-}
-return nil
+	for py := 0; py < realH; py++ {
+		for px := 0; px < realW; px++ {
+			v := fTmp.GrayAt(fMinX+px, fMinY+py).Y
+			if v < 255 && image.Pt(dstX+px, dstY+py).In(dst.Bounds()) {
+				if v < dst.GrayAt(dstX+px, dstY+py).Y {
+					dst.SetGray(dstX+px, dstY+py, color.Gray{Y: v})
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func maxInt(a, b int) int {
-if a > b {
-return a
-}
-return b
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func minInt(a, b int) int {
-if a < b {
-return a
-}
-return b
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func ean13CheckDigit(d12 string) byte {
-sum := 0
-for i := 0; i < 12; i++ {
-v := int(d12[i] - '0')
-if i%2 == 1 {
-v *= 3
-}
-sum += v
-}
-return byte('0' + ((10 - (sum % 10)) % 10))
+	sum := 0
+	for i := 0; i < 12; i++ {
+		v := int(d12[i] - '0')
+		if i%2 == 1 {
+			v *= 3
+		}
+		sum += v
+	}
+	return byte('0' + ((10 - (sum % 10)) % 10))
 }
 
 func ean8CheckDigit(d7 string) byte {
-sum := 0
-for i := 0; i < 7; i++ {
-v := int(d7[i] - '0')
-if i%2 == 0 {
-v *= 3
-}
-sum += v
-}
-return byte('0' + ((10 - (sum % 10)) % 10))
+	sum := 0
+	for i := 0; i < 7; i++ {
+		v := int(d7[i] - '0')
+		if i%2 == 0 {
+			v *= 3
+		}
+		sum += v
+	}
+	return byte('0' + ((10 - (sum % 10)) % 10))
 }
 
 func normalizeEan13(raw string) (string, error) {
-s := strings.TrimSpace(raw)
-if !isAllDigits(s) || (len(s) != 12 && len(s) != 13) {
-return "", fmt.Errorf("EAN-13 требует 12 или 13 цифр (получено %d)", len(s))
-}
-cd := ean13CheckDigit(s[:12])
-if len(s) == 12 {
-return s + string(cd), nil
-}
-if s[12] != cd {
-return "", fmt.Errorf("неверная контрольная цифра EAN-13: ожидается %c, в коде %c", cd, s[12])
-}
-return s, nil
+	s := strings.TrimSpace(raw)
+	if !isAllDigits(s) || (len(s) != 12 && len(s) != 13) {
+		return "", fmt.Errorf("EAN-13 требует 12 или 13 цифр (получено %d)", len(s))
+	}
+	cd := ean13CheckDigit(s[:12])
+	if len(s) == 12 {
+		return s + string(cd), nil
+	}
+	if s[12] != cd {
+		return "", fmt.Errorf("неверная контрольная цифра EAN-13: ожидается %c, в коде %c", cd, s[12])
+	}
+	return s, nil
 }
 
 func normalizeEan8(raw string) (string, error) {
-s := strings.TrimSpace(raw)
-if !isAllDigits(s) || (len(s) != 7 && len(s) != 8) {
-return "", fmt.Errorf("EAN-8 требует 7 или 8 цифр (получено %d)", len(s))
-}
-cd := ean8CheckDigit(s[:7])
-if len(s) == 7 {
-return s + string(cd), nil
-}
-if s[7] != cd {
-return "", fmt.Errorf("неверная контрольная цифра EAN-8: ожидается %c, в коде %c", cd, s[7])
-}
-return s, nil
+	s := strings.TrimSpace(raw)
+	if !isAllDigits(s) || (len(s) != 7 && len(s) != 8) {
+		return "", fmt.Errorf("EAN-8 требует 7 или 8 цифр (получено %d)", len(s))
+	}
+	cd := ean8CheckDigit(s[:7])
+	if len(s) == 7 {
+		return s + string(cd), nil
+	}
+	if s[7] != cd {
+		return "", fmt.Errorf("неверная контрольная цифра EAN-8: ожидается %c, в коде %c", cd, s[7])
+	}
+	return s, nil
 }
