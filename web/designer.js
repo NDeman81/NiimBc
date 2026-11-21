@@ -1174,3 +1174,77 @@ document.addEventListener('keydown', (e) => {
     schedulePreview();
   }
 });
+
+// ==========================================================================
+// Прямая загрузка таблиц Excel (.xlsx) с выбором листа в Конструкторе этикеток
+// ==========================================================================
+(function initDesignerXlsx() {
+  const inp = $('csv-file');
+  const btn = $('csv-btn');
+  if (!inp || !btn) return;
+
+  const sheetSel = document.createElement('select');
+  sheetSel.className = 'hidden';
+  sheetSel.style.cssText = 'max-width:190px;padding:6px 8px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px';
+  btn.insertAdjacentElement('afterend', sheetSel);
+
+  let lastXlsxUrl = '';
+  let lastRows = [];
+
+  function applyRows(rows) {
+    lastRows = rows || [];
+    let view = lastRows;
+    if ($('csv-header')?.checked && view.length > 1) view = view.slice(1);
+    if ($('series-text')) $('series-text').value = view.map((c) => c.join(';')).join('\n');
+    updateCount();
+  }
+
+  async function loadSheet(sheetName) {
+    const r = await fetch('/api/parse-xlsx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: lastXlsxUrl, sheet: sheetName || '' })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка чтения Excel');
+    const sheets = Array.isArray(d.sheets) ? d.sheets : [];
+    if (sheets.length > 1) {
+      sheetSel.innerHTML = '';
+      sheets.forEach((s) => {
+        const o = document.createElement('option');
+        o.value = s; o.textContent = 'Лист: ' + s;
+        sheetSel.appendChild(o);
+      });
+      sheetSel.value = d.sheet || sheets[0];
+      sheetSel.classList.remove('hidden');
+    } else {
+      sheetSel.classList.add('hidden');
+    }
+    applyRows(d.rows || []);
+  }
+
+  sheetSel.addEventListener('change', () => { if (lastXlsxUrl) loadSheet(sheetSel.value).catch((e) => alert(e.message)); });
+  if ($('csv-header')) $('csv-header').addEventListener('change', () => { if (lastXlsxUrl && lastRows.length) applyRows(lastRows); });
+
+  inp.addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (!f.name.toLowerCase().endsWith('.xlsx')) {
+      lastXlsxUrl = ''; lastRows = []; sheetSel.classList.add('hidden');
+      return;
+    }
+    e.stopImmediatePropagation();
+    try {
+      lastXlsxUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result || ''));
+        r.onerror = () => rej(new Error('Не удалось прочитать файл'));
+        r.readAsDataURL(f);
+      });
+      await loadSheet('');
+    } catch (err) {
+      alert('Ошибка Excel: ' + err.message);
+    }
+    e.target.value = '';
+  }, true);
+})();

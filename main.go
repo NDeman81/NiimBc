@@ -61,6 +61,8 @@ saveCfg   = flagSet.Bool("save-config", false, "сохранить переда�
 	printMode = flagSet.String("print-mode", "", "режим отправки строк: fast (быстрый пачками) | safe (построчный)")
 	calFeed   = flagSet.Bool("feed", false, "протянуть пустую этикетку при калибровке (команда calibrate)")
 	tplArg    = flagSet.String("template", "", "имя сохранённого шаблона или путь к .json-файлу (команды template и preview)")
+	sheetName = flagSet.String("sheet", "", "имя листа Excel при загрузке .xlsx (команда template)")
+	skipHdr   = flagSet.Bool("skip-header", false, "пропустить первую строку заголовков в таблице (--file)")
 	cntStart  = flagSet.Int("counter-start", 1, "начальное значение счётчика {c} в шаблоне")
 	cntStep   = flagSet.Int("counter-step", 1, "шаг приращения счётчика {c} в шаблоне")
 )

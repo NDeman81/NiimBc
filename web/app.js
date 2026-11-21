@@ -1933,3 +1933,128 @@ window.fetch = async function(input, init) {
   }
   return res;
 };
+
+// ==========================================================================
+// Прямая загрузка таблиц Excel (.xlsx) с выбором листа на вкладках Серия и По шаблону
+// ==========================================================================
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = () => reject(new Error('Не удалось прочитать файл'));
+    r.readAsDataURL(file);
+  });
+}
+
+function attachXlsxLoader(fileInputId, btnId, textareaId, headerChkId, colsHintId, afterUpdateFn, switchTabToSeries) {
+  const inp = $(fileInputId);
+  const btn = $(btnId);
+  if (!inp || !btn) return;
+
+  // Создаём рядом с кнопкой скрытый селектор листов Excel
+  const sheetSel = document.createElement('select');
+  sheetSel.className = 'hidden';
+  sheetSel.style.cssText = 'max-width:190px;padding:6px 8px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px';
+  sheetSel.title = 'Выберите лист книги Excel';
+  btn.insertAdjacentElement('afterend', sheetSel);
+
+  let lastXlsxDataUrl = '';
+  let lastRowsCache = [];
+
+  function applyRowsToTarget(rows) {
+    lastRowsCache = rows || [];
+    let viewRows = lastRowsCache;
+    if ($(headerChkId)?.checked && viewRows.length > 1) {
+      viewRows = viewRows.slice(1);
+    }
+    const width = viewRows.reduce((m, cols) => Math.max(m, cols.length), 0);
+    if ($(colsHintId)) {
+      $(colsHintId).textContent = width
+        ? `в данных ${width} ${plural(width, 'столбец', 'столбца', 'столбцов')}`
+        : '';
+    }
+    if ($(textareaId)) {
+      $(textareaId).value = viewRows.map((cols) => cols.join(';')).join('\n');
+    }
+    if (typeof afterUpdateFn === 'function') afterUpdateFn();
+  }
+
+  async function loadXlsxSheet(sheetName) {
+    const r = await fetch('/api/parse-xlsx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: lastXlsxDataUrl, sheet: sheetName || '' })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Ошибка разбора файла Excel');
+
+    const sheets = Array.isArray(d.sheets) ? d.sheets : [];
+    if (sheets.length > 1) {
+      sheetSel.innerHTML = '';
+      sheets.forEach((s) => {
+        const o = document.createElement('option');
+        o.value = s;
+        o.textContent = 'Лист: ' + s;
+        sheetSel.appendChild(o);
+      });
+      sheetSel.value = d.sheet || sheets[0];
+      sheetSel.classList.remove('hidden');
+    } else {
+      sheetSel.classList.add('hidden');
+    }
+    applyRowsToTarget(d.rows || []);
+  }
+
+  sheetSel.addEventListener('change', async () => {
+    if (!lastXlsxDataUrl) return;
+    try {
+      await loadXlsxSheet(sheetSel.value);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  if ($(headerChkId)) {
+    $(headerChkId).addEventListener('change', () => {
+      if (lastXlsxDataUrl && lastRowsCache.length > 0) {
+        applyRowsToTarget(lastRowsCache);
+      }
+    });
+  }
+
+  inp.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      // Для обычного CSV прячем селектор листов Excel и отдаём управление штатному обработчику
+      lastXlsxDataUrl = '';
+      lastRowsCache = [];
+      sheetSel.classList.add('hidden');
+      return;
+    }
+    e.stopImmediatePropagation();
+    try {
+      lastXlsxDataUrl = await fileToDataURL(file);
+      await loadXlsxSheet('');
+      if (switchTabToSeries) {
+        const tab = document.querySelector('.tab[data-mode="series"]');
+        if (tab) tab.click();
+      }
+    } catch (err) {
+      alert('Ошибка Excel: ' + err.message);
+    }
+    e.target.value = '';
+  }, true);
+}
+
+attachXlsxLoader('csv-file', 'csv-btn', 'series-text', 'csv-header', 'csv-cols', () => {
+  currentPreviewRow = 1;
+  updateSeriesCount();
+  if (typeof syncListNavUI === 'function') syncListNavUI();
+}, true);
+
+attachXlsxLoader('tpl-csv-file', 'tpl-csv-btn', 'tpl-print-items', 'tpl-csv-header', 'tpl-csv-cols', () => {
+  currentPreviewRow = 1;
+  if (typeof updateTplSeriesCount === 'function') updateTplSeriesCount();
+  if (typeof syncListNavUI === 'function') syncListNavUI();
+}, false);

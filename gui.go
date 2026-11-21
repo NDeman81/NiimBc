@@ -804,6 +804,7 @@ mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
 	})
 
 	mux.HandleFunc("/api/history", apiHistoryHandler)
+	mux.HandleFunc("/api/parse-xlsx", apiParseXlsxHandler)
 mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -1387,4 +1388,38 @@ writeJSON(w, map[string]any{"ok": true})
 default:
 writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("метод не поддерживается"))
 }
+}
+
+func apiParseXlsxHandler(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("нужен POST"))
+return
+}
+var body struct {
+Data  string `json:"data"`
+Sheet string `json:"sheet"`
+}
+if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+writeErr(w, http.StatusBadRequest, err)
+return
+}
+raw := strings.TrimSpace(body.Data)
+if idx := strings.Index(raw, ","); idx >= 0 {
+raw = raw[idx+1:]
+}
+if raw == "" {
+writeErr(w, http.StatusBadRequest, fmt.Errorf("не передан файл Excel"))
+return
+}
+bin, err := base64.StdEncoding.DecodeString(raw)
+if err != nil {
+writeErr(w, http.StatusBadRequest, fmt.Errorf("ошибка декодирования файла: %w", err))
+return
+}
+res, err := ParseXlsxBytes(bin, body.Sheet)
+if err != nil {
+writeErr(w, http.StatusBadRequest, err)
+return
+}
+writeJSON(w, res)
 }
