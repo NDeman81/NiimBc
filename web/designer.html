@@ -50,7 +50,7 @@
       <button id="add-barcode" class="ghost">+ Штрихкод</button>
       <button id="add-stamp" class="ghost">+ Дата и время</button>
       <input type="file" id="image-file" accept="image/*" hidden>
-      <button type="button" id="dup-el" class="ghost" title="Дублировать выделенный элемент (Ctrl+D)">Дублировать</button><button id="del-el" class="ghost danger">Удалить</button>
+      <button type="button" id="dup-el" class="ghost" title="Дублировать выделенный элемент (Ctrl+D)">Дублировать</button><button id="undo-btn" title="Отменить последнее действие (Ctrl+Z)">↶ Отменить</button><button type="button" class="ghost" id="del-el" class="ghost danger">Удалить</button>
       <label class="check"><input type="checkbox" id="grid" checked> сетка 1 мм</label>
       <span class="spacer"></span>
       <label class="inline">Длина, мм
@@ -107,7 +107,16 @@
           <label style="margin:0">Скрывать, если пусто поле № <input type="text" id="p-hide-if" placeholder="напр. 3" style="margin-top:3px"></label>
         </div>
 
-        <div id="text-props">
+              <div style="margin:8px 0">
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">Быстрое выравнивание по этикетке</div>
+        <div class="row" style="gap:6px;flex-wrap:wrap">
+          <button type="button" class="ghost" id="al-left" style="padding:4px 8px;font-size:12px" title="К левому краю (0.5 мм)">⇤ Влево</button>
+          <button type="button" class="ghost" id="al-cx" style="padding:4px 8px;font-size:12px" title="По центру горизонтали">↔ Центр X</button>
+          <button type="button" class="ghost" id="al-right" style="padding:4px 8px;font-size:12px" title="К правому краю">Вправо ⇥</button>
+          <button type="button" class="ghost" id="al-cy" style="padding:4px 8px;font-size:12px" title="По центру вертикали">↕ Центр Y</button>
+        </div>
+      </div>
+      <div id="text-props">
           <label>Текст
             <textarea id="p-text" rows="2"></textarea>
           </label>
@@ -236,6 +245,6 @@
 
 </main>
 
-<script src="designer.js?v=33"></script>
+<script src="designer.js?v=34"></script>
 </body>
 </html>

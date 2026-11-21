@@ -988,3 +988,189 @@ window.fetch = async function(input, init) {
   }
   return res;
 };
+
+// ==========================================================================
+// История действий (Ctrl+Z, до 15 шагов), сдвиг стрелками (0.5 / 0.1 мм)
+// и кнопки быстрого выравнивания по холсту
+// ==========================================================================
+const MAX_UNDO_STEPS = 15;
+let undoStack = [];
+let _lastSavedSnapshot = '';
+
+function captureUndoSnapshot() {
+  return JSON.stringify({ elements, selected });
+}
+
+function pushUndoState(customSnap) {
+  const snapStr = customSnap || captureUndoSnapshot();
+  if (undoStack.length > 0 && undoStack[undoStack.length - 1] === snapStr) return;
+  undoStack.push(snapStr);
+  if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
+}
+
+function performUndo() {
+  if (!undoStack.length) return;
+  const prevRaw = undoStack.pop();
+  try {
+    const st = JSON.parse(prevRaw);
+    elements = Array.isArray(st.elements) ? st.elements : [];
+    const idx = typeof st.selected === 'number' ? st.selected : -1;
+    selected = (idx >= 0 && idx < elements.length) ? idx : -1;
+    _lastSavedSnapshot = captureUndoSnapshot();
+    renderCanvas();
+    showProps();
+    refreshPreview();
+  } catch (_) {}
+}
+
+// Запоминаем состояние перед началом перетаскивания/изменения размера мышью
+if ($('label')) {
+  $('label').addEventListener('mousedown', () => {
+    _lastSavedSnapshot = captureUndoSnapshot();
+  }, true);
+  $('label').addEventListener('mouseup', () => {
+    const nowSnap = captureUndoSnapshot();
+    if (_lastSavedSnapshot && nowSnap !== _lastSavedSnapshot) {
+      pushUndoState(_lastSavedSnapshot);
+    }
+    _lastSavedSnapshot = '';
+  }, true);
+}
+
+// Запоминаем состояние при кликах по кнопкам добавления/удаления/слоёв/дублирования
+['add-text', 'add-barcode', 'add-line', 'add-vline', 'add-circle', 'add-diag', 'add-frame', 'add-stamp', 'dup-el', 'del-el', 'layer-up', 'layer-down'].forEach((id) => {
+  if ($(id)) {
+    $(id).addEventListener('click', () => pushUndoState(), true);
+  }
+});
+if ($('icon-picker-menu')) {
+  $('icon-picker-menu').addEventListener('click', () => pushUndoState(), true);
+}
+
+// Запоминаем состояние при редактировании полей свойств элемента
+['p-x', 'p-y', 'p-w', 'p-h', 'p-x2', 'p-y2', 'p-text', 'p-align', 'p-rotate', 'p-family', 'p-fontsize', 'p-bold', 'p-bc-data', 'p-bc-format', 'p-bc-gap', 'p-bc-safe', 'p-thickness', 'p-transparent', 'p-hide-if', 'p-img-stretch', 'p-order'].forEach((id) => {
+  if ($(id)) {
+    $(id).addEventListener('focus', () => { _lastSavedSnapshot = captureUndoSnapshot(); });
+    $(id).addEventListener('change', () => {
+      const nowSnap = captureUndoSnapshot();
+      if (_lastSavedSnapshot && nowSnap !== _lastSavedSnapshot) {
+        pushUndoState(_lastSavedSnapshot);
+        _lastSavedSnapshot = nowSnap;
+      }
+    });
+  }
+});
+
+if ($('undo-btn')) $('undo-btn').onclick = performUndo;
+
+// Быстрое выравнивание выделенного элемента по холсту
+function alignSelectedElement(modeAlign) {
+  if (selected < 0 || selected >= elements.length) return;
+  pushUndoState();
+  const el = elements[selected];
+  const L = labelLength();
+  const H = LABEL_H_MM;
+  const round1 = (v) => Math.round(v * 10) / 10;
+
+  if (el.kind === 'diag') {
+    const x1 = el.x || 0, y1 = el.y || 0, x2 = el.x2 ?? x1, y2 = el.y2 ?? y1;
+    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    const bw = maxX - minX, bh = maxY - minY;
+    let dx = 0, dy = 0;
+    if (modeAlign === 'left') dx = 0.5 - minX;
+    else if (modeAlign === 'right') dx = (L - bw - 0.5) - minX;
+    else if (modeAlign === 'cx') dx = ((L - bw) / 2) - minX;
+    else if (modeAlign === 'cy') dy = ((H - bh) / 2) - minY;
+    el.x = round1(Math.max(0, Math.min(L, x1 + dx)));
+    el.x2 = round1(Math.max(0, Math.min(L, x2 + dx)));
+    el.y = round1(Math.max(0, Math.min(H, y1 + dy)));
+    el.y2 = round1(Math.max(0, Math.min(H, y2 + dy)));
+  } else {
+    const rot = ((el.rotate || 0) % 360 + 360) % 360;
+    const swapped = (el.kind === 'text') && (rot === 90 || rot === 270);
+    const rawW = el.w || (el.kind === 'barcode' ? L : 4);
+    const rawH = el.h || (el.kind === 'barcode' ? 12 : 3);
+    const effW = swapped ? rawH : rawW;
+    const effH = swapped ? rawW : rawH;
+
+    if (modeAlign === 'left') el.x = 0.5;
+    else if (modeAlign === 'right') el.x = round1(Math.max(0, L - effW - 0.5));
+    else if (modeAlign === 'cx') el.x = round1(Math.max(0, (L - effW) / 2));
+    else if (modeAlign === 'cy') el.y = round1(Math.max(0, (H - effH) / 2));
+  }
+
+  renderCanvas();
+  showProps();
+  refreshPreview();
+}
+
+if ($('al-left')) $('al-left').onclick = () => alignSelectedElement('left');
+if ($('al-right')) $('al-right').onclick = () => alignSelectedElement('right');
+if ($('al-cx')) $('al-cx').onclick = () => alignSelectedElement('cx');
+if ($('al-cy')) $('al-cy').onclick = () => alignSelectedElement('cy');
+
+// Сдвиг стрелками (0.5 мм / Shift+стрелки 0.1 мм) и отмена по Ctrl+Z
+let _arrowUndoTimer = null;
+let _arrowSaved = false;
+
+document.addEventListener('keydown', (e) => {
+  const tag = document.activeElement ? document.activeElement.tagName : '';
+  const isTyping = ['INPUT', 'TEXTAREA', 'SELECT'].includes(tag);
+
+  // Ctrl+Z — отмена последнего действия
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key.toLowerCase() === 'z' || e.key === 'я' || e.key === 'Я')) {
+    if (!isTyping) {
+      e.preventDefault();
+      performUndo();
+    }
+    return;
+  }
+
+  // Стрелки клавиатуры — точный сдвиг выбранного элемента
+  if (!isTyping && selected >= 0 && selected < elements.length && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    if (!_arrowSaved) {
+      pushUndoState();
+      _arrowSaved = true;
+    }
+    clearTimeout(_arrowUndoTimer);
+    _arrowUndoTimer = setTimeout(() => { _arrowSaved = false; }, 600);
+
+    const step = e.shiftKey ? 0.1 : 0.5;
+    const round1 = (v) => Math.round(v * 10) / 10;
+    const L = labelLength(), H = LABEL_H_MM;
+    const el = elements[selected];
+
+    let dx = 0, dy = 0;
+    if (e.key === 'ArrowLeft') dx = -step;
+    else if (e.key === 'ArrowRight') dx = step;
+    else if (e.key === 'ArrowUp') dy = -step;
+    else if (e.key === 'ArrowDown') dy = step;
+
+    if (el.kind === 'diag') {
+      const x1 = el.x || 0, y1 = el.y || 0, x2 = el.x2 ?? x1, y2 = el.y2 ?? y1;
+      const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+      const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+      dx = Math.max(-minX, Math.min(L - maxX, dx));
+      dy = Math.max(-minY, Math.min(H - maxY, dy));
+      el.x = round1(x1 + dx);
+      el.y = round1(y1 + dy);
+      el.x2 = round1(x2 + dx);
+      el.y2 = round1(y2 + dy);
+    } else {
+      const rot = ((el.rotate || 0) % 360 + 360) % 360;
+      const swapped = (el.kind === 'text') && (rot === 90 || rot === 270);
+      const rawW = el.w || (el.kind === 'barcode' ? L : 4);
+      const rawH = el.h || (el.kind === 'barcode' ? 12 : 3);
+      const effW = swapped ? rawH : rawW;
+      const effH = swapped ? rawW : rawH;
+      el.x = round1(Math.max(0, Math.min(Math.max(0, L - effW), (el.x || 0) + dx)));
+      el.y = round1(Math.max(0, Math.min(Math.max(0, H - effH), (el.y || 0) + dy)));
+    }
+
+    renderCanvas();
+    showProps();
+    schedulePreview();
+  }
+});
