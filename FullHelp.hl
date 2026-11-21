@@ -122,3 +122,10 @@
      - Флаг --bc-safe (bcSafeMode: true) включает тихую зону >= 12 px и кратный 0.5x масштаб штрихов.
      - В config.json доступны параметры тонкой настройки BLE: fastBatchSize (6), fastBatchDelayMs (6),
        statusPollTimeoutMs (250) и keepAliveSec (8).
+
+Прямая загрузка Excel (.xlsx) и фоновая «горячая папка» (watchDir)
+
+     - В веб-интерфейсе и Конструкторе кнопки загрузки поддерживают .xlsx напрямую с выбором листа.
+     - В CLI: niimbc --template "Инвентарный штрихкод" --file data.xlsx --sheet "Лист1" --skip-header template
+     - При заполненном параметре watchDir в config.json сервер каждые 1.5 сек проверяет папку и печатает
+       попадающие туда файлы .json, .xlsx, .csv и .txt, перенося их в подпапки done/ или error/.

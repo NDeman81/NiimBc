@@ -708,6 +708,7 @@ return sharedPrinter, func() { sharedMu.Unlock() }, nil
 // startGUI поднимает веб-интерфейс и открывает браузер.
 func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) error {
 	guiVerbose = verbose
+	startWatchDirWorker(address)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
