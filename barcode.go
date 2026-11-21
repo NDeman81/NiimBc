@@ -80,7 +80,12 @@ func RenderBarcodeLabel(opts BarcodeOptions, cfg AppConfig) (*image.Gray, error)
 		} else if fmtMode == "qrr" {
 			side = "right"
 		}
-		return renderQrLabel(raw, side, opts)
+		if fmtMode == "dml" {
+			side = "left"
+		} else if fmtMode == "dmr" {
+			side = "right"
+		}
+		return render2dLabel(raw, side, opts, true)
 	default:
 		return nil, fmt.Errorf("неизвестный формат штрихкода %q (доступны: auto, code128, qr, qrl, qrr)", fmtMode)
 	}
@@ -123,6 +128,7 @@ func encodeLinear(raw, fmtMode string) (barcode.Barcode, string, error) {
 // renderLinearBarcodeLabel рисует горизонтальный штрихкод с верхним, основным и нижним текстом.
 func renderLinearBarcodeLabel(raw, fmtMode string, opts BarcodeOptions) (*image.Gray, error) {
 	bc, disp, err := encodeLinear(raw, fmtMode)
+	defer func() { _ = disp }()
 	if err != nil {
 		return nil, fmt.Errorf("ошибка кодирования штрихкода: %w", err)
 	}
