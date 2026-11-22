@@ -25,3 +25,4 @@ _Release/
 *.xlsm
 *.xlsb
 ~$*.xls*
+examples_excel/*.v2.bas
