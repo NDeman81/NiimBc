@@ -1,0 +1,57 @@
+# Интеграция `NiimBc` (`niimbc.exe`) с Microsoft Excel (VBA и UserForm)
+
+Модуль **`NiimBc_Macros.bas`** поддерживает работу как с ячейками листа Excel, так и с пользовательскими формами (`UserForm`).
+
+## Подключение модуля
+1. Откройте книгу Excel и нажмите **`Alt + F11`**.
+2. Выберите **`File` -> `Import File...`** и укажите **`NiimBc_Macros.bas`**.
+3. Проверьте константу `CLI_EXE_PATH` в начале модуля (`C:\dev\NiimBc\niimbc.exe`).
+
+---
+
+## Примеры использования 5 функций
+
+### 1. Заполнение столбца таблицы списком шаблонов
+```vb
+' Заполнить столбец E начиная со 2-й строки на активном листе:
+Niim_FillColumnWithTemplates ActiveSheet, "E", 2
+```
+*(Также доступна готовая кнопка-макрос `Demo_FillColumnE_WithTemplates`.)*
+
+### 2. Заполнение раскрывающегося списка (`ComboBox`) на форме (`UserForm`)
+```vb
+Private Sub UserForm_Initialize()
+    Niim_FillComboWithTemplates Me.cmbTemplate
+End Sub
+```
+
+### 3. Вставка изображения штрихкода в указанную ячейку таблицы
+```vb
+' Вставить штрихкод в ячейку D2 (с пропорциональным вписыванием в границы ячейки):
+Niim_InsertBarcodeToCell ActiveSheet.Range("D2"), ActiveSheet.Range("A2").Value, "code128", ActiveSheet.Range("B2").Value
+```
+*(Также доступна готовая кнопка-макрос `Demo_InsertBarcodeNextCell`, вставляющая штрихкод из активной ячейки в ячейку справа.)*
+
+### 4. Вывод изображения штрихкода в элемент `Image` на форме (`UserForm`)
+```vb
+Private Sub txtBarcode_Change()
+    Niim_ShowBarcodeOnForm Me.imgPreview, Me.txtBarcode.Value, "auto", Me.txtCaption.Value
+End Sub
+```
+*(PNG прозрачно конвертируется в BMP через встроенный компонент Windows WIA и масштабируется внутри `imgPreview`.)*
+
+### 5. Печать этикетки по нажатию кнопки на форме (`UserForm`)
+```vb
+Private Sub btnPrint_Click()
+    If Niim_PrintFromForm(Me.cmbTemplate.Value, CLng(Me.txtCopies.Value), Me.txtBarcode.Value, Me.txtTitle.Value, Me.txtLocation.Value) Then
+        MsgBox "Этикетка отправлена на печать!", vbInformation
+    End If
+End Sub
+```
+
+### 4б. Предпросмотр полного шаблона в элемент `Image` на форме (`UserForm`)
+```vb
+Private Sub btnPreview_Click()
+    Niim_ShowTemplateOnForm Me.imgPreview, Me.cmbTemplate.Value, Me.txtField1.Value, Me.txtField2.Value, Me.txtField3.Value
+End Sub
+```

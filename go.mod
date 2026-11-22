@@ -7,6 +7,7 @@ require (
 	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	github.com/xuri/excelize/v2 v2.11.1
 	golang.org/x/image v0.44.0
+	golang.org/x/text v0.44.0
 	tinygo.org/x/bluetooth v0.16.0
 )
 
@@ -29,6 +30,5 @@ require (
 	golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
 	tinygo.org/x/espradio v0.3.0 // indirect
 )
