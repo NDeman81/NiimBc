@@ -83,7 +83,7 @@ Public Function Niim_GetTemplateNames() As Variant
     Dim lines() As String, line As String, p1 As Long, p2 As Long, tName As String
     Dim res() As String, cnt As Long, i As Long
 
-    rc = RunNiimCliUTF8("template", outText)
+    rc = RunNiimCliUTF8("templates list", outText)
     If rc <> 0 Or Trim(outText) = "" Then
         Niim_GetTemplateNames = Array()
         Exit Function
