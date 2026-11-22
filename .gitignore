@@ -21,3 +21,7 @@ _BackUp/
 /*.json
 _Release/
 /*.txt
+*.xlsx
+*.xlsm
+*.xlsb
+~$*.xls*
