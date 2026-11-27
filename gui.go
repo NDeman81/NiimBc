@@ -9,11 +9,11 @@ import (
 	"bytes"
 	"embed"
 	"encoding/base64"
-	_ "image/gif"
-	_ "image/jpeg"
 	"encoding/json"
 	"fmt"
 	"image"
+	_ "image/gif"
+	_ "image/jpeg"
 	"image/png"
 	"io/fs"
 	"net"
@@ -96,61 +96,61 @@ func (j *job) snapshot() job {
 // Template — комбинированный профиль задачи: может включать дизайн (elements),
 // настройки одиночной/серийной печати и системные параметры (system).
 type Template struct {
-Name        string `json:"name"`
-HasDesigner bool   `json:"hasDesigner,omitempty"`
-HasSingle   bool   `json:"hasSingle,omitempty"`
-HasSystem   bool   `json:"hasSystem,omitempty"`
+	Name        string `json:"name"`
+	HasDesigner bool   `json:"hasDesigner,omitempty"`
+	HasSingle   bool   `json:"hasSingle,omitempty"`
+	HasSystem   bool   `json:"hasSystem,omitempty"`
 
-// Базовые параметры этикетки
-Length    float64 `json:"length"`
-Font      float64 `json:"font,omitempty"`
-Density   int     `json:"density,omitempty"`
-Label     string  `json:"label,omitempty"`
-Copies    int     `json:"copies,omitempty"`
-Flip      bool    `json:"flip,omitempty"`
-Threshold int     `json:"threshold,omitempty"`
+	// Базовые параметры этикетки
+	Length    float64 `json:"length"`
+	Font      float64 `json:"font,omitempty"`
+	Density   int     `json:"density,omitempty"`
+	Label     string  `json:"label,omitempty"`
+	Copies    int     `json:"copies,omitempty"`
+	Flip      bool    `json:"flip,omitempty"`
+	Threshold int     `json:"threshold,omitempty"`
 
-// Секция 1: Настройки одиночной и серийной печати
-BcFormat     string `json:"bcFormat,omitempty"`
-BcSafeMode   *bool  `json:"bcSafeMode,omitempty"`
-GapPx        *int   `json:"gapPx,omitempty"`
-TextGapPx    *int   `json:"textGapPx,omitempty"`
-FontName     string `json:"fontName,omitempty"`
-FontSize     string `json:"fontSize,omitempty"`
-Bold         bool   `json:"bold,omitempty"`
-MarginPx     *int   `json:"marginPx,omitempty"`
-SideMarginPx *int   `json:"sideMarginPx,omitempty"`
-OffsetPx     *int   `json:"offsetPx,omitempty"`
-BcData       string `json:"bcData,omitempty"`
-TopText      string `json:"topText,omitempty"`
-BottomText   string `json:"bottomText,omitempty"`
-SingleText   string `json:"singleText,omitempty"`
-CsvHeader    bool   `json:"csvHeader,omitempty"`
-Template     string `json:"template,omitempty"`
-Colorder     string `json:"colorder,omitempty"`
+	// Секция 1: Настройки одиночной и серийной печати
+	BcFormat     string `json:"bcFormat,omitempty"`
+	BcSafeMode   *bool  `json:"bcSafeMode,omitempty"`
+	GapPx        *int   `json:"gapPx,omitempty"`
+	TextGapPx    *int   `json:"textGapPx,omitempty"`
+	FontName     string `json:"fontName,omitempty"`
+	FontSize     string `json:"fontSize,omitempty"`
+	Bold         bool   `json:"bold,omitempty"`
+	MarginPx     *int   `json:"marginPx,omitempty"`
+	SideMarginPx *int   `json:"sideMarginPx,omitempty"`
+	OffsetPx     *int   `json:"offsetPx,omitempty"`
+	BcData       string `json:"bcData,omitempty"`
+	TopText      string `json:"topText,omitempty"`
+	BottomText   string `json:"bottomText,omitempty"`
+	SingleText   string `json:"singleText,omitempty"`
+	CsvHeader    bool   `json:"csvHeader,omitempty"`
+	Template     string `json:"template,omitempty"`
+	Colorder     string `json:"colorder,omitempty"`
 	CounterStart *int   `json:"counterStart,omitempty"`
 	CounterStep  *int   `json:"counterStep,omitempty"`
 
-// Секция 2: Визуальный макет из Конструктора
-Elements []Element `json:"elements,omitempty"`
+	// Секция 2: Визуальный макет из Конструктора
+	Elements []Element `json:"elements,omitempty"`
 
-// Секция 3: Системные параметры (приоритет выше config.json)
-System *AppConfig `json:"system,omitempty"`
+	// Секция 3: Системные параметры (приоритет выше config.json)
+	System *AppConfig `json:"system,omitempty"`
 }
 
 func normalizeTemplateFlags(t *Template) {
-if !t.HasDesigner && !t.HasSingle && !t.HasSystem {
-if len(t.Elements) > 0 {
-t.HasDesigner = true
-}
-if strings.TrimSpace(t.Template) != "" || strings.TrimSpace(t.BcData) != "" ||
-strings.TrimSpace(t.SingleText) != "" || strings.TrimSpace(t.FontName) != "" || !t.HasDesigner {
-t.HasSingle = true
-}
-if t.System != nil {
-t.HasSystem = true
-}
-}
+	if !t.HasDesigner && !t.HasSingle && !t.HasSystem {
+		if len(t.Elements) > 0 {
+			t.HasDesigner = true
+		}
+		if strings.TrimSpace(t.Template) != "" || strings.TrimSpace(t.BcData) != "" ||
+			strings.TrimSpace(t.SingleText) != "" || strings.TrimSpace(t.FontName) != "" || !t.HasDesigner {
+			t.HasSingle = true
+		}
+		if t.System != nil {
+			t.HasSystem = true
+		}
+	}
 }
 
 func templatesPath() string {
@@ -162,18 +162,18 @@ func templatesPath() string {
 }
 
 func loadTemplates() []Template {
-data, err := os.ReadFile(templatesPath())
-if err != nil {
-return nil
-}
-var list []Template
-if json.Unmarshal(data, &list) != nil {
-return nil
-}
-for i := range list {
-normalizeTemplateFlags(&list[i])
-}
-return list
+	data, err := os.ReadFile(templatesPath())
+	if err != nil {
+		return nil
+	}
+	var list []Template
+	if json.Unmarshal(data, &list) != nil {
+		return nil
+	}
+	for i := range list {
+		normalizeTemplateFlags(&list[i])
+	}
+	return list
 }
 
 func saveTemplates(list []Template) error {
@@ -205,27 +205,27 @@ func writeErr(w http.ResponseWriter, code int, err error) {
 
 // withPrinter подключается к принтеру, подержав очередь, и отдаёт его обработчику.
 func withPrinter(address string, fn func(*Printer) error) error {
-bleMu.Lock()
-defer bleMu.Unlock()
+	bleMu.Lock()
+	defer bleMu.Unlock()
 
-cfg := LoadConfig()
-if strings.TrimSpace(address) == "" {
-address = strings.TrimSpace(cfg.Address)
-}
-foundByName := false
-if address == "" {
-found, err := ScanPrinter("N1-", 12*time.Second, guiVerbose)
-if err != nil {
-return err
-}
-address = found
-foundByName = true
-}
-p, release, err := acquirePrinter(address, guiVerbose, foundByName)
-if err != nil {
-return err
-}
-if err := fn(p); err != nil {
+	cfg := LoadConfig()
+	if strings.TrimSpace(address) == "" {
+		address = strings.TrimSpace(cfg.Address)
+	}
+	foundByName := false
+	if address == "" {
+		found, err := ScanPrinter("N1-", 12*time.Second, guiVerbose)
+		if err != nil {
+			return err
+		}
+		address = found
+		foundByName = true
+	}
+	p, release, err := acquirePrinter(address, guiVerbose, foundByName)
+	if err != nil {
+		return err
+	}
+	if err := fn(p); err != nil {
 		release()
 		disconnectSharedPrinter()
 		return err
@@ -270,37 +270,37 @@ func apiStatus(address string) (map[string]any, error) {
 
 // printRequest — тело запросов на печать.
 type printRequest struct {
-Mode         string    `json:"mode"`         // barcode | single | image | series
-Items        []string  `json:"items"`        // строки данных: одна запись на этикетку
-Template     string    `json:"template"`     // шаблон этикетки с {1}, {2}… (необязательно)
-Elements     []Element `json:"elements"`     // шаблон из конструктора (важнее Template)
-Length       float64   `json:"length"`
-Font         float64   `json:"font"`
-Density      int       `json:"density"`
-Label        string    `json:"label"`
-Copies       int       `json:"copies"`
-Flip         bool      `json:"flip"`
-Threshold    int       `json:"threshold"`    // порог чёрно-белого, 0..255; 0 — по умолчанию
-Address      string    `json:"address"`
-BcFormat     string    `json:"bcFormat"`     // auto | code128 | qr | qrl | qrr
-BcSafeMode   *bool     `json:"bcSafeMode,omitempty"`
-TopText      string    `json:"topText"`      // верхний текст штрихкода
-BottomText   string    `json:"bottomText"`   // нижний текст штрихкода
-FontName     string    `json:"fontName"`     // шрифт текста/подписи
-FontSize     string    `json:"fontSize"`     // размер текста: -1, 0, N, Np
-Bold         bool      `json:"bold"`         // жирный текст/подпись
-MarginPx     *int      `json:"marginPx"`     // поля верх/низ, px (указатель, чтобы 0 не терялся)
-SideMarginPx *int      `json:"sideMarginPx"` // боковые поля, px
-GapPx        *int      `json:"gapPx"`        // зазор код-текст, px
-TextGapPx    *int      `json:"textGapPx"`
-	OffsetPx     *int      `json:"offsetPx"`     // сдвиг по X, px    // зазор доп. текста, px
-ImageData    string    `json:"imageData"`
-	Stretch      bool      `json:"stretch"`      // растянуть картинку без сохранения пропорций
-CounterStart *int      `json:"counterStart,omitempty"`
-CounterStep  *int      `json:"counterStep,omitempty"`
-PreviewIndex int       `json:"previewIndex,omitempty"`
-PreviewTotal int       `json:"previewTotal,omitempty"`
-Force        bool      `json:"force,omitempty"`
+	Mode            string    `json:"mode"`     // barcode | single | image | series
+	Items           []string  `json:"items"`    // строки данных: одна запись на этикетку
+	Template        string    `json:"template"` // шаблон этикетки с {1}, {2}… (необязательно)
+	Elements        []Element `json:"elements"` // шаблон из конструктора (важнее Template)
+	Length          float64   `json:"length"`
+	Font            float64   `json:"font"`
+	Density         int       `json:"density"`
+	Label           string    `json:"label"`
+	Copies          int       `json:"copies"`
+	Flip            bool      `json:"flip"`
+	Threshold       int       `json:"threshold"` // порог чёрно-белого, 0..255; 0 — по умолчанию
+	Address         string    `json:"address"`
+	BcFormat        string    `json:"bcFormat"` // auto | code128 | qr | qrl | qrr
+	BcSafeMode      *bool     `json:"bcSafeMode,omitempty"`
+	TopText         string    `json:"topText"`      // верхний текст штрихкода
+	BottomText      string    `json:"bottomText"`   // нижний текст штрихкода
+	FontName        string    `json:"fontName"`     // шрифт текста/подписи
+	FontSize        string    `json:"fontSize"`     // размер текста: -1, 0, N, Np
+	Bold            bool      `json:"bold"`         // жирный текст/подпись
+	MarginPx        *int      `json:"marginPx"`     // поля верх/низ, px (указатель, чтобы 0 не терялся)
+	SideMarginPx    *int      `json:"sideMarginPx"` // боковые поля, px
+	GapPx           *int      `json:"gapPx"`        // зазор код-текст, px
+	TextGapPx       *int      `json:"textGapPx"`
+	OffsetPx        *int      `json:"offsetPx"` // сдвиг по X, px    // зазор доп. текста, px
+	ImageData       string    `json:"imageData"`
+	Stretch         bool      `json:"stretch"` // растянуть картинку без сохранения пропорций
+	CounterStart    *int      `json:"counterStart,omitempty"`
+	CounterStep     *int      `json:"counterStep,omitempty"`
+	PreviewIndex    int       `json:"previewIndex,omitempty"`
+	PreviewTotal    int       `json:"previewTotal,omitempty"`
+	Force           bool      `json:"force,omitempty"`
 	RememberSession bool      `json:"rememberSession,omitempty"`
 }
 
@@ -363,9 +363,15 @@ var rePlaceholder = regexp.MustCompile(`\{\d+\}`)
 // Если шаблон ссылается на столбец, которого в данных нет, возвращается
 // ошибка: иначе на этикетке напечаталось бы литеральное «{3}» — брак,
 // который на бумаге уже не исправить.
-func expandTemplate(tpl string, row []string) ([]string, error) { return expandTemplateCtx(tpl, row, 1, 1) }
+func expandTemplate(tpl string, row []string) ([]string, error) {
+	return expandTemplateCtx(tpl, row, 1, 1)
+}
 func expandTemplateCtx(tpl string, row []string, counter, total int) ([]string, error) {
-	if substituted, err := substituteFieldsCtx(tpl, row, time.Now(), counter, total); err == nil { tpl = substituted } else { return nil, err }
+	if substituted, err := substituteFieldsCtx(tpl, row, time.Now(), counter, total); err == nil {
+		tpl = substituted
+	} else {
+		return nil, err
+	}
 	lines := strings.Split(tpl, "\n")
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
@@ -408,7 +414,8 @@ func renderPages(req printRequest) ([][]Row, error) {
 	}
 	var pages [][]Row
 	for rowIdx, item := range req.Items {
-		cs, cst := resolveCounterParams(req); img, err := renderOneCtx(req, item, length, cs+rowIdx*cst, len(req.Items))
+		cs, cst := resolveCounterParams(req)
+		img, err := renderOneCtx(req, item, length, cs+rowIdx*cst, len(req.Items))
 		if err != nil {
 			return nil, err
 		}
@@ -431,110 +438,116 @@ func (r printRequest) threshold() uint8 {
 // renderOne готовит одну этикетку: по шаблону конструктора, если он задан,
 // иначе прежним способом — текстом с шаблоном или строкой через |.
 func renderOne(req printRequest, item string, length float64) (*image.Gray, error) {
-cfg := LoadConfig()
-marginPx := cfg.MarginPx
-if req.MarginPx != nil {
-marginPx = *req.MarginPx
-}
-sideMarginPx := cfg.SideMarginPx
-if req.SideMarginPx != nil {
-sideMarginPx = *req.SideMarginPx
-}
-gapPx := cfg.GapPx
-if req.GapPx != nil {
-gapPx = *req.GapPx
-}
-textGapPx := cfg.TextGapPx
-if req.TextGapPx != nil {
-textGapPx = *req.TextGapPx
-}
+	cfg := LoadConfig()
+	marginPx := cfg.MarginPx
+	if req.MarginPx != nil {
+		marginPx = *req.MarginPx
+	}
+	sideMarginPx := cfg.SideMarginPx
+	if req.SideMarginPx != nil {
+		sideMarginPx = *req.SideMarginPx
+	}
+	gapPx := cfg.GapPx
+	if req.GapPx != nil {
+		gapPx = *req.GapPx
+	}
+	textGapPx := cfg.TextGapPx
+	if req.TextGapPx != nil {
+		textGapPx = *req.TextGapPx
+	}
 	offsetPx := cfg.OffsetPx
 	if req.OffsetPx != nil {
 		offsetPx = *req.OffsetPx
 	}
 
-if req.Mode == "barcode" {
-safeBc := cfg.BcSafeMode; if req.BcSafeMode != nil { safeBc = *req.BcSafeMode }
-return RenderBarcodeLabel(BarcodeOptions{
-SafeMode: safeBc,
-Data:           item,
-Format:         req.BcFormat,
-LengthMM:       length,
-TopText:        req.TopText,
-BottomText:     req.BottomText,
-FontName:       req.FontName,
-IsMainTextBold: req.Bold,
-FontSize:       req.FontSize,
-OffsetPx:       offsetPx,
-SideMarginPx:   sideMarginPx,
-MarginPx:       marginPx,
-GapPx:          gapPx,
-TextGapPx:      textGapPx,
-}, cfg)
-}
-if req.Mode == "image" {
-raw := strings.TrimSpace(req.ImageData)
-if idx := strings.Index(raw, ","); idx >= 0 {
-raw = raw[idx+1:]
-}
-if raw == "" {
-return nil, fmt.Errorf("выберите файл картинки")
-}
-bin, err := base64.StdEncoding.DecodeString(raw)
-if err != nil {
-return nil, fmt.Errorf("ошибка чтения картинки: %w", err)
-}
-src, _, err := image.Decode(bytes.NewReader(bin))
-if err != nil {
-return nil, fmt.Errorf("неподдерживаемый формат картинки: %w", err)
-}
-res := FitToLabelEx(src, length, marginPx, sideMarginPx, req.Stretch)
-		if offsetPx != 0 { shiftImageX(res, offsetPx) }
+	if req.Mode == "barcode" {
+		safeBc := cfg.BcSafeMode
+		if req.BcSafeMode != nil {
+			safeBc = *req.BcSafeMode
+		}
+		return RenderBarcodeLabel(BarcodeOptions{
+			SafeMode:       safeBc,
+			Data:           item,
+			Format:         req.BcFormat,
+			LengthMM:       length,
+			TopText:        req.TopText,
+			BottomText:     req.BottomText,
+			FontName:       req.FontName,
+			IsMainTextBold: req.Bold,
+			FontSize:       req.FontSize,
+			OffsetPx:       offsetPx,
+			SideMarginPx:   sideMarginPx,
+			MarginPx:       marginPx,
+			GapPx:          gapPx,
+			TextGapPx:      textGapPx,
+		}, cfg)
+	}
+	if req.Mode == "image" {
+		raw := strings.TrimSpace(req.ImageData)
+		if idx := strings.Index(raw, ","); idx >= 0 {
+			raw = raw[idx+1:]
+		}
+		if raw == "" {
+			return nil, fmt.Errorf("выберите файл картинки")
+		}
+		bin, err := base64.StdEncoding.DecodeString(raw)
+		if err != nil {
+			return nil, fmt.Errorf("ошибка чтения картинки: %w", err)
+		}
+		src, _, err := image.Decode(bytes.NewReader(bin))
+		if err != nil {
+			return nil, fmt.Errorf("неподдерживаемый формат картинки: %w", err)
+		}
+		res := FitToLabelEx(src, length, marginPx, sideMarginPx, req.Stretch)
+		if offsetPx != 0 {
+			shiftImageX(res, offsetPx)
+		}
 		return res, nil
-}
-if len(req.Elements) > 0 {
-img, err := RenderTemplate(LabelTemplate{LengthMM: length, Elements: req.Elements},
-splitFields(item))
-if err != nil {
-return nil, fmt.Errorf("этикетка %q: %w", item, err)
-}
-if offsetPx != 0 {
-shiftImageX(img, offsetPx)
-}
-return img, nil
+	}
+	if len(req.Elements) > 0 {
+		img, err := RenderTemplate(LabelTemplate{LengthMM: length, Elements: req.Elements},
+			splitFields(item))
+		if err != nil {
+			return nil, fmt.Errorf("этикетка %q: %w", item, err)
+		}
+		if offsetPx != 0 {
+			shiftImageX(img, offsetPx)
+		}
+		return img, nil
+	}
+
+	var lines []string
+	if strings.TrimSpace(req.Template) != "" {
+		var err error
+		lines, err = expandTemplate(req.Template, splitFields(item))
+		if err != nil {
+			return nil, fmt.Errorf("строка данных %q: %w", item, err)
+		}
+	} else {
+		lines = splitLabel(item)
+	}
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	fontName := req.FontName
+	if fontName == "" {
+		fontName = cfg.FontName
+	}
+	fontSize := req.FontSize
+	if fontSize == "" {
+		fontSize = cfg.FontSize
+	}
+	return RenderTextWithOptions(lines, length, TextRenderOptions{
+		FontName:     fontName,
+		Bold:         req.Bold,
+		FontSize:     fontSize,
+		FontPt:       req.Font,
+		MarginPx:     marginPx,
+		SideMarginPx: sideMarginPx,
+		OffsetPx:     offsetPx,
+	})
 }
 
-var lines []string
-if strings.TrimSpace(req.Template) != "" {
-var err error
-lines, err = expandTemplate(req.Template, splitFields(item))
-if err != nil {
-return nil, fmt.Errorf("строка данных %q: %w", item, err)
-}
-} else {
-lines = splitLabel(item)
-}
-if len(lines) == 0 {
-return nil, nil
-}
-fontName := req.FontName
-if fontName == "" {
-fontName = cfg.FontName
-}
-fontSize := req.FontSize
-if fontSize == "" {
-fontSize = cfg.FontSize
-}
-return RenderTextWithOptions(lines, length, TextRenderOptions{
-FontName:     fontName,
-Bold:         req.Bold,
-FontSize:     fontSize,
-FontPt:       req.Font,
-MarginPx:     marginPx,
-SideMarginPx: sideMarginPx,
-		OffsetPx:     offsetPx,
-})
-}
 // apiPrint запускает серию в фоне и возвращает идентификатор задания.
 func apiPrint(w http.ResponseWriter, req printRequest) {
 	pages, err := renderPages(req)
@@ -565,54 +578,54 @@ func apiPrint(w http.ResponseWriter, req printRequest) {
 	}
 
 	// Проверяем остаток этикеток и риббона по RFID согласно режиму rfidLowAction ("ask" | "block" | "warn")
-needTotal := len(pages) * copies
-action := LoadConfig().RfidLowAction
-var lowWarning string
+	needTotal := len(pages) * copies
+	action := LoadConfig().RfidLowAction
+	var lowWarning string
 
 	if req.RememberSession {
-_ = withPrinter(req.Address, func(p *Printer) error {
-p.SetRfidLowIgnored(true)
-return nil
-})
-}
+		_ = withPrinter(req.Address, func(p *Printer) error {
+			p.SetRfidLowIgnored(true)
+			return nil
+		})
+	}
 
-if !req.Force {
-var lowMsg string
-var sessionIgnored bool
-_ = withPrinter(req.Address, func(p *Printer) error {
-if p.IsRfidLowIgnored() {
-sessionIgnored = true
-return nil
-}
-if rfP, err := p.ReadRfid(false); err == nil && rfP.TagPresent && rfP.Leftover() < needTotal {
-lowMsg = fmt.Sprintf("В рулоне этикеток осталось %d шт. (требуется %d шт.)", rfP.Leftover(), needTotal)
-}
-if rfR, err := p.ReadRfid(true); err == nil && rfR.TagPresent && rfR.Leftover() < needTotal {
-msgR := fmt.Sprintf("В картридже риббона осталось %d ед. (требуется %d)", rfR.Leftover(), needTotal)
-if lowMsg != "" {
-lowMsg += "; " + msgR
-} else {
-lowMsg = msgR
-}
-}
-return nil
-})
-if !sessionIgnored && lowMsg != "" {
-if action == "block" {
-writeErr(w, http.StatusConflict, fmt.Errorf("Печать заблокирована: %s", lowMsg))
-return
-}
-if action == "warn" {
-LogWarn("%s — печать продолжена по настройке rfidLowAction=warn", lowMsg)
-lowWarning = lowMsg
-} else {
-writeJSON(w, map[string]any{"needConfirm": true, "message": lowMsg + ". Продолжить печать?"})
-return
-}
-}
-}
+	if !req.Force {
+		var lowMsg string
+		var sessionIgnored bool
+		_ = withPrinter(req.Address, func(p *Printer) error {
+			if p.IsRfidLowIgnored() {
+				sessionIgnored = true
+				return nil
+			}
+			if rfP, err := p.ReadRfid(false); err == nil && rfP.TagPresent && rfP.Leftover() < needTotal {
+				lowMsg = fmt.Sprintf("В рулоне этикеток осталось %d шт. (требуется %d шт.)", rfP.Leftover(), needTotal)
+			}
+			if rfR, err := p.ReadRfid(true); err == nil && rfR.TagPresent && rfR.Leftover() < needTotal {
+				msgR := fmt.Sprintf("В картридже риббона осталось %d ед. (требуется %d)", rfR.Leftover(), needTotal)
+				if lowMsg != "" {
+					lowMsg += "; " + msgR
+				} else {
+					lowMsg = msgR
+				}
+			}
+			return nil
+		})
+		if !sessionIgnored && lowMsg != "" {
+			if action == "block" {
+				writeErr(w, http.StatusConflict, fmt.Errorf("Печать заблокирована: %s", lowMsg))
+				return
+			}
+			if action == "warn" {
+				LogWarn("%s — печать продолжена по настройке rfidLowAction=warn", lowMsg)
+				lowWarning = lowMsg
+			} else {
+				writeJSON(w, map[string]any{"needConfirm": true, "message": lowMsg + ". Продолжить печать?"})
+				return
+			}
+		}
+	}
 
-id, j := newJob(needTotal)
+	id, j := newJob(needTotal)
 	go func() {
 		err := withPrinter(req.Address, func(p *Printer) error {
 			labelName, err := resolveLabel(p, req.Label)
@@ -634,7 +647,11 @@ id, j := newJob(needTotal)
 		j.finish(err)
 	}()
 
-	respObj := map[string]any{"job": id, "total": j.Total}; if lowWarning != "" { respObj["warning"] = lowWarning }; writeJSON(w, respObj)
+	respObj := map[string]any{"job": id, "total": j.Total}
+	if lowWarning != "" {
+		respObj["warning"] = lowWarning
+	}
+	writeJSON(w, respObj)
 }
 
 // apiPreview отдаёт PNG-макет этикетки.
@@ -647,7 +664,12 @@ func apiPreview(w http.ResponseWriter, req printRequest) {
 	if len(req.Items) > 0 {
 		item = req.Items[0]
 	}
-	cs, cst := resolveCounterParams(req); pt := req.PreviewTotal; if pt < 1 { pt = len(req.Items) }; img, err := renderOneCtx(req, item, length, cs+req.PreviewIndex*cst, pt)
+	cs, cst := resolveCounterParams(req)
+	pt := req.PreviewTotal
+	if pt < 1 {
+		pt = len(req.Items)
+	}
+	img, err := renderOneCtx(req, item, length, cs+req.PreviewIndex*cst, pt)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -667,42 +689,42 @@ func apiPreview(w http.ResponseWriter, req printRequest) {
 // --------------------------------------------------------------------------
 
 var (
-sharedMu      sync.Mutex
-sharedPrinter *Printer
-sharedMAC     string
+	sharedMu      sync.Mutex
+	sharedPrinter *Printer
+	sharedMAC     string
 )
 
 func acquirePrinter(mac string, verbose bool, foundByName bool) (*Printer, func(), error) {
-cfg := LoadConfig()
-if !cfg.KeepAlive {
-p, err := ConnectMAC(mac, verbose, foundByName)
-if err != nil {
-return nil, nil, err
-}
-p.printMode = cfg.PrintMode
-return p, func() { _ = p.Close() }, nil
-}
+	cfg := LoadConfig()
+	if !cfg.KeepAlive {
+		p, err := ConnectMAC(mac, verbose, foundByName)
+		if err != nil {
+			return nil, nil, err
+		}
+		p.printMode = cfg.PrintMode
+		return p, func() { _ = p.Close() }, nil
+	}
 
-sharedMu.Lock()
-if sharedPrinter != nil && strings.EqualFold(sharedMAC, mac) {
-if _, err := sharedPrinter.Handshake(); err == nil {
-sharedPrinter.printMode = cfg.PrintMode
-return sharedPrinter, func() { sharedMu.Unlock() }, nil
-}
-_ = sharedPrinter.Close()
-sharedPrinter = nil
-}
+	sharedMu.Lock()
+	if sharedPrinter != nil && strings.EqualFold(sharedMAC, mac) {
+		if _, err := sharedPrinter.Handshake(); err == nil {
+			sharedPrinter.printMode = cfg.PrintMode
+			return sharedPrinter, func() { sharedMu.Unlock() }, nil
+		}
+		_ = sharedPrinter.Close()
+		sharedPrinter = nil
+	}
 
-p, err := ConnectMAC(mac, verbose, foundByName)
-if err != nil {
-sharedMu.Unlock()
-return nil, nil, err
-}
-p.printMode = cfg.PrintMode
-p.StartKeepAlive()
-sharedPrinter = p
-sharedMAC = mac
-return sharedPrinter, func() { sharedMu.Unlock() }, nil
+	p, err := ConnectMAC(mac, verbose, foundByName)
+	if err != nil {
+		sharedMu.Unlock()
+		return nil, nil, err
+	}
+	p.printMode = cfg.PrintMode
+	p.StartKeepAlive()
+	sharedPrinter = p
+	sharedMAC = mac
+	return sharedPrinter, func() { sharedMu.Unlock() }, nil
 }
 
 // startGUI поднимает веб-интерфейс и открывает браузер.
@@ -761,37 +783,36 @@ func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) 
 		}
 	})
 	mux.HandleFunc("/api/print", func(w http.ResponseWriter, r *http.Request) {
-if req, ok := readRequest(w, r); ok {
-apiPrint(w, req)
-}
-})
-mux.HandleFunc("/api/print-template", apiPrintTemplateHandler)
-
+		if req, ok := readRequest(w, r); ok {
+			apiPrint(w, req)
+		}
+	})
+	mux.HandleFunc("/api/print-template", apiPrintTemplateHandler)
 
 	// Список системных шрифтов для конструктора.
-// Конфигурация программы по умолчанию (config.json)
-mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
-switch r.Method {
-case http.MethodGet:
-writeJSON(w, LoadConfig())
-case http.MethodPost:
-var cfg AppConfig
-if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-writeErr(w, http.StatusBadRequest, err)
-return
-}
-if err := SaveConfig(cfg); err != nil {
-writeErr(w, http.StatusInternalServerError, err)
-return
-}
-activeCfg = LoadConfig()
-writeJSON(w, activeCfg)
-default:
-w.WriteHeader(http.StatusMethodNotAllowed)
-}
-})
+	// Конфигурация программы по умолчанию (config.json)
+	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeJSON(w, LoadConfig())
+		case http.MethodPost:
+			var cfg AppConfig
+			if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			if err := SaveConfig(cfg); err != nil {
+				writeErr(w, http.StatusInternalServerError, err)
+				return
+			}
+			activeCfg = LoadConfig()
+			writeJSON(w, activeCfg)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 
-mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
 		families := fontFamiliesForPicker()
 		if families == nil {
 			writeErr(w, http.StatusInternalServerError,
@@ -806,7 +827,7 @@ mux.HandleFunc("/api/fonts", func(w http.ResponseWriter, r *http.Request) {
 
 	mux.HandleFunc("/api/history", apiHistoryHandler)
 	mux.HandleFunc("/api/parse-xlsx", apiParseXlsxHandler)
-mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			writeJSON(w, loadTemplates())
@@ -857,13 +878,13 @@ mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
 
 	// Статика из embed
 	mux.HandleFunc("/api/connect", apiConnectHandler)
-mux.HandleFunc("/api/disconnect", apiDisconnectHandler)
-mux.HandleFunc("/api/mode", apiModeHandler)
-mux.HandleFunc("/api/calibrate", apiCalibrateHandler)
-mux.HandleFunc("/api/testpage", apiTestPageHandler)
-mux.HandleFunc("/api/shutdown", apiShutdownHandler)
+	mux.HandleFunc("/api/disconnect", apiDisconnectHandler)
+	mux.HandleFunc("/api/mode", apiModeHandler)
+	mux.HandleFunc("/api/calibrate", apiCalibrateHandler)
+	mux.HandleFunc("/api/testpage", apiTestPageHandler)
+	mux.HandleFunc("/api/shutdown", apiShutdownHandler)
 
-sub, err := fs.Sub(webAssets, "web")
+	sub, err := fs.Sub(webAssets, "web")
 	if err != nil {
 		return err
 	}
@@ -991,352 +1012,371 @@ func openAppWindow(url string) bool {
 }
 
 func disconnectSharedPrinter() {
-sharedMu.Lock()
-defer sharedMu.Unlock()
-if sharedPrinter != nil {
-_ = sharedPrinter.Close()
-sharedPrinter = nil
-sharedMAC = ""
-}
+	sharedMu.Lock()
+	defer sharedMu.Unlock()
+	if sharedPrinter != nil {
+		_ = sharedPrinter.Close()
+		sharedPrinter = nil
+		sharedMAC = ""
+	}
 }
 
 func apiConnectHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-return
-}
-cfg := LoadConfig()
-err := withPrinter(cfg.Address, func(p *Printer) error {
-_, err := p.Handshake()
-return err
-})
-if err != nil {
-writeErr(w, http.StatusBadGateway, err)
-return
-}
-writeJSON(w, map[string]any{"ok": true, "keepAlive": cfg.KeepAlive})
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	cfg := LoadConfig()
+	err := withPrinter(cfg.Address, func(p *Printer) error {
+		_, err := p.Handshake()
+		return err
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "keepAlive": cfg.KeepAlive})
 }
 
 func apiDisconnectHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-return
-}
-disconnectSharedPrinter()
-writeJSON(w, map[string]any{"ok": true})
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	disconnectSharedPrinter()
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func apiModeHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-return
-}
-var body struct {
-KeepAlive bool `json:"keepAlive"`
-}
-if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-writeErr(w, http.StatusBadRequest, err)
-return
-}
-cfg := LoadConfig()
-cfg.KeepAlive = body.KeepAlive
-if err := SaveConfig(cfg); err != nil {
-writeErr(w, http.StatusInternalServerError, err)
-return
-}
-if !cfg.KeepAlive {
-disconnectSharedPrinter()
-}
-writeJSON(w, map[string]any{"ok": true, "keepAlive": cfg.KeepAlive})
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		KeepAlive bool `json:"keepAlive"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	cfg := LoadConfig()
+	cfg.KeepAlive = body.KeepAlive
+	if err := SaveConfig(cfg); err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !cfg.KeepAlive {
+		disconnectSharedPrinter()
+	}
+	writeJSON(w, map[string]any{"ok": true, "keepAlive": cfg.KeepAlive})
 }
 
 func apiCalibrateHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-return
-}
-feed := r.URL.Query().Get("feed") == "1"
-cfg := LoadConfig()
-err := withPrinter(cfg.Address, func(p *Printer) error {
-labelName, err := resolveLabel(p, cfg.Label)
-if err != nil {
-return err
-}
-return p.Calibrate(feed, cfg.Length, labelTypes[labelName])
-})
-if err != nil {
-writeErr(w, http.StatusBadGateway, err)
-return
-}
-writeJSON(w, map[string]any{"ok": true})
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	feed := r.URL.Query().Get("feed") == "1"
+	cfg := LoadConfig()
+	err := withPrinter(cfg.Address, func(p *Printer) error {
+		labelName, err := resolveLabel(p, cfg.Label)
+		if err != nil {
+			return err
+		}
+		return p.Calibrate(feed, cfg.Length, labelTypes[labelName])
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func apiTestPageHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-return
-}
-cfg := LoadConfig()
-err := withPrinter(cfg.Address, func(p *Printer) error {
-return p.PrintTestPage()
-})
-if err != nil {
-writeErr(w, http.StatusBadGateway, err)
-return
-}
-writeJSON(w, map[string]any{"ok": true})
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	cfg := LoadConfig()
+	err := withPrinter(cfg.Address, func(p *Printer) error {
+		return p.PrintTestPage()
+	})
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func apiShutdownHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-return
-}
-writeJSON(w, map[string]any{"ok": true})
-go func() {
-time.Sleep(150 * time.Millisecond)
-disconnectSharedPrinter()
-os.Exit(0)
-}()
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		disconnectSharedPrinter()
+		os.Exit(0)
+	}()
 }
 
 // apiPrintTemplateHandler запускает печать серии по имени сохранённого шаблона из templates.json.
 func apiPrintTemplateHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("нужен POST"))
-return
-}
-var body struct {
-TemplateName string   `json:"templateName"`
-Name         string   `json:"name"`
-Items        []string `json:"items"`
-Copies       int      `json:"copies"`
-Length       float64  `json:"length"`
-Density      int      `json:"density"`
-Address      string   `json:"address"`
-}
-if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-writeErr(w, http.StatusBadRequest, err)
-return
-}
-tName := strings.TrimSpace(body.TemplateName)
-if tName == "" {
-tName = strings.TrimSpace(body.Name)
-}
-if tName == "" {
-writeErr(w, http.StatusBadRequest, fmt.Errorf("укажите имя шаблона (templateName)"))
-return
-}
+	if r.Method != http.MethodPost {
+		writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("нужен POST"))
+		return
+	}
+	var body struct {
+		TemplateName string   `json:"templateName"`
+		Name         string   `json:"name"`
+		Items        []string `json:"items"`
+		Copies       int      `json:"copies"`
+		Length       float64  `json:"length"`
+		Density      int      `json:"density"`
+		Address      string   `json:"address"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	tName := strings.TrimSpace(body.TemplateName)
+	if tName == "" {
+		tName = strings.TrimSpace(body.Name)
+	}
+	if tName == "" {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("укажите имя шаблона (templateName)"))
+		return
+	}
 
-var found *Template
-for _, t := range loadTemplates() {
-if strings.EqualFold(strings.TrimSpace(t.Name), tName) {
-cp := t
-found = &cp
-break
-}
-}
-if found == nil {
-writeErr(w, http.StatusNotFound, fmt.Errorf("шаблон %q не найден", tName))
-return
-}
+	var found *Template
+	for _, t := range loadTemplates() {
+		if strings.EqualFold(strings.TrimSpace(t.Name), tName) {
+			cp := t
+			found = &cp
+			break
+		}
+	}
+	if found == nil {
+		writeErr(w, http.StatusNotFound, fmt.Errorf("шаблон %q не найден", tName))
+		return
+	}
 
-effDensity := found.Density
-effLabel := found.Label
-effCopies := found.Copies
-effFlip := found.Flip
-effThresh := found.Threshold
-effOffset := found.OffsetPx
-if found.HasSystem && found.System != nil {
-if found.System.Density >= 1 && found.System.Density <= 3 {
-effDensity = found.System.Density
-}
-if found.System.Label != "" {
-effLabel = found.System.Label
-}
-if found.System.Copies > 0 {
-effCopies = found.System.Copies
-}
-effFlip = found.System.Flip
-if found.System.Threshold >= 1 && found.System.Threshold <= 255 {
-effThresh = found.System.Threshold
-}
-if effOffset == nil {
-v := found.System.OffsetPx
-effOffset = &v
-}
-}
+	effDensity := found.Density
+	effLabel := found.Label
+	effCopies := found.Copies
+	effFlip := found.Flip
+	effThresh := found.Threshold
+	effOffset := found.OffsetPx
+	if found.HasSystem && found.System != nil {
+		if found.System.Density >= 1 && found.System.Density <= 3 {
+			effDensity = found.System.Density
+		}
+		if found.System.Label != "" {
+			effLabel = found.System.Label
+		}
+		if found.System.Copies > 0 {
+			effCopies = found.System.Copies
+		}
+		effFlip = found.System.Flip
+		if found.System.Threshold >= 1 && found.System.Threshold <= 255 {
+			effThresh = found.System.Threshold
+		}
+		if effOffset == nil {
+			v := found.System.OffsetPx
+			effOffset = &v
+		}
+	}
 
-req := printRequest{
-Mode:         "series",
-Items:        body.Items,
-Template:     found.Template,
-Elements:     found.Elements,
-Length:       found.Length,
-Font:         found.Font,
-Density:      effDensity,
-Label:        effLabel,
-Copies:       effCopies,
-Flip:         effFlip,
-Threshold:    effThresh,
-OffsetPx:     effOffset,
+	req := printRequest{
+		Mode:         "series",
+		Items:        body.Items,
+		Template:     found.Template,
+		Elements:     found.Elements,
+		Length:       found.Length,
+		Font:         found.Font,
+		Density:      effDensity,
+		Label:        effLabel,
+		Copies:       effCopies,
+		Flip:         effFlip,
+		Threshold:    effThresh,
+		OffsetPx:     effOffset,
 		CounterStart: found.CounterStart,
 		CounterStep:  found.CounterStep,
-FontName:     found.FontName,
-FontSize:     found.FontSize,
-Bold:         found.Bold,
-MarginPx:     found.MarginPx,
-SideMarginPx: found.SideMarginPx,
-Address:      body.Address,
-}
-if body.Copies > 0 {
-req.Copies = body.Copies
-}
-if body.Length > 0 {
-req.Length = body.Length
-}
-if body.Density >= 1 && body.Density <= 3 {
-req.Density = body.Density
-}
+		FontName:     found.FontName,
+		FontSize:     found.FontSize,
+		Bold:         found.Bold,
+		MarginPx:     found.MarginPx,
+		SideMarginPx: found.SideMarginPx,
+		Address:      body.Address,
+	}
+	if body.Copies > 0 {
+		req.Copies = body.Copies
+	}
+	if body.Length > 0 {
+		req.Length = body.Length
+	}
+	if body.Density >= 1 && body.Density <= 3 {
+		req.Density = body.Density
+	}
 
-apiPrint(w, req)
+	apiPrint(w, req)
 }
 
 // apiSavePreview сохраняет одну или несколько этикеток напрямую в папку saveDir на диске.
 func apiSavePreview(w http.ResponseWriter, req printRequest) {
-length := req.Length
-if length <= 0 {
-length = 30
-}
-if len(req.Items) == 0 {
-writeErr(w, http.StatusBadRequest, fmt.Errorf("нет данных для сохранения"))
-return
-}
+	length := req.Length
+	if length <= 0 {
+		length = 30
+	}
+	if len(req.Items) == 0 {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("нет данных для сохранения"))
+		return
+	}
 
-cfg := LoadConfig()
-dir := strings.TrimSpace(cfg.SaveDir)
-if dir == "" {
-dir = executableDir()
-}
-if dir == "" {
-if wd, err := os.Getwd(); err == nil {
-dir = wd
-}
-}
-if dir == "" {
-dir = "."
-}
-if err := os.MkdirAll(dir, 0o755); err != nil {
-writeErr(w, http.StatusInternalServerError, err)
-return
-}
+	cfg := LoadConfig()
+	dir := strings.TrimSpace(cfg.SaveDir)
+	if dir == "" {
+		dir = executableDir()
+	}
+	if dir == "" {
+		if wd, err := os.Getwd(); err == nil {
+			dir = wd
+		}
+	}
+	if dir == "" {
+		dir = "."
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
 
-baseName := strings.TrimSpace(cfg.SaveFile)
-if baseName == "" {
-baseName = "niimbot_label_preview.png"
-}
-if filepath.Ext(baseName) == "" {
-baseName += ".png"
-}
-ext := filepath.Ext(baseName)
-stem := strings.TrimSuffix(baseName, ext)
+	baseName := strings.TrimSpace(cfg.SaveFile)
+	if baseName == "" {
+		baseName = "niimbot_label_preview.png"
+	}
+	if filepath.Ext(baseName) == "" {
+		baseName += ".png"
+	}
+	ext := filepath.Ext(baseName)
+	stem := strings.TrimSuffix(baseName, ext)
 
-var saved []string
-usedNames := map[string]int{}
+	var saved []string
+	usedNames := map[string]int{}
 
-for i, item := range req.Items {
-cs, cst := resolveCounterParams(req); img, err := renderOneCtx(req, item, length, cs+i*cst, len(req.Items))
-if err != nil {
-writeErr(w, http.StatusBadRequest, err)
-return
-}
-if img == nil {
-continue
-}
+	for i, item := range req.Items {
+		cs, cst := resolveCounterParams(req)
+		img, err := renderOneCtx(req, item, length, cs+i*cst, len(req.Items))
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if img == nil {
+			continue
+		}
 
-fname := ""
-if cfg.AutoFileName {
-if clean := sanitizeFileName(item); clean != "" {
-fname = clean + ".png"
-}
-}
-if fname == "" {
-if len(req.Items) > 1 {
-fname = fmt.Sprintf("%s_%d%s", stem, i+1, ext)
-} else {
-fname = baseName
-}
-}
+		fname := ""
+		if cfg.AutoFileName {
+			if clean := sanitizeFileName(item); clean != "" {
+				fname = clean + ".png"
+			}
+		}
+		if fname == "" {
+			if len(req.Items) > 1 {
+				fname = fmt.Sprintf("%s_%d%s", stem, i+1, ext)
+			} else {
+				fname = baseName
+			}
+		}
 
-// Защита от перезаписи при одинаковых именах внутри одного пакета
-key := strings.ToLower(fname)
-usedNames[key]++
-if usedNames[key] > 1 {
-fExt := filepath.Ext(fname)
-fStem := strings.TrimSuffix(fname, fExt)
-fname = fmt.Sprintf("%s_%d%s", fStem, usedNames[key], fExt)
-}
+		// Защита от перезаписи при одинаковых именах внутри одного пакета
+		key := strings.ToLower(fname)
+		usedNames[key]++
+		if usedNames[key] > 1 {
+			fExt := filepath.Ext(fname)
+			fStem := strings.TrimSuffix(fname, fExt)
+			fname = fmt.Sprintf("%s_%d%s", fStem, usedNames[key], fExt)
+		}
 
-fullPath := filepath.Join(dir, fname)
-f, err := os.Create(fullPath)
-if err != nil {
-writeErr(w, http.StatusInternalServerError, err)
-return
-}
-encErr := png.Encode(f, BinarizeAt(img, req.threshold()))
-_ = f.Close()
-if encErr != nil {
-writeErr(w, http.StatusInternalServerError, encErr)
-return
-}
-saved = append(saved, fullPath)
-}
-recordPrintHistory(req, len(saved))
-if false {
-}
+		fullPath := filepath.Join(dir, fname)
+		f, err := os.Create(fullPath)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+		encErr := png.Encode(f, BinarizeAt(img, req.threshold()))
+		_ = f.Close()
+		if encErr != nil {
+			writeErr(w, http.StatusInternalServerError, encErr)
+			return
+		}
+		saved = append(saved, fullPath)
+	}
+	recordPrintHistory(req, len(saved))
+	if false {
+	}
 
-writeJSON(w, map[string]any{
-"ok":    true,
-"dir":   dir,
-"count": len(saved),
-"files": saved,
-})
+	writeJSON(w, map[string]any{
+		"ok":    true,
+		"dir":   dir,
+		"count": len(saved),
+		"files": saved,
+	})
 }
 
 func resolveCounterParams(req printRequest) (int, int) {
-s, st := 1, 1
-if req.CounterStart != nil { s = *req.CounterStart }
-if req.CounterStep != nil { st = *req.CounterStep }
-return s, st
+	s, st := 1, 1
+	if req.CounterStart != nil {
+		s = *req.CounterStart
+	}
+	if req.CounterStep != nil {
+		st = *req.CounterStep
+	}
+	return s, st
 }
 func renderOneCtx(req printRequest, item string, length float64, counter, total int) (*image.Gray, error) {
-if len(req.Elements) > 0 {
-img, err := RenderTemplateCtx(LabelTemplate{LengthMM: length, Elements: req.Elements}, splitFields(item), counter, total)
-if err == nil && req.OffsetPx != nil && *req.OffsetPx != 0 { shiftImageX(img, *req.OffsetPx) }
-return img, err
-}
-if req.Mode == "series" && strings.TrimSpace(req.Template) != "" {
-rows, err := expandTemplateCtx(req.Template, splitFields(item), counter, total)
-if err != nil || len(rows) == 0 { return nil, err }
-opts := buildTextOptionsFromConfig()
-if req.FontName != "" { opts.FontName = req.FontName }
-if req.FontSize != "" { opts.FontSize = req.FontSize }
-opts.Bold = req.Bold
-if req.MarginPx != nil { opts.MarginPx = *req.MarginPx }
-if req.SideMarginPx != nil { opts.SideMarginPx = *req.SideMarginPx }
-if req.OffsetPx != nil { opts.OffsetPx = *req.OffsetPx }
-return RenderTextWithOptions(rows, length, opts)
-}
-return renderOne(req, item, length)
+	if len(req.Elements) > 0 {
+		img, err := RenderTemplateCtx(LabelTemplate{LengthMM: length, Elements: req.Elements}, splitFields(item), counter, total)
+		if err == nil && req.OffsetPx != nil && *req.OffsetPx != 0 {
+			shiftImageX(img, *req.OffsetPx)
+		}
+		return img, err
+	}
+	if req.Mode == "series" && strings.TrimSpace(req.Template) != "" {
+		rows, err := expandTemplateCtx(req.Template, splitFields(item), counter, total)
+		if err != nil || len(rows) == 0 {
+			return nil, err
+		}
+		opts := buildTextOptionsFromConfig()
+		if req.FontName != "" {
+			opts.FontName = req.FontName
+		}
+		if req.FontSize != "" {
+			opts.FontSize = req.FontSize
+		}
+		opts.Bold = req.Bold
+		if req.MarginPx != nil {
+			opts.MarginPx = *req.MarginPx
+		}
+		if req.SideMarginPx != nil {
+			opts.SideMarginPx = *req.SideMarginPx
+		}
+		if req.OffsetPx != nil {
+			opts.OffsetPx = *req.OffsetPx
+		}
+		return RenderTextWithOptions(rows, length, opts)
+	}
+	return renderOne(req, item, length)
 }
 
 type HistoryEntry struct {
-ID        string       `json:"id"`
-Timestamp string       `json:"timestamp"`
-Mode      string       `json:"mode"`
-Count     int          `json:"count"`
-Summary   string       `json:"summary"`
-Request   printRequest `json:"request"`
+	ID        string       `json:"id"`
+	Timestamp string       `json:"timestamp"`
+	Mode      string       `json:"mode"`
+	Count     int          `json:"count"`
+	Summary   string       `json:"summary"`
+	Request   printRequest `json:"request"`
 }
 
 var historyMu sync.Mutex
@@ -1344,83 +1384,105 @@ var historyMu sync.Mutex
 func historyPath() string { return filepath.Join(filepath.Dir(templatesPath()), "history.json") }
 
 func loadHistory() []HistoryEntry {
-data, err := os.ReadFile(historyPath())
-if err != nil { return []HistoryEntry{} }
-var list []HistoryEntry
-if json.Unmarshal(data, &list) != nil { return []HistoryEntry{} }
-return list
+	data, err := os.ReadFile(historyPath())
+	if err != nil {
+		return []HistoryEntry{}
+	}
+	var list []HistoryEntry
+	if json.Unmarshal(data, &list) != nil {
+		return []HistoryEntry{}
+	}
+	return list
 }
 
 func saveHistory(list []HistoryEntry) error {
-path := historyPath()
-if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { return err }
-data, err := json.MarshalIndent(list, "", "  ")
-if err != nil { return err }
-return os.WriteFile(path, data, 0o644)
+	path := historyPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(list, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 func recordPrintHistory(req printRequest, totalCount int) {
-if !LoadConfig().SaveHistory { return }
-historyMu.Lock()
-defer historyMu.Unlock()
-first := ""
-if len(req.Items) > 0 { first = strings.TrimSpace(req.Items[0+0]) }
-if len([]rune(first)) > 48 { first = string([]rune(first)[:48]) + "…" }
-modeLabel := req.Mode
-if len(req.Elements) > 0 { modeLabel = "template" }
-entry := HistoryEntry{
-ID: fmt.Sprintf("h-%d", time.Now().UnixNano()), Timestamp: time.Now().Format("02.01.2006 15:04:05"),
-Mode: modeLabel, Count: totalCount, Summary: first, Request: req,
-}
-entry.Request.ImageData = ""
-list := append([]HistoryEntry{entry}, loadHistory()...)
-if len(list) > 30 { list = list[:30] }
-_ = saveHistory(list)
+	if !LoadConfig().SaveHistory {
+		return
+	}
+	historyMu.Lock()
+	defer historyMu.Unlock()
+	first := ""
+	if len(req.Items) > 0 {
+		first = strings.TrimSpace(req.Items[0+0])
+	}
+	if len([]rune(first)) > 48 {
+		first = string([]rune(first)[:48]) + "…"
+	}
+	modeLabel := req.Mode
+	if len(req.Elements) > 0 {
+		modeLabel = "template"
+	}
+	entry := HistoryEntry{
+		ID: fmt.Sprintf("h-%d", time.Now().UnixNano()), Timestamp: time.Now().Format("02.01.2006 15:04:05"),
+		Mode: modeLabel, Count: totalCount, Summary: first, Request: req,
+	}
+	entry.Request.ImageData = ""
+	list := append([]HistoryEntry{entry}, loadHistory()...)
+	if len(list) > 30 {
+		list = list[:30]
+	}
+	_ = saveHistory(list)
 }
 
 func apiHistoryHandler(w http.ResponseWriter, r *http.Request) {
-switch r.Method {
-case http.MethodGet:
-historyMu.Lock(); list := loadHistory(); historyMu.Unlock()
-writeJSON(w, list)
-case http.MethodDelete:
-historyMu.Lock(); _ = saveHistory([]HistoryEntry{}); historyMu.Unlock()
-writeJSON(w, map[string]any{"ok": true})
-default:
-writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("метод не поддерживается"))
-}
+	switch r.Method {
+	case http.MethodGet:
+		historyMu.Lock()
+		list := loadHistory()
+		historyMu.Unlock()
+		writeJSON(w, list)
+	case http.MethodDelete:
+		historyMu.Lock()
+		_ = saveHistory([]HistoryEntry{})
+		historyMu.Unlock()
+		writeJSON(w, map[string]any{"ok": true})
+	default:
+		writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("метод не поддерживается"))
+	}
 }
 
 func apiParseXlsxHandler(w http.ResponseWriter, r *http.Request) {
-if r.Method != http.MethodPost {
-writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("нужен POST"))
-return
-}
-var body struct {
-Data  string `json:"data"`
-Sheet string `json:"sheet"`
-}
-if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-writeErr(w, http.StatusBadRequest, err)
-return
-}
-raw := strings.TrimSpace(body.Data)
-if idx := strings.Index(raw, ","); idx >= 0 {
-raw = raw[idx+1:]
-}
-if raw == "" {
-writeErr(w, http.StatusBadRequest, fmt.Errorf("не передан файл Excel"))
-return
-}
-bin, err := base64.StdEncoding.DecodeString(raw)
-if err != nil {
-writeErr(w, http.StatusBadRequest, fmt.Errorf("ошибка декодирования файла: %w", err))
-return
-}
-res, err := ParseXlsxBytes(bin, body.Sheet)
-if err != nil {
-writeErr(w, http.StatusBadRequest, err)
-return
-}
-writeJSON(w, res)
+	if r.Method != http.MethodPost {
+		writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("нужен POST"))
+		return
+	}
+	var body struct {
+		Data  string `json:"data"`
+		Sheet string `json:"sheet"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	raw := strings.TrimSpace(body.Data)
+	if idx := strings.Index(raw, ","); idx >= 0 {
+		raw = raw[idx+1:]
+	}
+	if raw == "" {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("не передан файл Excel"))
+		return
+	}
+	bin, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, fmt.Errorf("ошибка декодирования файла: %w", err))
+		return
+	}
+	res, err := ParseXlsxBytes(bin, body.Sheet)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, res)
 }

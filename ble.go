@@ -23,28 +23,28 @@ import (
 const niimbotCharUUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
 
 var cmdNames = map[byte]string{
-0xc1: "Рукопожатие (Connect)",
-0x40: "Запрос параметра принтера",
-0x21: "Установка плотности",
-0x23: "Установка типа этикетки",
-0x01: "Старт задания печати",
-0x03: "Начало страницы",
-0x13: "Размер страницы",
-0x85: "Строка изображения",
-0x84: "Пустая строка",
-0xe3: "Конец страницы",
-0xf3: "Завершение задания",
-0xa3: "Запрос статуса печати",
-0x1a: "Чтение RFID этикеток",
-0x1c: "Чтение RFID риббона",
-0x59: "Калибровка датчика",
+	0xc1: "Рукопожатие (Connect)",
+	0x40: "Запрос параметра принтера",
+	0x21: "Установка плотности",
+	0x23: "Установка типа этикетки",
+	0x01: "Старт задания печати",
+	0x03: "Начало страницы",
+	0x13: "Размер страницы",
+	0x85: "Строка изображения",
+	0x84: "Пустая строка",
+	0xe3: "Конец страницы",
+	0xf3: "Завершение задания",
+	0xa3: "Запрос статуса печати",
+	0x1a: "Чтение RFID этикеток",
+	0x1c: "Чтение RFID риббона",
+	0x59: "Калибровка датчика",
 }
 
 func cmdTitle(cmd byte) string {
-if name, ok := cmdNames[cmd]; ok {
-return " (" + name + ")"
-}
-return ""
+	if name, ok := cmdNames[cmd]; ok {
+		return " (" + name + ")"
+	}
+	return ""
 }
 
 type waiter struct {
@@ -89,20 +89,20 @@ var printErrors = map[byte]string{
 }
 
 func (p *Printer) log(format string, args ...any) {
-msg := strings.TrimSpace(fmt.Sprintf(format, args...))
-if strings.HasPrefix(msg, "→") || strings.HasPrefix(msg, "←") {
-LogDebugMsg("%s", msg)
-return
-}
-if strings.HasPrefix(msg, "!") || strings.HasPrefix(msg, "⚠️") {
-LogWarn("%s", msg)
-return
-}
-if strings.HasPrefix(msg, "✅") {
-LogKey("%s", strings.TrimSpace(strings.TrimPrefix(msg, "✅")))
-return
-}
-LogInfoMsg("%s", msg)
+	msg := strings.TrimSpace(fmt.Sprintf(format, args...))
+	if strings.HasPrefix(msg, "→") || strings.HasPrefix(msg, "←") {
+		LogDebugMsg("%s", msg)
+		return
+	}
+	if strings.HasPrefix(msg, "!") || strings.HasPrefix(msg, "⚠️") {
+		LogWarn("%s", msg)
+		return
+	}
+	if strings.HasPrefix(msg, "✅") {
+		LogKey("%s", strings.TrimSpace(strings.TrimPrefix(msg, "✅")))
+		return
+	}
+	LogInfoMsg("%s", msg)
 }
 
 // ConnectMAC подключается по MAC-адресу.
@@ -223,15 +223,15 @@ func stopScan(adapter *bluetooth.Adapter) {
 
 // ScanPrinter ищет принтер по имени (например, «N1-»).
 var (
-adapterEnableOnce sync.Once
-adapterEnableErr  error
+	adapterEnableOnce sync.Once
+	adapterEnableErr  error
 )
 
 func ensureAdapterEnabled() error {
-adapterEnableOnce.Do(func() {
-adapterEnableErr = bluetooth.DefaultAdapter.Enable()
-})
-return adapterEnableErr
+	adapterEnableOnce.Do(func() {
+		adapterEnableErr = bluetooth.DefaultAdapter.Enable()
+	})
+	return adapterEnableErr
 }
 
 func ScanPrinter(nameHint string, timeout time.Duration, verbose bool) (string, error) {
@@ -384,28 +384,32 @@ func (p *Printer) Send(cmd byte, data []byte, want []byte, timeout time.Duration
 		return nil, nil
 	}
 	deadline := time.Now().Add(timeout)
-for {
-p.mu.Lock()
-hasErr := p.lastError != 0
-p.mu.Unlock()
-if hasErr {
-return nil, nil
-}
-rem := time.Until(deadline)
-if rem <= 0 {
-if cmd == cmdPrintStatus { LogDebugMsg("! нет ответа на 0x%02x за %s", cmd, timeout) } else { p.log("  ! нет ответа на 0x%02x за %s", cmd, timeout) }
-return nil, nil
-}
-step := 30 * time.Millisecond
-if rem < step {
-step = rem
-}
-select {
-case pkt := <-ch:
-return &pkt, nil
-case <-time.After(step):
-}
-}
+	for {
+		p.mu.Lock()
+		hasErr := p.lastError != 0
+		p.mu.Unlock()
+		if hasErr {
+			return nil, nil
+		}
+		rem := time.Until(deadline)
+		if rem <= 0 {
+			if cmd == cmdPrintStatus {
+				LogDebugMsg("! нет ответа на 0x%02x за %s", cmd, timeout)
+			} else {
+				p.log("  ! нет ответа на 0x%02x за %s", cmd, timeout)
+			}
+			return nil, nil
+		}
+		step := 30 * time.Millisecond
+		if rem < step {
+			step = rem
+		}
+		select {
+		case pkt := <-ch:
+			return &pkt, nil
+		case <-time.After(step):
+		}
+	}
 }
 
 func (p *Printer) Close() error {
@@ -497,86 +501,94 @@ func errorText(code byte) string {
 // PrinterErrorCode.DataError (0xdb, код 6). Проверено на живом N1 — без
 // паузы серия срывается. В черновике на Python пауза была 4 мс.
 func (p *Printer) sendRows(rows []Row) error {
-mode := strings.ToLower(strings.TrimSpace(p.printMode))
-if mode == "" {
-mode = activeCfg.PrintMode
-}
-if mode != "safe" {
-return p.sendRowsFast(rows)
-}
-return p.sendRowsSafe(rows)
+	mode := strings.ToLower(strings.TrimSpace(p.printMode))
+	if mode == "" {
+		mode = activeCfg.PrintMode
+	}
+	if mode != "safe" {
+		return p.sendRowsFast(rows)
+	}
+	return p.sendRowsSafe(rows)
 }
 
 func (p *Printer) sendRowsSafe(rows []Row) error {
-const rowDelay = 4 * time.Millisecond
-for i, row := range rows {
-if code := p.takeError(); code != 0 {
-return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
-}
-if row == nil {
-p.Send(cmdPrintEmptyRow, append(u16(i), 1), nil, 0)
-time.Sleep(rowDelay)
-continue
-}
-_, parts := countPixels(row, printheadPixels)
-payload := append(u16(i), parts[:]...)
-payload = append(payload, 1)
-payload = append(payload, row...)
-if err := p.sendBitmapRow(payload); err != nil {
-return err
-}
-time.Sleep(rowDelay)
-}
-return nil
+	const rowDelay = 4 * time.Millisecond
+	for i, row := range rows {
+		if code := p.takeError(); code != 0 {
+			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+		}
+		if row == nil {
+			p.Send(cmdPrintEmptyRow, append(u16(i), 1), nil, 0)
+			time.Sleep(rowDelay)
+			continue
+		}
+		_, parts := countPixels(row, printheadPixels)
+		payload := append(u16(i), parts[:]...)
+		payload = append(payload, 1)
+		payload = append(payload, row...)
+		if err := p.sendBitmapRow(payload); err != nil {
+			return err
+		}
+		time.Sleep(rowDelay)
+	}
+	return nil
 }
 
 func (p *Printer) sendRowsFast(rows []Row) error {
-batchSize := activeCfg.FastBatchSize; if batchSize < 1 { batchSize = 6 }; delayMs := activeCfg.FastBatchDelayMs; if delayMs < 0 { delayMs = 12 }; batchDelay := time.Duration(delayMs) * time.Millisecond
+	batchSize := activeCfg.FastBatchSize
+	if batchSize < 1 {
+		batchSize = 6
+	}
+	delayMs := activeCfg.FastBatchDelayMs
+	if delayMs < 0 {
+		delayMs = 12
+	}
+	batchDelay := time.Duration(delayMs) * time.Millisecond
 
-var batchBuf []byte
-inBatch := 0
+	var batchBuf []byte
+	inBatch := 0
 
-flushBatch := func() error {
-if len(batchBuf) == 0 {
-return nil
-}
-if _, err := p.char.WriteWithoutResponse(batchBuf); err != nil {
-return fmt.Errorf("отправка пачки строк: %w", err)
-}
-batchBuf = batchBuf[:0]
-inBatch = 0
-time.Sleep(batchDelay)
-return nil
-}
+	flushBatch := func() error {
+		if len(batchBuf) == 0 {
+			return nil
+		}
+		if _, err := p.char.WriteWithoutResponse(batchBuf); err != nil {
+			return fmt.Errorf("отправка пачки строк: %w", err)
+		}
+		batchBuf = batchBuf[:0]
+		inBatch = 0
+		time.Sleep(batchDelay)
+		return nil
+	}
 
-for i, row := range rows {
-if code := p.takeError(); code != 0 {
-if code == 0x06 {
-LogWarn("буфер принтера переполнен в режиме fast — рекомендуем --print-mode safe")
-}
-return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
-}
-var pkt []byte
-if row == nil {
-pkt = buildPacket(cmdPrintEmptyRow, append(u16(i), 1))
-LogDebugMsg("→ 0x%02x%s row=%d (empty)", cmdPrintEmptyRow, cmdTitle(cmdPrintEmptyRow), i)
-} else {
-_, parts := countPixels(row, printheadPixels)
-payload := append(u16(i), parts[:]...)
-payload = append(payload, 1)
-payload = append(payload, row...)
-pkt = buildPacket(cmdPrintBitmapRow, payload)
-LogDebugMsg("→ 0x%02x%s row=%d", cmdPrintBitmapRow, cmdTitle(cmdPrintBitmapRow), i)
-}
-batchBuf = append(batchBuf, pkt...)
-inBatch++
-if inBatch >= batchSize {
-if err := flushBatch(); err != nil {
-return err
-}
-}
-}
-return flushBatch()
+	for i, row := range rows {
+		if code := p.takeError(); code != 0 {
+			if code == 0x06 {
+				LogWarn("буфер принтера переполнен в режиме fast — рекомендуем --print-mode safe")
+			}
+			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+		}
+		var pkt []byte
+		if row == nil {
+			pkt = buildPacket(cmdPrintEmptyRow, append(u16(i), 1))
+			LogDebugMsg("→ 0x%02x%s row=%d (empty)", cmdPrintEmptyRow, cmdTitle(cmdPrintEmptyRow), i)
+		} else {
+			_, parts := countPixels(row, printheadPixels)
+			payload := append(u16(i), parts[:]...)
+			payload = append(payload, 1)
+			payload = append(payload, row...)
+			pkt = buildPacket(cmdPrintBitmapRow, payload)
+			LogDebugMsg("→ 0x%02x%s row=%d", cmdPrintBitmapRow, cmdTitle(cmdPrintBitmapRow), i)
+		}
+		batchBuf = append(batchBuf, pkt...)
+		inBatch++
+		if inBatch >= batchSize {
+			if err := flushBatch(); err != nil {
+				return err
+			}
+		}
+	}
+	return flushBatch()
 }
 
 // beginJob готовит задание печати на total страниц.
@@ -608,7 +620,8 @@ func (p *Printer) PrintRows(rows []Row, density, labelType byte, copies int) err
 	if err := p.sendRows(rows); err != nil {
 		return err
 	}
-	p.Send(cmdPageEnd, nil, nil, 0); time.Sleep(50 * time.Millisecond)
+	p.Send(cmdPageEnd, nil, nil, 0)
+	time.Sleep(50 * time.Millisecond)
 	return p.waitFinished(copies)
 }
 
@@ -638,14 +651,35 @@ func (p *Printer) PrintPages(pages [][]Row, density, labelType byte, copies int,
 	p.log("  серия: %d этикеток (%d шаблонов × %d копий), плотность %d, тип %d",
 		total, len(pages), copies, density, labelType)
 
-	p.mu.Lock(); p.printingNow = true; p.mu.Unlock(); defer func() { p.mu.Lock(); p.printingNow = false; p.mu.Unlock() }(); p.beginJob(total, density, labelType); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
+	p.takeError()
+	p.mu.Lock()
+	p.printingNow = true
+	p.mu.Unlock()
+	defer func() { p.mu.Lock(); p.printingNow = false; p.mu.Unlock() }()
+	p.beginJob(total, density, labelType)
+	if code := p.takeError(); code != 0 {
+		return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+	}
 	t0 := time.Now()
 	for i, rows := range flat {
-		if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; p.beginPage(len(rows), 1); if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }; if code := p.takeError(); code != 0 { return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code)) }
+		if code := p.takeError(); code != 0 {
+			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+		}
+		p.beginPage(len(rows), 1)
+		if code := p.takeError(); code != 0 {
+			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+		}
+		if code := p.takeError(); code != 0 {
+			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+		}
+		if code := p.takeError(); code != 0 {
+			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
+		}
 		if err := p.sendRows(rows); err != nil {
 			return fmt.Errorf("этикетка %d из %d: %w", i+1, total, err)
 		}
-		p.Send(cmdPageEnd, nil, nil, 0); time.Sleep(50 * time.Millisecond)
+		p.Send(cmdPageEnd, nil, nil, 0)
+		time.Sleep(50 * time.Millisecond)
 		// Ждём, пока принтер допечатает эту этикетку: иначе следующая
 		// уйдёт в занятый принтер и он ответит ошибкой данных.
 		if err := p.waitPageDone(20 * time.Second); err != nil {
@@ -683,7 +717,12 @@ func (p *Printer) waitPageDone(timeout time.Duration) error {
 		if code := p.takeError(); code != 0 {
 			return fmt.Errorf("принтер сообщил об ошибке: %s", errorText(code))
 		}
-		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, func() time.Duration { if activeCfg.StatusPollTimeoutMs > 0 { return time.Duration(activeCfg.StatusPollTimeoutMs) * time.Millisecond }; return 350 * time.Millisecond }())
+		pkt, _ := p.Send(cmdPrintStatus, nil, []byte{respPrintStatus}, func() time.Duration {
+			if activeCfg.StatusPollTimeoutMs > 0 {
+				return time.Duration(activeCfg.StatusPollTimeoutMs) * time.Millisecond
+			}
+			return 350 * time.Millisecond
+		}())
 		if pkt != nil && len(pkt.Data) >= 4 {
 			printed, fed := int(pkt.Data[2]), int(pkt.Data[3])
 			if printed >= 100 && fed >= 100 {
@@ -759,55 +798,55 @@ func (p *Printer) ReadRfid(ribbon bool) (RfidInfo, error) {
 
 // Calibrate выполняет тихую программную калибровку (0x23, 0x59) или физическую протяжку пустой этикетки.
 func (p *Printer) Calibrate(withFeed bool, lengthMM float64, labelType byte) error {
-if withFeed {
-LogInfoMsg("Запуск физической калибровки: протяжка пустой этикетки по датчику...")
-blank := NewLabelImage(lengthMM)
-return p.PrintRows(ImageToRows(blank, false), 1, labelType, 1)
-}
-LogInfoMsg("Запуск тихой программной калибровки датчика (0x23, 0x59)...")
-p.Send(cmdSetLabelType, []byte{labelType}, nil, 0)
-time.Sleep(80 * time.Millisecond)
-p.Send(0x59, []byte{0x01}, nil, 0)
-time.Sleep(400 * time.Millisecond)
-LogKey("Тихая калибровка завершена")
-return nil
+	if withFeed {
+		LogInfoMsg("Запуск физической калибровки: протяжка пустой этикетки по датчику...")
+		blank := NewLabelImage(lengthMM)
+		return p.PrintRows(ImageToRows(blank, false), 1, labelType, 1)
+	}
+	LogInfoMsg("Запуск тихой программной калибровки датчика (0x23, 0x59)...")
+	p.Send(cmdSetLabelType, []byte{labelType}, nil, 0)
+	time.Sleep(80 * time.Millisecond)
+	p.Send(0x59, []byte{0x01}, nil, 0)
+	time.Sleep(400 * time.Millisecond)
+	LogKey("Тихая калибровка завершена")
+	return nil
 }
 
 // StartKeepAlive запускает фоновый пинг (0xC1) каждые 8 секунд для удержания BLE-соединения.
 func (p *Printer) StartKeepAlive() {
-if p.keepAliveStop != nil {
-return
-}
-stopCh := make(chan struct{})
-p.keepAliveStop = stopCh
-go func() {
-ticker := time.NewTicker(8 * time.Second)
-defer ticker.Stop()
-for {
-select {
-case <-stopCh:
-return
-case <-ticker.C:
-_, _ = p.Send(cmdConnect, []byte{0x01}, nil, 0)
-}
-}
-}()
+	if p.keepAliveStop != nil {
+		return
+	}
+	stopCh := make(chan struct{})
+	p.keepAliveStop = stopCh
+	go func() {
+		ticker := time.NewTicker(8 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-ticker.C:
+				_, _ = p.Send(cmdConnect, []byte{0x01}, nil, 0)
+			}
+		}
+	}()
 }
 
 func (p *Printer) IsRfidLowIgnored() bool {
-if p == nil {
-return false
-}
-p.mu.Lock()
-defer p.mu.Unlock()
-return p.ignoreRfidLow
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.ignoreRfidLow
 }
 
 func (p *Printer) SetRfidLowIgnored(v bool) {
-if p == nil {
-return
-}
-p.mu.Lock()
-p.ignoreRfidLow = v
-p.mu.Unlock()
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	p.ignoreRfidLow = v
+	p.mu.Unlock()
 }
