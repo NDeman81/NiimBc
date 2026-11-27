@@ -211,3 +211,5 @@ header .design-link {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   z-index: 12 !important;
 }
+.el.is-invert { background: #111111 !important; color: #ffffff !important; border-color: #111111 !important; }
+.el.is-invert .txt { color: #ffffff !important; }

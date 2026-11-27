@@ -52,7 +52,7 @@ function renderCanvas() {
 
   elements.forEach((el, i) => {
     const node = document.createElement('div');
-    node.className = 'el' + (i === selected ? ' selected' : '') + (el.transparent ? ' is-transparent' : '');
+    node.className = 'el' + (i === selected ? ' selected' : '') + (el.transparent && !el.invert ? ' is-transparent' : '') + (el.kind === 'text' && el.invert ? ' is-invert' : '');
     node.dataset.i = i;
     node.style.left = el.x * scale + 'px';
     node.style.top = el.y * scale + 'px';
@@ -294,6 +294,8 @@ function showProps() {
     if ($('p-text')) $('p-text').value = el.text || '';
     if ($('p-align')) $('p-align').value = el.align || 'left';
     if ($('p-rotate')) $('p-rotate').value = String(el.rotate || 0);
+    if ($('p-invert')) $('p-invert').checked = !!el.invert;
+    if ($('p-transparent')) $('p-transparent').disabled = !!el.invert;
   }
   if (isBc) {
     if ($('p-bc-data')) $('p-bc-data').value = el.text || '';
@@ -309,7 +311,7 @@ function showProps() {
   if ($('p-thickness')) $('p-thickness').value = el.thickness || 0.3;
   if ($('diag-props')) $('diag-props').classList.toggle('hidden', el.kind !== 'diag');
   if (el.kind === 'diag') { if ($('p-x2')) $('p-x2').value = el.x2 ?? 0; if ($('p-y2')) $('p-y2').value = el.y2 ?? 0; }
-  if ($('p-transparent')) $('p-transparent').checked = !!el.transparent;
+  if ($('p-transparent')) { $('p-transparent').checked = !!el.transparent && !(el.kind === 'text' && el.invert); $('p-transparent').disabled = (el.kind === 'text' && !!el.invert); }
   if ($('p-hide-if')) $('p-hide-if').value = el.hideIfEmpty || '';
 }
 
@@ -329,7 +331,8 @@ bindProp('p-w', (el, inp) => { const v = parseFloat(inp.value); if (v >= 0.1) el
 bindProp('p-h', (el, inp) => { const v = parseFloat(inp.value); if (v >= 0.1) el.h = v; });
 bindProp('p-text', (el, inp) => { el.text = inp.value; });
 bindProp('p-align', (el, inp) => { el.align = inp.value; }, 'change');
-bindProp('p-rotate', (el, inp) => { el.rotate = parseInt(inp.value, 10) || 0; }, 'change');
+bindProp('p-rotate', 'p-invert', (el, inp) => { el.rotate = parseInt(inp.value, 10) || 0; }, 'change');
+bindProp('p-invert', (el, inp) => { el.invert = inp.checked; if (el.invert) el.transparent = false; if ($('p-transparent')) { $('p-transparent').checked = !!el.transparent; $('p-transparent').disabled = el.invert; } }, 'change');
 bindProp('p-family', (el, inp) => { el.family = inp.value; }, 'change');
 bindProp('p-fontsize', (el, inp) => { el.fontSize = inp.value; el.font = 0; el.line = 0; });
 bindProp('p-bold', (el, inp) => { el.bold = inp.checked; }, 'change');
@@ -1048,7 +1051,7 @@ if ($('icon-picker-menu')) {
 }
 
 // Запоминаем состояние при редактировании полей свойств элемента
-['p-x', 'p-y', 'p-w', 'p-h', 'p-x2', 'p-y2', 'p-text', 'p-align', 'p-rotate', 'p-family', 'p-fontsize', 'p-bold', 'p-bc-data', 'p-bc-format', 'p-bc-gap', 'p-bc-safe', 'p-thickness', 'p-transparent', 'p-hide-if', 'p-img-stretch', 'p-order'].forEach((id) => {
+['p-x', 'p-y', 'p-w', 'p-h', 'p-x2', 'p-y2', 'p-text', 'p-align', 'p-rotate', 'p-invert', 'p-family', 'p-fontsize', 'p-bold', 'p-bc-data', 'p-bc-format', 'p-bc-gap', 'p-bc-safe', 'p-thickness', 'p-transparent', 'p-hide-if', 'p-img-stretch', 'p-order'].forEach((id) => {
   if ($(id)) {
     $(id).addEventListener('focus', () => { _lastSavedSnapshot = captureUndoSnapshot(); });
     $(id).addEventListener('change', () => {
