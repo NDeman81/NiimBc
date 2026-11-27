@@ -225,6 +225,8 @@ func stopScan(adapter *bluetooth.Adapter) {
 var (
 	adapterEnableOnce sync.Once
 	adapterEnableErr  error
+	scanMu            sync.Mutex
+	lastScannedMAC    string
 )
 
 func ensureAdapterEnabled() error {
@@ -235,6 +237,13 @@ func ensureAdapterEnabled() error {
 }
 
 func ScanPrinter(nameHint string, timeout time.Duration, verbose bool) (string, error) {
+	scanMu.Lock()
+	defer scanMu.Unlock()
+
+	if lastScannedMAC != "" {
+		return lastScannedMAC, nil
+	}
+
 	var adapter = bluetooth.DefaultAdapter
 	if err := ensureAdapterEnabled(); err != nil {
 		return "", fmt.Errorf("не удалось включить Bluetooth-адаптер: %w", err)
@@ -244,27 +253,28 @@ func ScanPrinter(nameHint string, timeout time.Duration, verbose bool) (string, 
 		rssi int16
 		name string
 	}
+	var resMu sync.Mutex
 	best := found{rssi: -32768}
 	done := make(chan struct{})
+	scanExited := make(chan struct{})
 	var once sync.Once
 
-	// Scan блокируется до StopScan — держим его в горутине.
 	go func() {
-		err := adapter.Scan(func(_ *bluetooth.Adapter, r bluetooth.ScanResult) {
+		defer close(scanExited)
+		_ = adapter.Scan(func(_ *bluetooth.Adapter, r bluetooth.ScanResult) {
 			name := r.LocalName()
 			if name == "" {
 				return
 			}
 			if strings.Contains(strings.ToLower(name), strings.ToLower(nameHint)) {
+				resMu.Lock()
 				if r.RSSI > best.rssi {
 					best = found{addr: r.Address.String(), rssi: r.RSSI, name: name}
 				}
+				resMu.Unlock()
 				once.Do(func() { close(done) })
 			}
 		})
-		if verbose && err != nil {
-			fmt.Fprintf(os.Stderr, "  сканирование прервано: %v\n", err)
-		}
 	}()
 
 	select {
@@ -272,12 +282,22 @@ func ScanPrinter(nameHint string, timeout time.Duration, verbose bool) (string, 
 	case <-time.After(timeout):
 	}
 	stopScan(adapter)
+	select {
+	case <-scanExited:
+	case <-time.After(1500 * time.Millisecond):
+	}
+	time.Sleep(150 * time.Millisecond)
 
-	if best.addr == "" {
+	resMu.Lock()
+	addr, rssi, name := best.addr, best.rssi, best.name
+	resMu.Unlock()
+
+	if addr == "" {
 		return "", fmt.Errorf("принтер %q не найден", nameHint)
 	}
-	LogInfoMsg("найден %s  %s  RSSI %d\n", best.name, best.addr, best.rssi)
-	return best.addr, nil
+	lastScannedMAC = addr
+	LogInfoMsg("найден %s  %s  RSSI %d\n", name, addr, rssi)
+	return addr, nil
 }
 
 // setup находит сервис Niimbot и включает уведомления.
@@ -827,7 +847,12 @@ func (p *Printer) StartKeepAlive() {
 			case <-stopCh:
 				return
 			case <-ticker.C:
-				_, _ = p.Send(cmdConnect, []byte{0x01}, nil, 0)
+				p.mu.Lock()
+				busy := p.printingNow
+				p.mu.Unlock()
+				if !busy {
+					_, _ = p.Send(cmdConnect, []byte{0x01}, nil, 0)
+				}
 			}
 		}
 	}()

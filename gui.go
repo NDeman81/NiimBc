@@ -212,6 +212,16 @@ func withPrinter(address string, fn func(*Printer) error) error {
 	if strings.TrimSpace(address) == "" {
 		address = strings.TrimSpace(cfg.Address)
 	}
+	if strings.TrimSpace(address) == "" {
+		sharedMu.Lock()
+		address = strings.TrimSpace(sharedMAC)
+		sharedMu.Unlock()
+	}
+	if strings.TrimSpace(address) == "" {
+		scanMu.Lock()
+		address = strings.TrimSpace(lastScannedMAC)
+		scanMu.Unlock()
+	}
 	foundByName := false
 	if address == "" {
 		found, err := ScanPrinter("N1-", 12*time.Second, guiVerbose)
