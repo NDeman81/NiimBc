@@ -902,7 +902,7 @@ func startGUI(address string, port int, openBrowserFlag, appMode, verbose bool) 
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	url := "http://" + addr
-	fmt.Printf("Интерфейс: %s [BLE-FIX v2]\n", url)
+	fmt.Printf("Интерфейс: %s\n", url)
 	if nativeWindowAvailable() {
 		fmt.Println("Сборка с собственным окном")
 	}
